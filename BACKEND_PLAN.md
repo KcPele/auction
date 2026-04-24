@@ -405,10 +405,10 @@ Concurrency tests:
 
 ### Milestone 4: Wallet and Top-Ups
 
-- Wallets and ledger
-- OPay top-up session creation
+- [x] Wallets and ledger
+- [x] OPay top-up session creation
 - Verified OPay webhook processing
-- Wallet top-up confirmation
+- [x] Wallet top-up confirmation
 
 ### Milestone 5: Auctions and Bidding
 
