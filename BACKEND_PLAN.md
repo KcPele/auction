@@ -212,6 +212,8 @@ Ledger types:
 ### Notifications
 
 - Send WhatsApp messages through Meta
+- Store dashboard notifications in Postgres as the source of truth
+- Push fresh dashboard notifications over WebSocket to user and admin rooms
 - Keep the notification service channel-based so email through Resend can be added later
 - Queue and retry failures
 - Send auction announcements, top-up reminders, outbid notices, winner notices, and receipts
@@ -420,6 +422,8 @@ Concurrency tests:
 
 - BullMQ queues
 - Scheduled auction start and close
+- [x] Dashboard notification storage and read state
+- [x] WebSocket dashboard notification updates
 - WhatsApp notifications
 - Top-up reminders
 
