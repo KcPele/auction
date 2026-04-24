@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { AuthService } from '../auth/auth.service';
 import { CarsController } from './cars.controller';
 import { CarsService } from './cars.service';
 import type { CreateCarListingDto } from './dto/create-car-listing.dto';
@@ -10,6 +11,8 @@ describe('CarsController', () => {
   const user: AuthenticatedUser = {
     id: '11111111-1111-1111-1111-111111111111',
     role: UserRole.Mechanic,
+    authRole: 'user',
+    sessionId: 'session-id',
   };
   let controller: CarsController;
   let service: {
@@ -31,7 +34,10 @@ describe('CarsController', () => {
 
     const moduleRef = await Test.createTestingModule({
       controllers: [CarsController],
-      providers: [{ provide: CarsService, useValue: service }],
+      providers: [
+        { provide: CarsService, useValue: service },
+        { provide: AuthService, useValue: { getAuthenticatedUser: jest.fn() } },
+      ],
     }).compile();
 
     controller = moduleRef.get(CarsController);
@@ -102,4 +108,3 @@ function createCarDto(): CreateCarListingDto {
     durationMinutes: 120,
   };
 }
-

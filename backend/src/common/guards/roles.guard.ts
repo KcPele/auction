@@ -25,7 +25,14 @@ export class RolesGuard implements CanActivate {
       user?: AuthenticatedUser;
     }>();
 
-    return Boolean(request.user && roles.includes(request.user.role));
+    if (!request.user) {
+      return false;
+    }
+
+    if (roles.includes(UserRole.Admin)) {
+      return request.user.authRole === 'admin';
+    }
+
+    return roles.includes(request.user.role);
   }
 }
-

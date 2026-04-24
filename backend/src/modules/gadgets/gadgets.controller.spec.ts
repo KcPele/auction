@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { AuthService } from '../auth/auth.service';
 import type { CreateGadgetListingDto } from './dto/create-gadget-listing.dto';
 import type { UpdateGadgetListingDto } from './dto/update-gadget-listing.dto';
 import { GadgetsController } from './gadgets.controller';
@@ -10,6 +11,8 @@ describe('GadgetsController', () => {
   const user: AuthenticatedUser = {
     id: '11111111-1111-1111-1111-111111111111',
     role: UserRole.IndividualBidder,
+    authRole: 'user',
+    sessionId: 'session-id',
   };
   let controller: GadgetsController;
   let service: {
@@ -31,7 +34,10 @@ describe('GadgetsController', () => {
 
     const moduleRef = await Test.createTestingModule({
       controllers: [GadgetsController],
-      providers: [{ provide: GadgetsService, useValue: service }],
+      providers: [
+        { provide: GadgetsService, useValue: service },
+        { provide: AuthService, useValue: { getAuthenticatedUser: jest.fn() } },
+      ],
     }).compile();
 
     controller = moduleRef.get(GadgetsController);
@@ -103,4 +109,3 @@ function createGadgetDto(): CreateGadgetListingDto {
     durationMinutes: 60,
   };
 }
-

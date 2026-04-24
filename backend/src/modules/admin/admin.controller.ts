@@ -8,7 +8,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
@@ -24,7 +24,7 @@ import { ReviewListingDto } from './dto/review-listing.dto';
 import { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
 
 @ApiTags('admin')
-@ApiBearerAuth()
+@ApiCookieAuth('better-auth.session_token')
 @Roles(UserRole.Admin)
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin')

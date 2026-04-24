@@ -1,40 +1,118 @@
-import { Body, Controller, Post } from '@nestjs/common';
-import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { All, Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
+import {
+  ApiBody,
+  ApiExcludeEndpoint,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import type { IncomingHttpHeaders } from 'http';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { RegisterDto } from './dto/register.dto';
+import { SignInEmailDto } from './dto/sign-in-email.dto';
+import { SignUpEmailDto } from './dto/sign-up-email.dto';
+
+type AuthFastifyRequest = {
+  method: string;
+  url: string;
+  body?: unknown;
+  raw: {
+    url?: string;
+    headers: IncomingHttpHeaders;
+  };
+};
+
+type AuthFastifyReply = {
+  header: (key: string, value: string) => AuthFastifyReply;
+  status: (statusCode: number) => AuthFastifyReply;
+  send: (body: unknown) => unknown;
+};
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('register')
-  @ApiOperation({ summary: 'Register a bidder, dealer, or mechanic account' })
-  @ApiCreatedResponse({ description: 'User registered and tokens issued.' })
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  @Post('sign-up/email')
+  @ApiOperation({ summary: 'Create a Better Auth email/password account' })
+  @ApiBody({ type: SignUpEmailDto })
+  @ApiOkResponse({
+    description: 'Account created. Better Auth also sets the session cookie.',
+  })
+  signUpEmail(
+    @Body() _dto: SignUpEmailDto,
+    @Req() request: AuthFastifyRequest,
+    @Res() reply: AuthFastifyReply,
+  ) {
+    return this.forwardToBetterAuth(request, reply);
   }
 
-  @Post('login')
-  @ApiOperation({ summary: 'Login and receive access and refresh tokens' })
-  @ApiOkResponse({ description: 'Login successful.' })
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  @Post('sign-in/email')
+  @ApiOperation({ summary: 'Sign in with Better Auth email/password' })
+  @ApiBody({ type: SignInEmailDto })
+  @ApiOkResponse({
+    description: 'Signed in. Better Auth also sets the session cookie.',
+  })
+  signInEmail(
+    @Body() _dto: SignInEmailDto,
+    @Req() request: AuthFastifyRequest,
+    @Res() reply: AuthFastifyReply,
+  ) {
+    return this.forwardToBetterAuth(request, reply);
   }
 
-  @Post('refresh')
-  @ApiOperation({ summary: 'Rotate refresh token and issue new tokens' })
-  @ApiOkResponse({ description: 'Token refresh successful.' })
-  refresh(@Body() dto: RefreshTokenDto) {
-    return this.authService.refresh(dto);
+  @Post('sign-out')
+  @ApiOperation({ summary: 'Sign out the current Better Auth session' })
+  @ApiOkResponse({ description: 'Signed out.' })
+  signOut(@Req() request: AuthFastifyRequest, @Res() reply: AuthFastifyReply) {
+    return this.forwardToBetterAuth(request, reply);
   }
 
-  @Post('logout')
-  @ApiOperation({ summary: 'Revoke a refresh token' })
-  @ApiOkResponse({ description: 'Logout successful.' })
-  logout(@Body() dto: RefreshTokenDto) {
-    return this.authService.logout(dto);
+  @Get('get-session')
+  @ApiOperation({ summary: 'Return the current Better Auth session' })
+  @ApiOkResponse({ description: 'Current session returned.' })
+  getSession(
+    @Req() request: AuthFastifyRequest,
+    @Res() reply: AuthFastifyReply,
+  ) {
+    return this.forwardToBetterAuth(request, reply);
+  }
+
+  @All('*')
+  @ApiExcludeEndpoint()
+  handleAuth(
+    @Req() request: AuthFastifyRequest,
+    @Res() reply: AuthFastifyReply,
+  ) {
+    return this.forwardToBetterAuth(request, reply);
+  }
+
+  private async forwardToBetterAuth(
+    request: AuthFastifyRequest,
+    reply: AuthFastifyReply,
+  ) {
+    const response = await this.authService.handleRequest({
+      method: request.method,
+      url: request.raw.url ?? request.url,
+      body: request.body,
+      headers: request.raw.headers,
+    });
+    const text = await response.text();
+
+    response.headers.forEach((value, key) => reply.header(key, value));
+    reply.status(response.status);
+
+    return reply.send(this.parseBody(text, response.headers.get('content-type')));
+  }
+
+  private parseBody(text: string, contentType: string | null) {
+    if (!text) {
+      return null;
+    }
+
+    if (!contentType?.includes('application/json')) {
+      return text;
+    }
+
+    return JSON.parse(text) as unknown;
   }
 }

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -8,7 +8,7 @@ import { CreateCarListingDto } from './dto/create-car-listing.dto';
 import { UpdateCarListingDto } from './dto/update-car-listing.dto';
 
 @ApiTags('cars')
-@ApiBearerAuth()
+@ApiCookieAuth('better-auth.session_token')
 @UseGuards(JwtAuthGuard)
 @Controller('cars')
 export class CarsController {
@@ -53,4 +53,3 @@ export class CarsController {
     return this.carsService.submit(user.id, id);
   }
 }
-

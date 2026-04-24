@@ -37,7 +37,7 @@ async function bootstrap() {
     .setTitle('Auction API')
     .setDescription('Cars and gadgets auction backend')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addCookieAuth('better-auth.session_token')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);

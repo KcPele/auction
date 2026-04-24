@@ -21,10 +21,11 @@ const envSchema = z.object({
   REDIS_HOST: z.string().default('localhost'),
   REDIS_PORT: z.coerce.number().int().positive().default(6379),
   REDIS_PASSWORD: z.string().optional(),
-  JWT_ACCESS_SECRET: z.string().min(16),
-  JWT_REFRESH_SECRET: z.string().min(16),
-  JWT_ACCESS_TTL: z.string().default('15m'),
-  JWT_REFRESH_TTL: z.string().default('30d'),
+  BETTER_AUTH_URL: z.string().url().default('http://localhost:4000'),
+  BETTER_AUTH_SECRET: z
+    .string()
+    .min(32)
+    .default('local-better-auth-secret-change-before-production'),
   OPAY_BASE_URL: z.string().optional(),
   OPAY_MERCHANT_ID: z.string().optional(),
   OPAY_PUBLIC_KEY: z.string().optional(),
@@ -49,4 +50,3 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
 
   return parsed.data;
 }
-

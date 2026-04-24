@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { AuthService } from '../auth/auth.service';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import type { CreateAccessCodeDto } from './dto/create-access-code.dto';
@@ -14,6 +15,8 @@ describe('AdminController', () => {
   const adminUser: AuthenticatedUser = {
     id: '22222222-2222-2222-2222-222222222222',
     role: UserRole.Admin,
+    authRole: 'admin',
+    sessionId: 'session-id',
   };
   let controller: AdminController;
   let service: {
@@ -45,7 +48,10 @@ describe('AdminController', () => {
 
     const moduleRef = await Test.createTestingModule({
       controllers: [AdminController],
-      providers: [{ provide: AdminService, useValue: service }],
+      providers: [
+        { provide: AdminService, useValue: service },
+        { provide: AuthService, useValue: { getAuthenticatedUser: jest.fn() } },
+      ],
     }).compile();
 
     controller = moduleRef.get(AdminController);

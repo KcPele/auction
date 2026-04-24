@@ -10,7 +10,7 @@ Locked stack from the spec:
 - PostgreSQL, Redis, BullMQ
 - Socket.IO with Redis Pub/Sub adapter
 - OPay, Openinary, WhatsApp Business Cloud API
-- JWT access and refresh tokens, Argon2 password hashing
+- Better Auth email/password sessions with admin role authorization
 - Docker on Railway first, AWS later if scale requires it
 
 ## 2. Backend Principles
@@ -28,15 +28,15 @@ Locked stack from the spec:
 
 ### Auth
 
-- Registration, login, logout, refresh-token rotation
-- Argon2 password hashing
-- JWT access and refresh tokens
-- Refresh-token revocation
+- Better Auth email/password registration and login
+- Better Auth cookie sessions
+- Better Auth admin plugin for role-based admin authorization
+- App profile sync into the domain `users` table
 
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/refresh`
-- `POST /auth/logout`
+- `POST /auth/sign-up/email`
+- `POST /auth/sign-in/email`
+- `POST /auth/sign-out`
+- `GET /auth/get-session`
 
 ### Users
 
@@ -339,8 +339,7 @@ Important constraints:
 
 ## 7. Security
 
-- Argon2 password hashing
-- Hashed refresh tokens
+- Better Auth password hashing and session handling
 - OPay signature verification
 - Idempotent webhook handling
 - Rate limits on auth, bid, and payment endpoints
@@ -353,7 +352,7 @@ Important constraints:
 
 Unit tests:
 
-- Auth token issuing and refresh rotation
+- Better Auth route forwarding and session guard behavior
 - Hold amount calculation
 - Bid validation
 - Wallet ledger movement
@@ -361,7 +360,7 @@ Unit tests:
 
 Integration tests:
 
-- Register, login, refresh token
+- Sign up, sign in, session lookup, sign out
 - Top-up webhook confirmation
 - Bid with enough and insufficient balance
 - Outbid hold release
@@ -379,28 +378,28 @@ Concurrency tests:
 
 ### Milestone 1: Foundation
 
-- Scaffold NestJS with Fastify
-- Add config validation
-- Add PostgreSQL and migrations
-- Add Redis
-- Add validation, errors, logging, Swagger
-- Add Docker Compose for local PostgreSQL and Redis
+- [x] Scaffold NestJS with Fastify
+- [x] Add config validation
+- [x] Add PostgreSQL and migrations
+- [x] Add Redis
+- [x] Add validation, errors, logging, Swagger
+- [x] Add Docker Compose for local PostgreSQL and Redis
 
 ### Milestone 2: Auth, Users, Admin
 
-- Registration and login
-- JWT access and refresh tokens
-- Roles and guards
-- User profile and notification preferences
-- Listing-access applications
-- Admin access-code issuance and manual permission grants
+- [x] Better Auth registration and login
+- [x] Better Auth session cookies
+- [x] Better Auth admin roles and Nest guards
+- [x] User profile and notification preferences
+- [x] Listing-access applications
+- [x] Admin access-code issuance and manual permission grants
 
 ### Milestone 3: Uploads and Listings
 
-- Openinary upload service
-- Car listing drafts and submission
-- Gadget listing drafts and submission
-- Admin approval and rejection
+- [ ] Openinary upload service
+- [x] Car listing drafts and submission
+- [x] Gadget listing drafts and submission
+- [x] Admin approval and rejection
 
 ### Milestone 4: Wallet and Top-Ups
 

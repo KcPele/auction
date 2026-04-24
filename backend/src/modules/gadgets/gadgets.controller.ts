@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -8,7 +8,7 @@ import { UpdateGadgetListingDto } from './dto/update-gadget-listing.dto';
 import { GadgetsService } from './gadgets.service';
 
 @ApiTags('gadgets')
-@ApiBearerAuth()
+@ApiCookieAuth('better-auth.session_token')
 @UseGuards(JwtAuthGuard)
 @Controller('gadgets')
 export class GadgetsController {
@@ -56,4 +56,3 @@ export class GadgetsController {
     return this.gadgetsService.submit(user.id, id);
   }
 }
-

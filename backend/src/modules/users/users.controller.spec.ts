@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { AuthService } from '../auth/auth.service';
 import type { ApplyListingAccessDto } from './dto/apply-listing-access.dto';
 import type { RedeemAccessCodeDto } from './dto/redeem-access-code.dto';
 import type { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
@@ -12,6 +13,8 @@ describe('UsersController', () => {
   const currentUser: AuthenticatedUser = {
     id: '11111111-1111-1111-1111-111111111111',
     role: UserRole.IndividualBidder,
+    authRole: 'user',
+    sessionId: 'session-id',
   };
   let controller: UsersController;
   let service: {
@@ -33,7 +36,10 @@ describe('UsersController', () => {
 
     const moduleRef = await Test.createTestingModule({
       controllers: [UsersController],
-      providers: [{ provide: UsersService, useValue: service }],
+      providers: [
+        { provide: UsersService, useValue: service },
+        { provide: AuthService, useValue: { getAuthenticatedUser: jest.fn() } },
+      ],
     }).compile();
 
     controller = moduleRef.get(UsersController);

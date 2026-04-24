@@ -1,194 +1,325 @@
 import {
   BadRequestException,
   Injectable,
+  OnModuleDestroy,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import type { JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as argon2 from 'argon2';
-import { IsNull, MoreThan, Repository } from 'typeorm';
+import type { IncomingHttpHeaders } from 'http';
+import { Pool } from 'pg';
+import { Repository } from 'typeorm';
 import { UserRole } from '../../common/enums/user-role.enum';
+import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { NotificationPreference } from '../users/entities/notification-preference.entity';
 import { User } from '../users/entities/user.entity';
-import { presentUser } from '../users/presenters/user.presenter';
-import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { RegisterDto } from './dto/register.dto';
-import { RefreshToken } from './entities/refresh-token.entity';
-import { AuthTokenPayload } from './types/auth-token-payload';
-import { parseTokenDuration } from './utils/token-duration.util';
+
+type BetterAuthModule = {
+  betterAuth: (options: Record<string, unknown>) => BetterAuthInstance;
+};
+type BetterAuthNodeModule = {
+  fromNodeHeaders: (headers: IncomingHttpHeaders) => Headers;
+};
+type BetterAuthPluginsModule = {
+  admin: (options: Record<string, unknown>) => unknown;
+};
+
+type BetterAuthInstance = {
+  handler: (request: Request) => Promise<Response>;
+  api: {
+    getSession: (context: { headers: Headers }) => Promise<{
+      user: {
+        id: string;
+        role?: string | string[] | null;
+      };
+      session: { id: string };
+    } | null>;
+  };
+};
+
+type BetterAuthUser = {
+  id: string;
+  email: string;
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
+  appRole?: string;
+  nin?: string | null;
+};
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleDestroy {
+  private auth: BetterAuthInstance | null = null;
+  private authInit: Promise<BetterAuthInstance> | null = null;
+  private nodeHelpers: Promise<BetterAuthNodeModule> | null = null;
+  private pool: Pool | null = null;
+
   constructor(
+    private readonly config: ConfigService,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     @InjectRepository(NotificationPreference)
     private readonly preferencesRepository: Repository<NotificationPreference>,
-    @InjectRepository(RefreshToken)
-    private readonly refreshTokensRepository: Repository<RefreshToken>,
-    private readonly jwtService: JwtService,
-    private readonly config: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    if (dto.role === UserRole.Admin) {
-      throw new BadRequestException('Admin users cannot self-register');
-    }
+  async handleRequest(request: {
+    method: string;
+    url: string;
+    body?: unknown;
+    headers: IncomingHttpHeaders;
+  }) {
+    const auth = await this.getAuth();
+    const { fromNodeHeaders } = await this.getNodeHelpers();
+    const url = new URL(request.url, this.getOrigin(request.headers));
+    const body = this.shouldForwardBody(request.method, request.body)
+      ? JSON.stringify(request.body)
+      : undefined;
 
-    const email = dto.email.toLowerCase().trim();
-    await this.ensureUniqueIdentity(email, dto.phone);
-
-    const user = this.usersRepository.create({
-      email,
-      phone: dto.phone,
-      passwordHash: await argon2.hash(dto.password),
-      firstName: dto.firstName.trim(),
-      lastName: dto.lastName.trim(),
-      role: dto.role ?? UserRole.IndividualBidder,
-      nin: dto.nin ?? null,
-    });
-    const savedUser = await this.usersRepository.save(user);
-
-    await this.preferencesRepository.save(
-      this.preferencesRepository.create({ userId: savedUser.id }),
-    );
-
-    return this.buildAuthResponse(savedUser);
-  }
-
-  async login(dto: LoginDto) {
-    const user = await this.usersRepository.findOne({
-      where: { email: dto.email.toLowerCase().trim(), isActive: true },
-    });
-
-    if (!user || !(await argon2.verify(user.passwordHash, dto.password))) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    return this.buildAuthResponse(user);
-  }
-
-  async refresh(dto: RefreshTokenDto) {
-    const payload = await this.verifyRefreshToken(dto.refreshToken);
-    const tokenRecord = await this.findMatchingRefreshToken(
-      payload.sub,
-      dto.refreshToken,
-    );
-
-    if (!tokenRecord) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    await this.refreshTokensRepository.update(tokenRecord.id, {
-      revokedAt: new Date(),
-    });
-
-    const user = await this.usersRepository.findOneByOrFail({
-      id: payload.sub,
-    });
-
-    return this.buildAuthResponse(user);
-  }
-
-  async logout(dto: RefreshTokenDto) {
-    const payload = await this.verifyRefreshToken(dto.refreshToken);
-    const tokenRecord = await this.findMatchingRefreshToken(
-      payload.sub,
-      dto.refreshToken,
-    );
-
-    if (tokenRecord) {
-      await this.refreshTokensRepository.update(tokenRecord.id, {
-        revokedAt: new Date(),
-      });
-    }
-
-    return { success: true };
-  }
-
-  private async ensureUniqueIdentity(email: string, phone: string) {
-    const existing = await this.usersRepository.findOne({
-      where: [{ email }, { phone }],
-    });
-
-    if (existing) {
-      throw new BadRequestException('Email or phone already exists');
-    }
-  }
-
-  private async buildAuthResponse(user: User) {
-    const payload: AuthTokenPayload = {
-      sub: user.id,
-      role: user.role,
-    };
-    const accessTtl = this.config.getOrThrow<string>(
-      'JWT_ACCESS_TTL',
-    ) as JwtSignOptions['expiresIn'];
-    const refreshTtl = this.config.getOrThrow<string>(
-      'JWT_REFRESH_TTL',
-    ) as JwtSignOptions['expiresIn'];
-    const accessToken = await this.jwtService.signAsync(payload, {
-      secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      expiresIn: accessTtl,
-    });
-    const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: refreshTtl,
-    });
-
-    await this.saveRefreshToken(user.id, refreshToken);
-
-    return {
-      user: presentUser(user),
-      accessToken,
-      refreshToken,
-    };
-  }
-
-  private async saveRefreshToken(userId: string, refreshToken: string) {
-    const ttl = this.config.getOrThrow<string>('JWT_REFRESH_TTL');
-    const expiresAt = new Date(Date.now() + parseTokenDuration(ttl));
-
-    await this.refreshTokensRepository.save(
-      this.refreshTokensRepository.create({
-        userId,
-        tokenHash: await argon2.hash(refreshToken),
-        expiresAt,
-        revokedAt: null,
+    return auth.handler(
+      new Request(url.toString(), {
+        method: request.method,
+        headers: fromNodeHeaders(request.headers),
+        body,
       }),
     );
   }
 
-  private async verifyRefreshToken(refreshToken: string) {
-    try {
-      return await this.jwtService.verifyAsync<AuthTokenPayload>(refreshToken, {
-        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      });
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-  }
-
-  private async findMatchingRefreshToken(userId: string, refreshToken: string) {
-    const tokenRecords = await this.refreshTokensRepository.find({
-      where: {
-        userId,
-        revokedAt: IsNull(),
-        expiresAt: MoreThan(new Date()),
-      },
-      order: { createdAt: 'DESC' },
-      take: 10,
+  async getAuthenticatedUser(
+    headers: IncomingHttpHeaders,
+  ): Promise<AuthenticatedUser> {
+    const auth = await this.getAuth();
+    const { fromNodeHeaders } = await this.getNodeHelpers();
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(headers),
     });
 
-    for (const tokenRecord of tokenRecords) {
-      if (await argon2.verify(tokenRecord.tokenHash, refreshToken)) {
-        return tokenRecord;
-      }
+    if (!session) {
+      throw new UnauthorizedException('Authentication required');
     }
 
-    return null;
+    const appUser = await this.usersRepository.findOneBy({
+      id: session.user.id,
+      isActive: true,
+    });
+
+    return {
+      id: session.user.id,
+      role: this.getEffectiveRole(session.user.role, appUser?.role),
+      authRole: this.getAuthRole(session.user.role),
+      sessionId: session.session.id,
+    };
   }
+
+  async onModuleDestroy() {
+    await this.pool?.end();
+  }
+
+  private async getAuth() {
+    if (this.auth) {
+      return this.auth;
+    }
+
+    this.authInit ??= this.createAuth();
+    this.auth = await this.authInit;
+
+    return this.auth;
+  }
+
+  private async createAuth(): Promise<BetterAuthInstance> {
+    const [{ betterAuth }, { admin }] = await Promise.all([
+      this.importEsm<BetterAuthModule>('better-auth'),
+      this.importEsm<BetterAuthPluginsModule>('better-auth/plugins'),
+    ]);
+
+    this.pool = new Pool({ connectionString: this.databaseUrl });
+
+    return betterAuth({
+      appName: this.config.getOrThrow<string>('APP_NAME'),
+      baseURL: this.config.getOrThrow<string>('BETTER_AUTH_URL'),
+      basePath: '/api/v1/auth',
+      secret: this.config.getOrThrow<string>('BETTER_AUTH_SECRET'),
+      database: this.pool,
+      trustedOrigins: this.config
+        .getOrThrow<string>('CORS_ORIGINS')
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+      emailAndPassword: { enabled: true, minPasswordLength: 8 },
+      advanced: { database: { generateId: 'uuid' } },
+      user: this.userSchema,
+      session: this.sessionSchema,
+      account: this.accountSchema,
+      verification: this.verificationSchema,
+      plugins: [admin({ defaultRole: 'user', adminRoles: ['admin'] })],
+      databaseHooks: {
+        user: {
+          create: {
+            before: async (user: BetterAuthUser) => ({
+              data: { ...user, role: 'user' },
+            }),
+            after: async (user: BetterAuthUser) => {
+              await this.createAppProfile(user as BetterAuthUser);
+            },
+          },
+        },
+      },
+    }) as BetterAuthInstance;
+  }
+
+  private async createAppProfile(authUser: BetterAuthUser) {
+    const appRole = this.toAppRole(authUser.appRole);
+
+    if (appRole === UserRole.Admin) {
+      throw new BadRequestException('Admin users cannot self-register');
+    }
+
+    await this.usersRepository.save(
+      this.usersRepository.create({
+        id: authUser.id,
+        email: authUser.email.toLowerCase().trim(),
+        phone: this.requiredField(authUser.phone, 'phone'),
+        passwordHash: null,
+        firstName: this.requiredField(authUser.firstName, 'firstName'),
+        lastName: this.requiredField(authUser.lastName, 'lastName'),
+        role: appRole,
+        nin: authUser.nin ?? null,
+      }),
+    );
+
+    await this.preferencesRepository.save(
+      this.preferencesRepository.create({ userId: authUser.id }),
+    );
+  }
+
+  private getNodeHelpers() {
+    this.nodeHelpers ??= this.importEsm<BetterAuthNodeModule>(
+      'better-auth/node',
+    );
+
+    return this.nodeHelpers;
+  }
+
+  private get databaseUrl() {
+    const host = this.config.getOrThrow<string>('DATABASE_HOST');
+    const port = this.config.getOrThrow<number>('DATABASE_PORT');
+    const user = this.config.getOrThrow<string>('DATABASE_USER');
+    const password = this.config.getOrThrow<string>('DATABASE_PASSWORD');
+    const name = this.config.getOrThrow<string>('DATABASE_NAME');
+
+    return `postgres://${user}:${password}@${host}:${port}/${name}`;
+  }
+
+  private getOrigin(headers: IncomingHttpHeaders) {
+    const protocol = headers['x-forwarded-proto'] ?? 'http';
+    const host = headers['x-forwarded-host'] ?? headers.host ?? 'localhost';
+
+    return `${String(protocol).split(',')[0]}://${String(host).split(',')[0]}`;
+  }
+
+  private getEffectiveRole(
+    authRole: string | string[] | null | undefined,
+    appRole?: UserRole,
+  ) {
+    return this.getAuthRole(authRole) === 'admin'
+      ? UserRole.Admin
+      : (appRole ?? UserRole.IndividualBidder);
+  }
+
+  private getAuthRole(role: string | string[] | null | undefined) {
+    const roles = Array.isArray(role) ? role : String(role ?? '').split(',');
+
+    return roles.map((value) => value.trim().toLowerCase()).includes('admin')
+      ? 'admin'
+      : 'user';
+  }
+
+  private toAppRole(role: string | undefined) {
+    if (!role) {
+      return UserRole.IndividualBidder;
+    }
+
+    if (!Object.values(UserRole).includes(role as UserRole)) {
+      throw new BadRequestException('Invalid account role');
+    }
+
+    return role as UserRole;
+  }
+
+  private requiredField(value: string | undefined, field: string) {
+    if (!value?.trim()) {
+      throw new BadRequestException(`${field} is required`);
+    }
+
+    return value.trim();
+  }
+
+  private shouldForwardBody(method: string, body: unknown) {
+    return !['GET', 'HEAD'].includes(method.toUpperCase()) && body != null;
+  }
+
+  private async importEsm<T>(specifier: string): Promise<T> {
+    const importer = new Function('specifier', 'return import(specifier)') as (
+      specifier: string,
+    ) => Promise<T>;
+
+    return importer(specifier);
+  }
+
+  private readonly userSchema = {
+    modelName: 'auth_users',
+    fields: {
+      emailVerified: 'email_verified',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+    additionalFields: {
+      phone: { type: 'string', required: true, unique: true },
+      firstName: { type: 'string', required: true, fieldName: 'first_name' },
+      lastName: { type: 'string', required: true, fieldName: 'last_name' },
+      appRole: {
+        type: 'string',
+        required: false,
+        fieldName: 'app_role',
+        defaultValue: UserRole.IndividualBidder,
+      },
+      nin: { type: 'string', required: false },
+    },
+  } as const;
+
+  private readonly sessionSchema = {
+    modelName: 'auth_sessions',
+    fields: {
+      userId: 'user_id',
+      expiresAt: 'expires_at',
+      ipAddress: 'ip_address',
+      userAgent: 'user_agent',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+  } as const;
+
+  private readonly accountSchema = {
+    modelName: 'auth_accounts',
+    fields: {
+      accountId: 'account_id',
+      providerId: 'provider_id',
+      userId: 'user_id',
+      accessToken: 'access_token',
+      refreshToken: 'refresh_token',
+      idToken: 'id_token',
+      accessTokenExpiresAt: 'access_token_expires_at',
+      refreshTokenExpiresAt: 'refresh_token_expires_at',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+  } as const;
+
+  private readonly verificationSchema = {
+    modelName: 'auth_verifications',
+    fields: {
+      expiresAt: 'expires_at',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+  } as const;
 }

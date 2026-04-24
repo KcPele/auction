@@ -1,26 +1,15 @@
 import { Test } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import type { LoginDto } from './dto/login.dto';
-import type { RefreshTokenDto } from './dto/refresh-token.dto';
-import type { RegisterDto } from './dto/register.dto';
+import type { SignInEmailDto } from './dto/sign-in-email.dto';
+import type { SignUpEmailDto } from './dto/sign-up-email.dto';
 
 describe('AuthController', () => {
   let controller: AuthController;
-  let service: {
-    register: jest.Mock;
-    login: jest.Mock;
-    refresh: jest.Mock;
-    logout: jest.Mock;
-  };
+  let service: { handleRequest: jest.Mock };
 
   beforeEach(async () => {
-    service = {
-      register: jest.fn(),
-      login: jest.fn(),
-      refresh: jest.fn(),
-      logout: jest.fn(),
-    };
+    service = { handleRequest: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       controllers: [AuthController],
@@ -30,52 +19,106 @@ describe('AuthController', () => {
     controller = moduleRef.get(AuthController);
   });
 
-  it('registers a user', async () => {
-    const dto: RegisterDto = {
+  it('forwards email sign up to Better Auth', async () => {
+    const dto: SignUpEmailDto = {
+      name: 'Ada Okafor',
       email: 'buyer@example.com',
-      phone: '+2348012345678',
       password: 'strongPassword123',
+      phone: '+2348012345678',
       firstName: 'Ada',
       lastName: 'Okafor',
     };
-    service.register.mockResolvedValue({ accessToken: 'access' });
+    const { request, reply } = createRequest(
+      'POST',
+      '/api/v1/auth/sign-up/email',
+      dto,
+    );
+    service.handleRequest.mockResolvedValue(jsonResponse({ token: 'session' }));
 
-    await expect(controller.register(dto)).resolves.toEqual({
-      accessToken: 'access',
+    await controller.signUpEmail(dto, request, reply);
+
+    expect(service.handleRequest).toHaveBeenCalledWith({
+      method: 'POST',
+      url: '/api/v1/auth/sign-up/email',
+      body: dto,
+      headers: request.raw.headers,
     });
-    expect(service.register).toHaveBeenCalledWith(dto);
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({ token: 'session' });
   });
 
-  it('logs a user in', async () => {
-    const dto: LoginDto = {
+  it('forwards email sign in to Better Auth', async () => {
+    const dto: SignInEmailDto = {
       email: 'buyer@example.com',
       password: 'strongPassword123',
     };
-    service.login.mockResolvedValue({ accessToken: 'access' });
+    const { request, reply } = createRequest(
+      'POST',
+      '/api/v1/auth/sign-in/email',
+      dto,
+    );
+    service.handleRequest.mockResolvedValue(jsonResponse({ token: 'session' }));
 
-    await expect(controller.login(dto)).resolves.toEqual({
-      accessToken: 'access',
+    await controller.signInEmail(dto, request, reply);
+
+    expect(service.handleRequest).toHaveBeenCalledWith({
+      method: 'POST',
+      url: '/api/v1/auth/sign-in/email',
+      body: dto,
+      headers: request.raw.headers,
     });
-    expect(service.login).toHaveBeenCalledWith(dto);
+    expect(reply.send).toHaveBeenCalledWith({ token: 'session' });
   });
 
-  it('refreshes tokens', async () => {
-    const dto: RefreshTokenDto = { refreshToken: 'refresh' };
-    service.refresh.mockResolvedValue({ accessToken: 'new-access' });
+  it('forwards sign out to Better Auth', async () => {
+    const { request, reply } = createRequest(
+      'POST',
+      '/api/v1/auth/sign-out',
+      undefined,
+    );
+    service.handleRequest.mockResolvedValue(jsonResponse({ success: true }));
 
-    await expect(controller.refresh(dto)).resolves.toEqual({
-      accessToken: 'new-access',
-    });
-    expect(service.refresh).toHaveBeenCalledWith(dto);
+    await controller.signOut(request, reply);
+
+    expect(reply.send).toHaveBeenCalledWith({ success: true });
   });
 
-  it('logs a user out', async () => {
-    const dto: RefreshTokenDto = { refreshToken: 'refresh' };
-    service.logout.mockResolvedValue({ success: true });
+  it('forwards session lookups to Better Auth', async () => {
+    const { request, reply } = createRequest(
+      'GET',
+      '/api/v1/auth/get-session',
+      undefined,
+    );
+    service.handleRequest.mockResolvedValue(jsonResponse({ user: null }));
 
-    await expect(controller.logout(dto)).resolves.toEqual({
-      success: true,
-    });
-    expect(service.logout).toHaveBeenCalledWith(dto);
+    await controller.getSession(request, reply);
+
+    expect(reply.send).toHaveBeenCalledWith({ user: null });
   });
 });
+
+function createRequest(method: string, url: string, body: unknown) {
+  return {
+    request: {
+      method,
+      url,
+      raw: {
+        url,
+        headers: { host: 'localhost:4000' },
+      },
+      body,
+    },
+    reply: {
+      header: jest.fn().mockReturnThis(),
+      status: jest.fn().mockReturnThis(),
+      send: jest.fn(),
+    },
+  };
+}
+
+function jsonResponse(body: unknown) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
