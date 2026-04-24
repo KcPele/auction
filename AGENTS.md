@@ -1,14 +1,18 @@
 @AGENTS.md
 
 - do not write more than 500lines of code in a single file
-
+- use pnpm for package management
 
 ### Frontend
 - always create components and a component should not do more than at max 3things
 
+- do not hardcode colors, fonts, sizes, etc , create the variable name and make use of it, if they are sizes or font use the tailwindcss size that matchs what u want else u can create a resuable style(size etc) in styles folder and use it
+- designs should aslo be mobile responsive
+
 - use hooks to abstract logic and component should render the ui
 - use tailwindcss for styling
-- use shadcn ui for components
+- use shadcn ui for components, try not to reinvent the wheel, use components and style them appropriately
+
 - animations should be soft and smooth, no use of heavy animations that will affect speed of the app(use light weight animations and motions)
 
 - folders for a page should be in the components folder and inside components folder create a folder with the name of the page and there should the files be. eg landing page should have a folder named landing and inside that folder there should be a files , hooks, types, and utils
