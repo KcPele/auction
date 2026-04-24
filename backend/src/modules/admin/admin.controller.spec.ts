@@ -7,6 +7,7 @@ import { AdminService } from './admin.service';
 import type { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import type { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import type { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
+import type { ReviewListingDto } from './dto/review-listing.dto';
 import type { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
 
 describe('AdminController', () => {
@@ -21,6 +22,9 @@ describe('AdminController', () => {
     listPendingApplications: jest.Mock;
     approveApplication: jest.Mock;
     rejectApplication: jest.Mock;
+    listPendingListings: jest.Mock;
+    approveListing: jest.Mock;
+    rejectListing: jest.Mock;
     listPlatformFees: jest.Mock;
     updatePlatformFee: jest.Mock;
   };
@@ -32,6 +36,9 @@ describe('AdminController', () => {
       listPendingApplications: jest.fn(),
       approveApplication: jest.fn(),
       rejectApplication: jest.fn(),
+      listPendingListings: jest.fn(),
+      approveListing: jest.fn(),
+      rejectListing: jest.fn(),
       listPlatformFees: jest.fn(),
       updatePlatformFee: jest.fn(),
     };
@@ -105,6 +112,56 @@ describe('AdminController', () => {
     expect(service.rejectApplication).toHaveBeenCalledWith(
       adminUser.id,
       'app',
+      dto,
+    );
+  });
+
+  it('lists pending car and gadget listings', async () => {
+    service.listPendingListings.mockResolvedValue({
+      carListings: [],
+      gadgetListings: [],
+    });
+
+    await expect(controller.listPendingListings()).resolves.toEqual({
+      carListings: [],
+      gadgetListings: [],
+    });
+    expect(service.listPendingListings).toHaveBeenCalledWith();
+  });
+
+  it('approves a pending listing', async () => {
+    const dto: ReviewListingDto = { reviewNote: 'Ready' };
+    service.approveListing.mockResolvedValue({ carListing: { id: 'car-id' } });
+
+    await expect(
+      controller.approveListing(adminUser, ListingCategory.Car, 'car-id', dto),
+    ).resolves.toEqual({ carListing: { id: 'car-id' } });
+    expect(service.approveListing).toHaveBeenCalledWith(
+      adminUser.id,
+      ListingCategory.Car,
+      'car-id',
+      dto,
+    );
+  });
+
+  it('rejects a pending listing', async () => {
+    const dto: ReviewListingDto = { reviewNote: 'Missing photos' };
+    service.rejectListing.mockResolvedValue({
+      gadgetListing: { id: 'gadget-id' },
+    });
+
+    await expect(
+      controller.rejectListing(
+        adminUser,
+        ListingCategory.Gadget,
+        'gadget-id',
+        dto,
+      ),
+    ).resolves.toEqual({ gadgetListing: { id: 'gadget-id' } });
+    expect(service.rejectListing).toHaveBeenCalledWith(
+      adminUser.id,
+      ListingCategory.Gadget,
+      'gadget-id',
       dto,
     );
   });

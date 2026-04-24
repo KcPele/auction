@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseEnumPipe,
   Patch,
   Post,
   UseGuards,
@@ -11,6 +12,7 @@ import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -18,6 +20,7 @@ import { AdminService } from './admin.service';
 import { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
+import { ReviewListingDto } from './dto/review-listing.dto';
 import { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
 
 @ApiTags('admin')
@@ -55,6 +58,13 @@ export class AdminController {
     return this.adminService.listPendingApplications();
   }
 
+  @Get('listings/pending')
+  @ApiOperation({ summary: 'List pending car and gadget listings' })
+  @ApiOkResponse({ description: 'Pending listings returned.' })
+  listPendingListings() {
+    return this.adminService.listPendingListings();
+  }
+
   @Post('listing-access-applications/:id/approve')
   @ApiOperation({ summary: 'Approve a listing access application' })
   @ApiCreatedResponse({ description: 'Application approved.' })
@@ -75,6 +85,32 @@ export class AdminController {
     @Body() dto: ReviewListingApplicationDto,
   ) {
     return this.adminService.rejectApplication(user.id, id, dto);
+  }
+
+  @Post('listings/:category/:id/approve')
+  @ApiOperation({ summary: 'Approve a pending car or gadget listing' })
+  @ApiCreatedResponse({ description: 'Listing approved.' })
+  approveListing(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('category', new ParseEnumPipe(ListingCategory))
+    category: ListingCategory,
+    @Param('id') id: string,
+    @Body() dto: ReviewListingDto,
+  ) {
+    return this.adminService.approveListing(user.id, category, id, dto);
+  }
+
+  @Post('listings/:category/:id/reject')
+  @ApiOperation({ summary: 'Reject a pending car or gadget listing' })
+  @ApiCreatedResponse({ description: 'Listing rejected.' })
+  rejectListing(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('category', new ParseEnumPipe(ListingCategory))
+    category: ListingCategory,
+    @Param('id') id: string,
+    @Body() dto: ReviewListingDto,
+  ) {
+    return this.adminService.rejectListing(user.id, category, id, dto);
   }
 
   @Get('settings/platform-fees')

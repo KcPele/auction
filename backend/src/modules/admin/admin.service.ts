@@ -12,12 +12,16 @@ import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { ListingAccessApplication } from '../users/entities/listing-access-application.entity';
 import { UserListingPermission } from '../users/entities/user-listing-permission.entity';
 import { User } from '../users/entities/user.entity';
+import { CarListing } from '../cars/entities/car-listing.entity';
+import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
+import { ReviewListingDto } from './dto/review-listing.dto';
 import { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
 import { AccessCode } from './entities/access-code.entity';
 import { PlatformFeeSetting } from './entities/platform-fee-setting.entity';
+import { ListingStatus } from '../../common/enums/listing-status.enum';
 
 @Injectable()
 export class AdminService {
@@ -32,6 +36,10 @@ export class AdminService {
     private readonly permissionsRepository: Repository<UserListingPermission>,
     @InjectRepository(PlatformFeeSetting)
     private readonly feesRepository: Repository<PlatformFeeSetting>,
+    @InjectRepository(CarListing)
+    private readonly carListingsRepository: Repository<CarListing>,
+    @InjectRepository(GadgetListing)
+    private readonly gadgetListingsRepository: Repository<GadgetListing>,
   ) {}
 
   async createAccessCode(adminId: string, dto: CreateAccessCodeDto) {
@@ -144,6 +152,64 @@ export class AdminService {
     return { platformFee: await this.feesRepository.save(fee) };
   }
 
+  async listPendingListings() {
+    const [carListings, gadgetListings] = await Promise.all([
+      this.carListingsRepository.find({
+        where: { status: ListingStatus.PendingApproval },
+        order: { createdAt: 'ASC' },
+      }),
+      this.gadgetListingsRepository.find({
+        where: { status: ListingStatus.PendingApproval },
+        order: { createdAt: 'ASC' },
+      }),
+    ]);
+
+    return { carListings, gadgetListings };
+  }
+
+  async approveListing(
+    adminId: string,
+    category: ListingCategory,
+    listingId: string,
+    dto: ReviewListingDto,
+  ) {
+    const listing = await this.findPendingListing(category, listingId);
+    const startTime = new Date(listing.startTime);
+
+    if (startTime.getTime() <= Date.now()) {
+      throw new BadRequestException(
+        'Set a new future start time before approving this listing',
+      );
+    }
+
+    Object.assign(listing, {
+      status: ListingStatus.Approved,
+      reviewedById: adminId,
+      reviewNote: dto.reviewNote ?? null,
+      reviewedAt: new Date(),
+    });
+
+    return this.saveReviewedListing(category, listing);
+  }
+
+  async rejectListing(
+    adminId: string,
+    category: ListingCategory,
+    listingId: string,
+    dto: ReviewListingDto,
+  ) {
+    const listing = await this.findPendingListing(category, listingId);
+
+    Object.assign(listing, {
+      status: ListingStatus.Rejected,
+      reviewedById: adminId,
+      reviewNote: dto.reviewNote ?? null,
+      reviewedAt: new Date(),
+    });
+
+    return this.saveReviewedListing(category, listing);
+  }
+
   private async grantPermission(input: {
     userId: string;
     category: ListingCategory;
@@ -209,5 +275,48 @@ export class AdminService {
   private generateCode() {
     return `AUC-${randomBytes(4).toString('hex').toUpperCase()}`;
   }
-}
 
+  private async findPendingListing(
+    category: ListingCategory,
+    listingId: string,
+  ) {
+    const repository = this.getListingRepository(category);
+    const listing = await repository.findOneBy({
+      id: listingId,
+      status: ListingStatus.PendingApproval,
+    });
+
+    if (!listing) {
+      throw new NotFoundException('Pending listing not found');
+    }
+
+    return listing;
+  }
+
+  private getListingRepository(category: ListingCategory) {
+    if (category === ListingCategory.Car) {
+      return this.carListingsRepository;
+    }
+
+    return this.gadgetListingsRepository;
+  }
+
+  private async saveReviewedListing(
+    category: ListingCategory,
+    listing: CarListing | GadgetListing,
+  ) {
+    if (category === ListingCategory.Car) {
+      return {
+        carListing: await this.carListingsRepository.save(
+          listing as CarListing,
+        ),
+      };
+    }
+
+    return {
+      gadgetListing: await this.gadgetListingsRepository.save(
+        listing as GadgetListing,
+      ),
+    };
+  }
+}

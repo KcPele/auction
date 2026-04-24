@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ListingAccessApplication } from '../users/entities/listing-access-application.entity';
 import { UserListingPermission } from '../users/entities/user-listing-permission.entity';
 import { User } from '../users/entities/user.entity';
+import { CarListing } from '../cars/entities/car-listing.entity';
+import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AccessCode } from './entities/access-code.entity';
@@ -16,6 +18,8 @@ import { PlatformFeeSetting } from './entities/platform-fee-setting.entity';
       ListingAccessApplication,
       UserListingPermission,
       PlatformFeeSetting,
+      CarListing,
+      GadgetListing,
     ]),
   ],
   controllers: [AdminController],
