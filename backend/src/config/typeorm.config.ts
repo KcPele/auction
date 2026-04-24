@@ -1,5 +1,5 @@
-import { ConfigService } from '@nestjs/config';
-import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import type { ConfigService } from '@nestjs/config';
+import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 export function buildTypeOrmConfig(
   config: ConfigService,
@@ -20,4 +20,3 @@ export function buildTypeOrmConfig(
     logging: config.get<string>('NODE_ENV') === 'development',
   };
 }
-
