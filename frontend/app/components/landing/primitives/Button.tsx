@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type Variant = "primary" | "ghost";
@@ -7,6 +8,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   children: ReactNode;
+  href?: string;
 }
 
 const base =
@@ -24,9 +26,25 @@ const sizes: Record<Size, string> = {
   lg: "px-7 py-4 text-[15px]",
 };
 
-export function Button({ variant = "primary", size = "md", className = "", children, ...rest }: ButtonProps) {
+export function Button({
+  variant = "primary",
+  size = "md",
+  className = "",
+  children,
+  href,
+  ...rest
+}: ButtonProps) {
+  const classes = `${base} ${variants[variant]} ${sizes[size]} ${className}`;
+
+  if (href) {
+    return (
+      <Link href={href} className={classes}>
+        {children}
+      </Link>
+    );
+  }
   return (
-    <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...rest}>
+    <button className={classes} {...rest}>
       {children}
     </button>
   );

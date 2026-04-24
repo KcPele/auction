@@ -2,6 +2,7 @@
 
 - do not write more than 500lines of code in a single file
 - use pnpm for package management
+- use libraries or packages that do what we want so we dont reinvent the wheel
 
 ### Frontend
 - always create components and a component should not do more than at max 3things

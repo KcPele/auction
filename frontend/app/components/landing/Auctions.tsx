@@ -27,8 +27,8 @@ export function Auctions() {
         }
         right={
           <div className="flex gap-2.5">
-            <Button variant="ghost">All auctions</Button>
-            <Button variant="primary">Open feed</Button>
+            <Button href="/login" variant="ghost">All auctions</Button>
+            <Button href="/register" variant="primary">Open feed</Button>
           </div>
         }
       />

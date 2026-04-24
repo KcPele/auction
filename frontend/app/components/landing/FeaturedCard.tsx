@@ -81,10 +81,10 @@ export function FeaturedCard() {
       </div>
 
       <div className="flex gap-2.5">
-        <Button variant="primary" className="flex-1 justify-center">
+        <Button href="/register" variant="primary" className="flex-1 justify-center">
           Place a bid
         </Button>
-        <Button variant="ghost" className="flex-1 justify-center">
+        <Button href="/login" variant="ghost" className="flex-1 justify-center">
           Full details
         </Button>
       </div>

@@ -43,13 +43,13 @@ export function Hero() {
             A serious auction platform for cars and gadgets across Nigeria. Every listing is verified. Every bid is backed by real funds. Every payment runs through OPay — no drama.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3.5">
-            <Button variant="primary" size="lg">
+            <Button href="/register" variant="primary" size="lg">
               Browse live auctions
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Button>
-            <Button variant="ghost" size="lg">
+            <Button href="/login" variant="ghost" size="lg">
               Apply to list
             </Button>
           </div>

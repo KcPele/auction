@@ -75,13 +75,13 @@ export function Apply() {
             Listing is gated on purpose — it&apos;s what keeps the supply side trusted. Apply for a car code, a gadget code, or both. Admin reviews. Approved listers see a &quot;List&quot; section unlocked on their dashboard.
           </p>
           <div className="flex gap-3">
-            <Button variant="primary" size="lg">
+            <Button href="/register" variant="primary" size="lg">
               Apply now
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Button>
-            <Button variant="ghost" size="lg">
+            <Button href="#faq" variant="ghost" size="lg">
               Lister FAQ
             </Button>
           </div>

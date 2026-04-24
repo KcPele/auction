@@ -21,8 +21,8 @@ export function Nav() {
         ))}
       </div>
       <div className="flex items-center gap-2.5">
-        <Button variant="ghost">Log in</Button>
-        <Button variant="primary">Sign up to bid</Button>
+        <Button href="/login" variant="ghost">Log in</Button>
+        <Button href="/register" variant="primary">Sign up to bid</Button>
       </div>
     </nav>
   );
