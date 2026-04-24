@@ -414,8 +414,8 @@ Concurrency tests:
 
 - [x] Auction creation from approved listings
 - [x] Auction lifecycle statuses
-- Atomic bid placement
-- Outbid hold release
+- [x] Atomic bid placement
+- [x] Outbid hold release
 - WebSocket bid updates
 
 ### Milestone 6: Jobs and Notifications
