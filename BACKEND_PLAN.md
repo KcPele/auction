@@ -425,10 +425,11 @@ Concurrency tests:
 ### Milestone 6: Jobs and Notifications
 
 - BullMQ queues
-- Scheduled auction start and close
+- [x] Scheduled auction start and close
 - [x] Dashboard notification storage and read state
 - [x] WebSocket dashboard notification updates
 - [x] Outbid dashboard notifications
+- [x] Winner and lister close notifications
 - WhatsApp notifications
 - Top-up reminders
 

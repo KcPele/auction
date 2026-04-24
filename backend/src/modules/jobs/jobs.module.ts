@@ -11,6 +11,6 @@ import { QueueNames } from '../../common/constants/queue-names';
       { name: QueueNames.WalletMaintenance },
     ),
   ],
+  exports: [BullModule],
 })
 export class JobsModule {}
-

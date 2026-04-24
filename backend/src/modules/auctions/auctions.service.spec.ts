@@ -1,11 +1,17 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DefaultPlatformFees } from '../../common/constants/platform-fees';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
+import { BidStatus } from '../../common/enums/bid-status.enum';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
+import { NotificationType } from '../../common/enums/notification-type.enum';
+import type { NotificationsService } from '../notifications/notifications.service';
+import type { WalletsService } from '../wallets/wallets.service';
+import type { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { AuctionsService } from './auctions.service';
 
 describe('AuctionsService', () => {
+  let dataSource: { transaction: jest.Mock };
   let auctionsRepository: {
     findOneBy: jest.Mock;
     create: jest.Mock;
@@ -16,9 +22,20 @@ describe('AuctionsService', () => {
   let carListingsRepository: { findOneBy: jest.Mock };
   let gadgetListingsRepository: { findOneBy: jest.Mock };
   let feesRepository: { findOneBy: jest.Mock };
+  let walletsService: { releaseBidHold: jest.Mock };
+  let notificationsService: { create: jest.Mock };
+  let lifecycleScheduler: {
+    scheduleAuctionLifecycle: jest.Mock;
+    scheduleAuctionStart: jest.Mock;
+    scheduleAuctionClose: jest.Mock;
+    schedulePaymentDeadline: jest.Mock;
+  };
   let service: AuctionsService;
 
   beforeEach(() => {
+    dataSource = {
+      transaction: jest.fn((callback) => callback(createManager())),
+    };
     auctionsRepository = {
       findOneBy: jest.fn(),
       create: jest.fn((value) => value),
@@ -34,12 +51,24 @@ describe('AuctionsService', () => {
     carListingsRepository = { findOneBy: jest.fn() };
     gadgetListingsRepository = { findOneBy: jest.fn() };
     feesRepository = { findOneBy: jest.fn() };
+    walletsService = { releaseBidHold: jest.fn() };
+    notificationsService = { create: jest.fn() };
+    lifecycleScheduler = {
+      scheduleAuctionLifecycle: jest.fn(),
+      scheduleAuctionStart: jest.fn(),
+      scheduleAuctionClose: jest.fn(),
+      schedulePaymentDeadline: jest.fn(),
+    };
     service = new AuctionsService(
+      dataSource as never,
       auctionsRepository as never,
       bidsRepository as never,
       carListingsRepository as never,
       gadgetListingsRepository as never,
       feesRepository as never,
+      walletsService as unknown as WalletsService,
+      notificationsService as unknown as NotificationsService,
+      lifecycleScheduler as unknown as AuctionLifecycleScheduler,
     );
   });
 
@@ -71,6 +100,9 @@ describe('AuctionsService', () => {
         minimumBidIncrementKobo: 100000,
         endTime: new Date('2026-04-24T15:00:00.000Z'),
       }),
+    );
+    expect(lifecycleScheduler.scheduleAuctionLifecycle).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'auction-id' }),
     );
   });
 
@@ -165,6 +197,95 @@ describe('AuctionsService', () => {
       service.cancel('admin-id', 'auction-id', {}),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('starts a scheduled auction and notifies the seller', async () => {
+    const auction = createAuction({
+      startTime: new Date(Date.now() - 60_000),
+      endTime: new Date(Date.now() + 60_000),
+    });
+    const manager = createManager({ auction });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await expect(service.startScheduledAuction(auction.id)).resolves.toEqual({
+      auction: expect.objectContaining({ status: AuctionStatus.Live }),
+      changed: true,
+    });
+    expect(manager.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: AuctionStatus.Live }),
+    );
+    expect(notificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: auction.sellerId,
+        type: NotificationType.AuctionStarted,
+      }),
+    );
+    expect(lifecycleScheduler.scheduleAuctionClose).toHaveBeenCalledWith(
+      auction,
+    );
+  });
+
+  it('closes an auction with no bids as ended', async () => {
+    const auction = createAuction({
+      status: AuctionStatus.Live,
+      startTime: new Date(Date.now() - 120_000),
+      endTime: new Date(Date.now() - 60_000),
+    });
+    const manager = createManager({ auction, bids: [] });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await expect(service.closeAuction(auction.id)).resolves.toEqual({
+      auction: expect.objectContaining({ status: AuctionStatus.Ended }),
+      winningBid: null,
+      changed: true,
+    });
+    expect(auction.winnerId).toBeNull();
+    expect(notificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: auction.sellerId,
+        title: 'Auction ended',
+      }),
+    );
+    expect(lifecycleScheduler.schedulePaymentDeadline).not.toHaveBeenCalled();
+  });
+
+  it('closes an auction with a winner and releases losing holds', async () => {
+    const auction = createAuction({
+      status: AuctionStatus.Live,
+      startTime: new Date(Date.now() - 120_000),
+      endTime: new Date(Date.now() - 60_000),
+    });
+    const winningBid = createBid({ id: 'winning-bid-id', amountKobo: 7000000 });
+    const losingBid = createBid({
+      id: 'losing-bid-id',
+      amountKobo: 6000000,
+      walletHoldId: 'losing-hold-id',
+    });
+    const manager = createManager({ auction, bids: [winningBid, losingBid] });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await expect(service.closeAuction(auction.id)).resolves.toEqual({
+      auction: expect.objectContaining({
+        status: AuctionStatus.AwaitingPayment,
+        winnerId: winningBid.bidderId,
+      }),
+      winningBid,
+      changed: true,
+    });
+    expect(losingBid.status).toBe(BidStatus.Released);
+    expect(walletsService.releaseBidHold).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({ holdId: 'losing-hold-id' }),
+    );
+    expect(lifecycleScheduler.schedulePaymentDeadline).toHaveBeenCalledWith(
+      auction,
+    );
+    expect(notificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: winningBid.bidderId,
+        title: 'You won an auction',
+      }),
+    );
+  });
 });
 
 function createListing() {
@@ -204,5 +325,41 @@ function createAuction(overrides: Record<string, unknown> = {}) {
     createdAt: new Date('2026-04-24T12:00:00.000Z'),
     updatedAt: new Date('2026-04-24T12:00:00.000Z'),
     ...overrides,
+  };
+}
+
+function createBid(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'bid-id',
+    auctionId: 'auction-id',
+    bidderId: 'bidder-id',
+    amountKobo: 5000000,
+    walletHoldId: 'hold-id',
+    status: BidStatus.Accepted,
+    createdAt: new Date('2026-04-24T14:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function createManager(input?: {
+  auction?: ReturnType<typeof createAuction>;
+  bids?: ReturnType<typeof createBid>[];
+}) {
+  return {
+    findOne: jest.fn((entity) => {
+      if (entity.name === 'Auction') {
+        return Promise.resolve(input?.auction ?? createAuction());
+      }
+
+      return Promise.resolve(null);
+    }),
+    find: jest.fn((entity) => {
+      if (entity.name === 'Bid') {
+        return Promise.resolve(input?.bids ?? []);
+      }
+
+      return Promise.resolve([]);
+    }),
+    save: jest.fn(async (value) => value),
   };
 }
