@@ -34,6 +34,7 @@ const envSchema = z.object({
   OPENINARY_CLOUD_NAME: z.string().optional(),
   OPENINARY_API_KEY: z.string().optional(),
   OPENINARY_API_SECRET: z.string().optional(),
+  OPENINARY_FOLDER: z.string().default('auction'),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),

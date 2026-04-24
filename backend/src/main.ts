@@ -8,6 +8,7 @@ import {
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import multipart from '@fastify/multipart';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -21,6 +22,12 @@ async function bootstrap() {
   await app.register(cors, {
     origin: config.getOrThrow<string>('CORS_ORIGINS').split(','),
     credentials: true,
+  });
+  await app.register(multipart, {
+    limits: {
+      files: 10,
+      fileSize: 50 * 1024 * 1024,
+    },
   });
 
   app.setGlobalPrefix(config.getOrThrow<string>('APP_GLOBAL_PREFIX'));

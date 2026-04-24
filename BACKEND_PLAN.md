@@ -396,7 +396,7 @@ Concurrency tests:
 
 ### Milestone 3: Uploads and Listings
 
-- [ ] Openinary upload service
+- [x] Openinary upload service
 - [x] Car listing drafts and submission
 - [x] Gadget listing drafts and submission
 - [x] Admin approval and rejection
