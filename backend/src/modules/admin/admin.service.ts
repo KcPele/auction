@@ -22,6 +22,7 @@ import { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
 import { AccessCode } from './entities/access-code.entity';
 import { PlatformFeeSetting } from './entities/platform-fee-setting.entity';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
+import { AuctionsService } from '../auctions/auctions.service';
 
 @Injectable()
 export class AdminService {
@@ -40,6 +41,7 @@ export class AdminService {
     private readonly carListingsRepository: Repository<CarListing>,
     @InjectRepository(GadgetListing)
     private readonly gadgetListingsRepository: Repository<GadgetListing>,
+    private readonly auctionsService: AuctionsService,
   ) {}
 
   async createAccessCode(adminId: string, dto: CreateAccessCodeDto) {
@@ -189,7 +191,13 @@ export class AdminService {
       reviewedAt: new Date(),
     });
 
-    return this.saveReviewedListing(category, listing);
+    const reviewedListing = await this.saveReviewedListing(category, listing);
+    const auction = await this.auctionsService.createFromApprovedListing(
+      category,
+      listing.id,
+    );
+
+    return { ...reviewedListing, ...auction };
   }
 
   async rejectListing(

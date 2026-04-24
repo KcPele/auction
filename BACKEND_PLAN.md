@@ -412,8 +412,8 @@ Concurrency tests:
 
 ### Milestone 5: Auctions and Bidding
 
-- Auction creation from approved listings
-- Auction lifecycle statuses
+- [x] Auction creation from approved listings
+- [x] Auction lifecycle statuses
 - Atomic bid placement
 - Outbid hold release
 - WebSocket bid updates
