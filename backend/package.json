@@ -11,9 +11,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest",
-    "migration:generate": "typeorm-ts-node-commonjs migration:generate src/database/migrations/AutoMigration -d src/database/typeorm-cli.config.ts",
-    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/typeorm-cli.config.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/typeorm-cli.config.ts"
+    "typeorm": "node ./node_modules/typeorm/cli-ts-node-commonjs.js",
+    "migration:generate": "pnpm typeorm migration:generate src/database/migrations/AutoMigration -d src/database/typeorm-cli.config.ts",
+    "migration:run": "pnpm typeorm migration:run -d src/database/typeorm-cli.config.ts",
+    "migration:revert": "pnpm typeorm migration:revert -d src/database/typeorm-cli.config.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
@@ -63,8 +64,7 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.3",
-    "typeorm-ts-node-commonjs": "^0.3.20"
+    "typescript": "^5.7.3"
   },
   "jest": {
     "moduleFileExtensions": ["js", "json", "ts"],
