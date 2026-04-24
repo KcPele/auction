@@ -20,6 +20,15 @@
   --gold: #e8b755;
   --green: #4ea85c;
   --red: #ef4a3a;
+  --blue: #6bb0ff;
+  --surface-3: #281f13;
+
+  --r-sm: 8px;
+  --r: 14px;
+  --r-lg: 20px;
+  --sidebar-w: 240px;
+  --desktop-content-max: 900px;
+  --nav-h: 68px;
 }
 
 @theme inline {
