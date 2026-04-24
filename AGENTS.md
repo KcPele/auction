@@ -21,4 +21,4 @@
 - Nestjs
 - follow best practices and keep the codebase clean and DRY
 - if there are packages that do what we want just install it and make use of it so we dont reinvent the wheel
-- every endpoint should be tested and the swagger docs should be updated
+- write a test for every endpoint and update the swagger docs
