@@ -1,17 +1,28 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
 import { BidStatus } from '../../common/enums/bid-status.enum';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
+import { NotificationAudience } from '../../common/enums/notification-audience.enum';
+import { NotificationType } from '../../common/enums/notification-type.enum';
 import { Auction } from '../auctions/entities/auction.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import { WalletsService } from '../wallets/wallets.service';
+import { BidsGateway } from './bids.gateway';
 import { PlaceBidDto } from './dto/place-bid.dto';
 import { Bid } from './entities/bid.entity';
 import { presentBid } from './presenters/bid.presenter';
 
 @Injectable()
 export class BidsService {
+  private readonly logger = new Logger(BidsService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(Auction)
@@ -19,10 +30,12 @@ export class BidsService {
     @InjectRepository(Bid)
     private readonly bidsRepository: Repository<Bid>,
     private readonly walletsService: WalletsService,
+    private readonly bidsGateway: BidsGateway,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async placeBid(userId: string, auctionId: string, dto: PlaceBidDto) {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const auction = await this.findAuctionForUpdate(manager, auctionId);
 
       this.assertCanBid(auction, userId, dto.amountKobo);
@@ -62,12 +75,24 @@ export class BidsService {
       }
 
       return {
-        bid: presentBid(bid),
-        walletHold: hold,
-        auction,
-        isTopBid: becomesTopBid,
+        response: {
+          bid: presentBid(bid),
+          walletHold: hold,
+          auction,
+          isTopBid: becomesTopBid,
+        },
+        events: {
+          auctionId: auction.id,
+          bid,
+          isTopBid: becomesTopBid,
+          previousTopBid: becomesTopBid ? currentTopBid : null,
+        },
       };
     });
+
+    await this.publishBidEvents(result.events);
+
+    return result.response;
   }
 
   private async findAuctionForUpdate(
@@ -172,5 +197,72 @@ export class BidsService {
 
     auction.currentWinningBidId = bid.id;
     await manager.save(auction);
+  }
+
+  private async publishBidEvents(input: {
+    auctionId: string;
+    bid: Bid;
+    isTopBid: boolean;
+    previousTopBid: Bid | null;
+  }) {
+    this.bidsGateway.emitBidPlaced({
+      auctionId: input.auctionId,
+      bid: input.bid,
+      isTopBid: input.isTopBid,
+    });
+
+    if (!input.isTopBid) {
+      return;
+    }
+
+    this.bidsGateway.emitTopBidChanged({
+      auctionId: input.auctionId,
+      bid: input.bid,
+      previousBid: input.previousTopBid,
+    });
+
+    await this.notifyOutbidUser(input);
+  }
+
+  private async notifyOutbidUser(input: {
+    auctionId: string;
+    bid: Bid;
+    previousTopBid: Bid | null;
+  }) {
+    const previousTopBid = input.previousTopBid;
+
+    if (!previousTopBid || previousTopBid.bidderId === input.bid.bidderId) {
+      return;
+    }
+
+    this.bidsGateway.emitOutbid({
+      userId: previousTopBid.bidderId,
+      auctionId: input.auctionId,
+      bid: previousTopBid,
+      newTopBid: input.bid,
+    });
+
+    try {
+      await this.notificationsService.create({
+        audience: NotificationAudience.User,
+        recipientId: previousTopBid.bidderId,
+        type: NotificationType.Outbid,
+        title: 'You have been outbid',
+        message: 'A higher bid has replaced your current winning bid.',
+        data: {
+          auctionId: input.auctionId,
+          bidId: previousTopBid.id,
+          newTopBidId: input.bid.id,
+          previousAmountKobo: previousTopBid.amountKobo,
+          newTopAmountKobo: input.bid.amountKobo,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to create outbid notification',
+      );
+    }
   }
 }

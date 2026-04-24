@@ -246,12 +246,16 @@ Jobs:
 
 Socket events:
 
-- `auction:join`
-- `auction:leave`
-- `bid:placed`
-- `bid:rejected`
-- `auction:statusChanged`
-- `auction:closed`
+- `auction.join`
+- `auction.leave`
+- `auction.ready`
+- `auction.joined`
+- `auction.left`
+- `bid.placed`
+- `bid.outbid`
+- `auction.topBidChanged`
+- `auction.statusChanged`
+- `auction.closed`
 
 ## 4. Database Model
 
@@ -416,7 +420,7 @@ Concurrency tests:
 - [x] Auction lifecycle statuses
 - [x] Atomic bid placement
 - [x] Outbid hold release
-- WebSocket bid updates
+- [x] WebSocket bid updates
 
 ### Milestone 6: Jobs and Notifications
 
@@ -424,6 +428,7 @@ Concurrency tests:
 - Scheduled auction start and close
 - [x] Dashboard notification storage and read state
 - [x] WebSocket dashboard notification updates
+- [x] Outbid dashboard notifications
 - WhatsApp notifications
 - Top-up reminders
 

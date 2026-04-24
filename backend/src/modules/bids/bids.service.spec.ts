@@ -3,7 +3,9 @@ import { AuctionStatus } from '../../common/enums/auction-status.enum';
 import { BidStatus } from '../../common/enums/bid-status.enum';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { Auction } from '../auctions/entities/auction.entity';
+import type { NotificationsService } from '../notifications/notifications.service';
 import type { WalletsService } from '../wallets/wallets.service';
+import type { BidsGateway } from './bids.gateway';
 import { BidsService } from './bids.service';
 import { Bid } from './entities/bid.entity';
 
@@ -14,6 +16,12 @@ describe('BidsService', () => {
     attachBidToHold: jest.Mock;
     releaseBidHold: jest.Mock;
   };
+  let bidsGateway: {
+    emitBidPlaced: jest.Mock;
+    emitTopBidChanged: jest.Mock;
+    emitOutbid: jest.Mock;
+  };
+  let notificationsService: { create: jest.Mock };
   let service: BidsService;
 
   beforeEach(() => {
@@ -25,11 +33,19 @@ describe('BidsService', () => {
       attachBidToHold: jest.fn(),
       releaseBidHold: jest.fn(),
     };
+    bidsGateway = {
+      emitBidPlaced: jest.fn(),
+      emitTopBidChanged: jest.fn(),
+      emitOutbid: jest.fn(),
+    };
+    notificationsService = { create: jest.fn() };
     service = new BidsService(
       dataSource as never,
       {} as never,
       {} as never,
       walletsService as unknown as WalletsService,
+      bidsGateway as unknown as BidsGateway,
+      notificationsService as unknown as NotificationsService,
     );
   });
 
@@ -62,6 +78,16 @@ describe('BidsService', () => {
       'hold-id',
       'bid-id',
     );
+    expect(bidsGateway.emitBidPlaced).toHaveBeenCalledWith({
+      auctionId: auction.id,
+      bid: expect.objectContaining({ id: 'bid-id' }),
+      isTopBid: true,
+    });
+    expect(bidsGateway.emitTopBidChanged).toHaveBeenCalledWith({
+      auctionId: auction.id,
+      bid: expect.objectContaining({ id: 'bid-id' }),
+      previousBid: null,
+    });
   });
 
   it('rejects bids when the auction is not live', async () => {
@@ -106,6 +132,12 @@ describe('BidsService', () => {
     );
     expect(walletsService.releaseBidHold).not.toHaveBeenCalled();
     expect(auction.currentWinningBidId).toBe(currentTopBid.id);
+    expect(bidsGateway.emitBidPlaced).toHaveBeenCalledWith({
+      auctionId: auction.id,
+      bid: expect.objectContaining({ status: BidStatus.Accepted }),
+      isTopBid: false,
+    });
+    expect(bidsGateway.emitTopBidChanged).not.toHaveBeenCalled();
   });
 
   it('releases the previous top hold when a new top bid is accepted', async () => {
@@ -128,6 +160,18 @@ describe('BidsService', () => {
       }),
     );
     expect(auction.currentWinningBidId).toBe('bid-id');
+    expect(bidsGateway.emitOutbid).toHaveBeenCalledWith({
+      userId: previousTopBid.bidderId,
+      auctionId: auction.id,
+      bid: previousTopBid,
+      newTopBid: expect.objectContaining({ id: 'bid-id' }),
+    });
+    expect(notificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: previousTopBid.bidderId,
+        title: 'You have been outbid',
+      }),
+    );
   });
 });
 
