@@ -69,7 +69,7 @@ export function Apply() {
           <h2 className="m-0 mb-4 font-display text-[clamp(32px,3.5vw,48px)] font-semibold leading-[1.05] tracking-[-0.025em]">
             Got cars or gadgets to move?
             <br />
-            <span className="italic text-accent-2">Apply for an access code.</span>
+            <span className="italic accent-gradient-text">Apply for an access code.</span>
           </h2>
           <p className="mb-7 text-[17px] leading-[1.55] text-fg-muted">
             Listing is gated on purpose — it&apos;s what keeps the supply side trusted. Apply for a car code, a gadget code, or both. Admin reviews. Approved listers see a &quot;List&quot; section unlocked on their dashboard.

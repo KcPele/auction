@@ -13,7 +13,7 @@ export function FAQ() {
         kicker="FAQ"
         title={
           <>
-            Straight <em className="italic text-accent-2">answers.</em>
+            Straight <em className="italic accent-gradient-text">answers.</em>
           </>
         }
       />

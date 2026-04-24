@@ -41,7 +41,7 @@ export function AuctionCard({ auction, endSec }: AuctionCardProps) {
       <div className="flex items-end justify-between border-t border-line pt-3">
         <div>
           <div className="text-[10px] uppercase tracking-[0.08em] text-fg-dim">Current bid</div>
-          <div className="font-mono text-lg font-semibold tabular-nums text-accent-2">{fmtNaira(auction.bid)}</div>
+          <div className="font-mono text-lg font-semibold tabular-nums accent-gradient-text">{fmtNaira(auction.bid)}</div>
         </div>
         <div className="text-right text-[11px] text-fg-muted">
           {auction.bidders} bidders

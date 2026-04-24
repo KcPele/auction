@@ -29,7 +29,7 @@ export function Hero() {
       />
       <div className="mx-auto grid max-w-[1280px] items-center gap-15 md:grid-cols-[1.05fr_1fr]">
         <div>
-          <div className="inline-flex items-center gap-2.5 rounded-full border border-line-strong bg-[rgba(255,122,26,0.08)] px-3.5 py-[7px] text-xs font-semibold uppercase tracking-[0.08em] text-accent-2">
+          <div className="inline-flex items-center gap-2.5 rounded-full border border-line-strong bg-[rgba(255,122,26,0.08)] px-3.5 py-[7px] text-xs font-semibold uppercase tracking-[0.08em] accent-gradient-text">
             <LiveDot />
             Nigeria&apos;s auction floor · Cars & Gadgets
           </div>

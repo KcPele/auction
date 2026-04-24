@@ -8,7 +8,7 @@
 
 - do not hardcode colors, fonts, sizes, etc , create the variable name and make use of it, if they are sizes or font use the tailwindcss size that matchs what u want else u can create a resuable style(size etc) in styles folder and use it
 - designs should aslo be mobile responsive
-
+- state management use zuztand and zod for validations
 - use hooks to abstract logic and component should render the ui
 - use tailwindcss for styling
 - use shadcn ui for components, try not to reinvent the wheel, use components and style them appropriately

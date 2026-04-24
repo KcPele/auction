@@ -24,7 +24,7 @@ export function Ticker() {
             <div className="inline-flex items-center gap-2.5 text-[13px]" key={i}>
               <span className="font-medium text-fg">{b.item}</span>
               <span className="font-bold text-green">↑</span>
-              <span className="font-mono font-semibold tabular-nums text-accent-2">{fmtNaira(b.bid)}</span>
+              <span className="font-mono font-semibold tabular-nums accent-gradient-text">{fmtNaira(b.bid)}</span>
               <span className="text-xs text-fg-dim">
                 @{b.user} · {b.city}
               </span>

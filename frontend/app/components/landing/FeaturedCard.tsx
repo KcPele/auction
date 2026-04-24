@@ -50,7 +50,7 @@ export function FeaturedCard() {
         <div>
           <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-fg-dim">Current bid</div>
           <div
-            className="font-mono text-[22px] font-semibold tabular-nums text-accent-2 transition-all duration-300"
+            className="font-mono text-[22px] font-semibold tabular-nums accent-gradient-text transition-all duration-300"
             style={{ transform: bumped ? "translateY(-2px)" : "none" }}
           >
             {fmtNaira(currentBid)}

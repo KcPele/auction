@@ -79,7 +79,7 @@ export function Trust() {
         kicker="Trust & safety"
         title={
           <>
-            Nigeria is <em className="italic text-accent-2">picky.</em> So are we.
+            Nigeria is <em className="italic accent-gradient-text">picky.</em> So are we.
           </>
         }
         sub="Six layers between a listing and a live auction. If it passes, you can bid with your chest."

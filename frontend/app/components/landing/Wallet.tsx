@@ -22,7 +22,7 @@ export function Wallet() {
         kicker="Wallet & hold system"
         title={
           <>
-            Every bid is <em className="italic text-accent-2">real money.</em>
+            Every bid is <em className="italic accent-gradient-text">real money.</em>
           </>
         }
         sub="Three numbers on your dashboard: total, held, available. When you bid, 10–20% moves from available to held — atomically, in a single database transaction."

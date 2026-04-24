@@ -53,7 +53,7 @@ export function Categories() {
         kicker="Two floors. Both serious."
         title={
           <>
-            Bid on <em className="italic text-accent-2">cars</em> or <em className="italic text-accent-2">gadgets</em>.
+            Bid on <em className="italic accent-gradient-text">cars</em> or <em className="italic accent-gradient-text">gadgets</em>.
             <br />
             Same rules. Same trust.
           </>
@@ -74,7 +74,7 @@ export function Categories() {
             <div className="flex flex-wrap gap-8">
               {c.stats.map((s) => (
                 <div key={s.lbl}>
-                  <div className="font-mono text-xl font-semibold text-accent-2">{s.num}</div>
+                  <div className="font-mono text-xl font-semibold accent-gradient-text">{s.num}</div>
                   <div className="text-[11px] uppercase tracking-[0.08em] text-fg-dim">{s.lbl}</div>
                 </div>
               ))}

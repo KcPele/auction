@@ -22,7 +22,7 @@ export function HowItWorks() {
         kicker="How it works"
         title={
           <>
-            Two flows. <em className="italic text-accent-2">Both simple.</em>
+            Two flows. <em className="italic accent-gradient-text">Both simple.</em>
           </>
         }
         sub="Pick your side. Bidders fund their wallet and bid with skin in the game. Listers earn access and work with verified partners."

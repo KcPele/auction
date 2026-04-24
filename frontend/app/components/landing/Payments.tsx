@@ -33,7 +33,7 @@ export function Payments() {
           <h2 className="m-0 mb-[18px] font-display text-[clamp(36px,4vw,56px)] font-semibold leading-[1.02] tracking-[-0.025em] text-fg">
             You win it.
             <br />
-            You pay it. <em className="italic text-accent-2">In a day.</em>
+            You pay it. <em className="italic accent-gradient-text">In a day.</em>
           </h2>
           <p className="text-[17px] leading-[1.55] text-fg-muted">
             The second an auction closes, a 24-hour timer starts. Finish the payment via OPay and your win is settled. Miss it? The hold is forfeited and the item falls to the second-highest bidder — or we re-list it.

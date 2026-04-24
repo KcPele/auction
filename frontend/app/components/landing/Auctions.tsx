@@ -22,7 +22,7 @@ export function Auctions() {
         }
         title={
           <>
-            On the <em className="italic text-accent-2">block</em> this hour.
+            On the <em className="italic accent-gradient-text">block</em> this hour.
           </>
         }
         right={
