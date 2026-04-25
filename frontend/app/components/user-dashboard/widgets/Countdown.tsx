@@ -1,13 +1,26 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useCountdown } from "../hooks/useCountdown";
 import { pad2 } from "../utils";
 
 interface CountdownProps {
-  target: number;
+  /** Milliseconds remaining at "now". The widget computes an absolute target on mount. */
+  endsIn: number;
   compact?: boolean;
 }
 
-export function Countdown({ target, compact = false }: CountdownProps) {
+export function Countdown({ endsIn, compact = false }: CountdownProps) {
+  const [target, setTarget] = useState<number | null>(null);
+  useEffect(() => {
+    setTarget(Date.now() + endsIn);
+  }, [endsIn]);
+  if (target === null) {
+    return <span className="dash-dim">—</span>;
+  }
+  return <CountdownActive target={target} compact={compact} />;
+}
+
+function CountdownActive({ target, compact }: { target: number; compact: boolean }) {
   const c = useCountdown(target);
   if (c.done) return <span className="dash-dim">Ended</span>;
   if (compact) {

@@ -32,10 +32,10 @@ export function SuccessView() {
         </div>
 
         <div className="flex w-full max-w-[380px] flex-col gap-2.5">
-          <AuthButton onClick={() => router.push("/")}>
+          <AuthButton onClick={() => router.push("/dashboard")}>
             Start bidding <Icon name="arrow-r" size={16} strokeWidth={2} />
           </AuthButton>
-          <AuthButton variant="ghost" onClick={() => router.push("/")}>
+          <AuthButton variant="ghost" onClick={() => router.push("/dashboard/wallet/topup")}>
             Top up wallet first
           </AuthButton>
         </div>

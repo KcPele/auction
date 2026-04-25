@@ -83,7 +83,7 @@ export function HomeScreen() {
             <div>
               <div className="dash-row-title">{a.title}</div>
               <div className="dash-row-meta">
-                Opens in <Countdown target={a.ends} compact />
+                Opens in <Countdown endsIn={a.endsIn} compact />
               </div>
             </div>
             <div style={{ textAlign: "right" }}>

@@ -129,7 +129,7 @@ export function BrowseScreen() {
                 {fmtNaira(a.live ? a.current : a.start)}
               </div>
               <div className="dash-tile-meta">
-                {a.bids} bids · <Countdown target={a.ends} compact />
+                {a.bids} bids · <Countdown endsIn={a.endsIn} compact />
               </div>
             </div>
           </Link>

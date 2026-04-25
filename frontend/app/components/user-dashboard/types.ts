@@ -8,7 +8,8 @@ export interface Auction {
   start: number;
   current: number;
   bids: number;
-  ends: number;
+  /** Milliseconds from now until auction ends/opens. Resolve to absolute target on the client. */
+  endsIn: number;
   live: boolean;
   location: string;
   seller: string;

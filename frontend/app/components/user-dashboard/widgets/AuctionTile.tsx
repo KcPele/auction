@@ -22,7 +22,7 @@ export function AuctionTile({ a }: { a: Auction }) {
           )}
         </span>
         <span className="dash-tile-end">
-          <Countdown target={a.ends} compact />
+          <Countdown endsIn={a.endsIn} compact />
         </span>
       </div>
       <div className="dash-tile-info">

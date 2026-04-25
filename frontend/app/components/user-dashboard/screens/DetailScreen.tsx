@@ -77,7 +77,7 @@ export function DetailScreen({ id }: { id: string }) {
         </div>
         <div>
           <div className="dash-detail-bid-lbl">{a.live ? "Ends in" : "Opens in"}</div>
-          <Countdown target={a.ends} />
+          <Countdown endsIn={a.endsIn} />
         </div>
       </div>
 

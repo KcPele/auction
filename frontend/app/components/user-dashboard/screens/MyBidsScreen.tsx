@@ -18,7 +18,7 @@ const FALLBACK_AUCTION: Auction = {
   start: 740_000,
   current: 740_000,
   bids: 14,
-  ends: Date.now() - 1_000,
+  endsIn: 0,
   live: false,
   location: "Lekki",
   seller: "—",

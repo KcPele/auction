@@ -22,11 +22,11 @@ export function BidRow({ bid, auction }: BidRowProps) {
         <div className="dash-row-meta">
           {bid.status === "scheduled" ? (
             <>
-              Opens in <Countdown target={auction.ends} compact />
+              Opens in <Countdown endsIn={auction.endsIn} compact />
             </>
           ) : (
             <>
-              Ends in <Countdown target={auction.ends} compact /> · {auction.bids} bids
+              Ends in <Countdown endsIn={auction.endsIn} compact /> · {auction.bids} bids
             </>
           )}
         </div>
