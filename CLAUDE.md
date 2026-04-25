@@ -15,6 +15,9 @@
 - designs should aslo be mobile responsive
 - state management use zuztand and zod for validations
 - make use or react query toolKit
+- use CASL: @casl/ability + @casl/react for RBAC and permission management.
+
+
 - use hooks to abstract logic and component should render the ui
 - use tailwindcss for styling
 - use shadcn ui for components, try not to reinvent the wheel, use components and style them appropriately

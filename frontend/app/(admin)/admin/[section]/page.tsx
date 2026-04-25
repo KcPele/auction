@@ -1,17 +1,25 @@
 import { notFound } from "next/navigation";
-import { PlaceholderScreen } from "@/app/components/admin-dashboard/screens/PlaceholderScreen";
+import { AccessCodesScreen } from "@/app/components/admin-dashboard/screens/AccessCodesScreen";
+import { AuctionsScreen } from "@/app/components/admin-dashboard/screens/AuctionsScreen";
+import { DisputesScreen } from "@/app/components/admin-dashboard/screens/DisputesScreen";
+import { ListingsScreen } from "@/app/components/admin-dashboard/screens/ListingsScreen";
+import { MechanicsScreen } from "@/app/components/admin-dashboard/screens/MechanicsScreen";
+import { NotificationsScreen } from "@/app/components/admin-dashboard/screens/NotificationsScreen";
+import { PaymentsScreen } from "@/app/components/admin-dashboard/screens/PaymentsScreen";
+import { SettingsScreen } from "@/app/components/admin-dashboard/screens/SettingsScreen";
+import { UsersScreen } from "@/app/components/admin-dashboard/screens/UsersScreen";
 
-const VALID = new Set([
-  "auctions",
-  "access-codes",
-  "listings",
-  "disputes",
-  "users",
-  "mechanics",
-  "payments",
-  "notifications",
-  "settings",
-]);
+const SCREENS: Record<string, () => React.ReactElement> = {
+  auctions: AuctionsScreen,
+  "access-codes": AccessCodesScreen,
+  listings: ListingsScreen,
+  disputes: DisputesScreen,
+  users: UsersScreen,
+  mechanics: MechanicsScreen,
+  payments: PaymentsScreen,
+  notifications: NotificationsScreen,
+  settings: SettingsScreen,
+};
 
 export default async function AdminSectionPage({
   params,
@@ -19,6 +27,7 @@ export default async function AdminSectionPage({
   params: Promise<{ section: string }>;
 }) {
   const { section } = await params;
-  if (!VALID.has(section)) notFound();
-  return <PlaceholderScreen section={section} />;
+  const Screen = SCREENS[section];
+  if (!Screen) notFound();
+  return <Screen />;
 }
