@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AuthDivider, AuthFormBody, AuthFormTop } from "./AuthFormBody";
+import { AuthFormBody, AuthFormTop } from "./AuthFormBody";
 import { AuthButton } from "./primitives/AuthButton";
 import { Checkbox } from "./primitives/Checkbox";
 import { Field, Input, PhoneInput } from "./primitives/Field";
@@ -97,17 +97,6 @@ export function LoginForm() {
         <AuthButton onClick={() => router.push("/otp?ctx=login")}>
           Continue <Icon name="arrow-r" size={16} strokeWidth={2} />
         </AuthButton>
-
-        <AuthDivider>Or continue with</AuthDivider>
-
-        <div className="grid grid-cols-2 gap-2.5">
-          <AuthButton variant="ghost">
-            <Icon name="mail" size={16} /> Google
-          </AuthButton>
-          <AuthButton variant="ghost">
-            <Icon name="phone" size={16} /> Apple
-          </AuthButton>
-        </div>
 
         <div className="mt-6 text-center text-xs text-fg-dim">
           By signing in you agree to our{" "}

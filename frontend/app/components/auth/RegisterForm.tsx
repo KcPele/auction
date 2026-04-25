@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AuthDivider, AuthFormBody, AuthFormTop } from "./AuthFormBody";
+import { AuthFormBody, AuthFormTop } from "./AuthFormBody";
 import { usePasswordStrength } from "./hooks/usePasswordStrength";
 import { AuthButton } from "./primitives/AuthButton";
 import { Checkbox } from "./primitives/Checkbox";
@@ -128,17 +128,6 @@ export function RegisterForm() {
             You can skip NIN now and verify later from your account settings.
           </p>
         )}
-
-        <AuthDivider>Or sign up with</AuthDivider>
-
-        <div className="grid grid-cols-2 gap-2.5">
-          <AuthButton variant="ghost">
-            <Icon name="mail" size={16} /> Google
-          </AuthButton>
-          <AuthButton variant="ghost">
-            <Icon name="phone" size={16} /> Apple
-          </AuthButton>
-        </div>
       </AuthFormBody>
     </>
   );
