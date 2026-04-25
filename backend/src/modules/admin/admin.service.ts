@@ -15,9 +15,11 @@ import { User } from '../users/entities/user.entity';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { CreateAccessCodeDto } from './dto/create-access-code.dto';
+import { DefaultAuctionPaymentDto } from './dto/default-auction-payment.dto';
 import { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
 import { ReviewListingDto } from './dto/review-listing.dto';
+import { SettleAuctionPaymentDto } from './dto/settle-auction-payment.dto';
 import { UpdateBiddingSettingDto } from './dto/update-bidding-setting.dto';
 import { UpdatePaymentAccountDto } from './dto/update-payment-account.dto';
 import { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
@@ -26,6 +28,7 @@ import { BiddingSetting } from './entities/bidding-setting.entity';
 import { PaymentAccountSetting } from './entities/payment-account-setting.entity';
 import { PlatformFeeSetting } from './entities/platform-fee-setting.entity';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
+import { AuctionSettlementService } from '../auctions/auction-settlement.service';
 import { AuctionsService } from '../auctions/auctions.service';
 import { WalletWithdrawalsService } from '../wallets/wallet-withdrawals.service';
 import { AuthorizeWithdrawalDto } from './dto/authorize-withdrawal.dto';
@@ -52,6 +55,7 @@ export class AdminService {
     @InjectRepository(GadgetListing)
     private readonly gadgetListingsRepository: Repository<GadgetListing>,
     private readonly auctionsService: AuctionsService,
+    private readonly auctionSettlementService: AuctionSettlementService,
     private readonly walletWithdrawalsService: WalletWithdrawalsService,
   ) {}
 
@@ -218,6 +222,22 @@ export class AdminService {
 
   resendWithdrawalOtp(withdrawalId: string) {
     return this.walletWithdrawalsService.resendWithdrawalOtp(withdrawalId);
+  }
+
+  settleAuctionPayment(
+    adminId: string,
+    auctionId: string,
+    dto: SettleAuctionPaymentDto,
+  ) {
+    return this.auctionSettlementService.settleAuctionPayment(
+      adminId,
+      auctionId,
+      dto,
+    );
+  }
+
+  defaultAuctionPayment(auctionId: string, dto: DefaultAuctionPaymentDto) {
+    return this.auctionSettlementService.defaultAuctionPayment(auctionId, dto);
   }
 
   async listPendingListings() {

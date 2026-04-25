@@ -6,10 +6,12 @@ import { AuthService } from '../auth/auth.service';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import type { AuthorizeWithdrawalDto } from './dto/authorize-withdrawal.dto';
+import type { DefaultAuctionPaymentDto } from './dto/default-auction-payment.dto';
 import type { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import type { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import type { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
 import type { ReviewListingDto } from './dto/review-listing.dto';
+import type { SettleAuctionPaymentDto } from './dto/settle-auction-payment.dto';
 import type { UpdateBiddingSettingDto } from './dto/update-bidding-setting.dto';
 import type { UpdatePaymentAccountDto } from './dto/update-payment-account.dto';
 import type { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
@@ -40,6 +42,8 @@ describe('AdminController', () => {
     listPendingWithdrawals: jest.Mock;
     authorizeWithdrawal: jest.Mock;
     resendWithdrawalOtp: jest.Mock;
+    settleAuctionPayment: jest.Mock;
+    defaultAuctionPayment: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -61,6 +65,8 @@ describe('AdminController', () => {
       listPendingWithdrawals: jest.fn(),
       authorizeWithdrawal: jest.fn(),
       resendWithdrawalOtp: jest.fn(),
+      settleAuctionPayment: jest.fn(),
+      defaultAuctionPayment: jest.fn(),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -295,5 +301,36 @@ describe('AdminController', () => {
       controller.resendWithdrawalOtp('withdrawal-id'),
     ).resolves.toEqual({ providerResponse: { message: 'sent' } });
     expect(service.resendWithdrawalOtp).toHaveBeenCalledWith('withdrawal-id');
+  });
+
+  it('settles an auction payment', async () => {
+    const dto: SettleAuctionPaymentDto = { externalPaymentKobo: 5000000 };
+    service.settleAuctionPayment.mockResolvedValue({
+      auction: { status: 'SETTLED' },
+    });
+
+    await expect(
+      controller.settleAuctionPayment(adminUser, 'auction-id', dto),
+    ).resolves.toEqual({ auction: { status: 'SETTLED' } });
+    expect(service.settleAuctionPayment).toHaveBeenCalledWith(
+      adminUser.id,
+      'auction-id',
+      dto,
+    );
+  });
+
+  it('defaults an unpaid auction payment', async () => {
+    const dto: DefaultAuctionPaymentDto = { reason: 'Not paid' };
+    service.defaultAuctionPayment.mockResolvedValue({
+      auction: { status: 'DEFAULTED' },
+    });
+
+    await expect(
+      controller.defaultAuctionPayment('auction-id', dto),
+    ).resolves.toEqual({ auction: { status: 'DEFAULTED' } });
+    expect(service.defaultAuctionPayment).toHaveBeenCalledWith(
+      'auction-id',
+      dto,
+    );
   });
 });

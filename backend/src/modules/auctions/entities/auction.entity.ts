@@ -68,6 +68,24 @@ export class Auction {
   @Column({ type: 'timestamptz', nullable: true })
   paymentDeadlineAt!: Date | null;
 
+  @Column({ type: 'bigint', nullable: true, transformer: bigintNumberTransformer })
+  externalPaymentKobo!: number | null;
+
+  @Column({ type: 'bigint', nullable: true, transformer: bigintNumberTransformer })
+  walletPaymentKobo!: number | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  settledById!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  settledAt!: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  defaultedAt!: Date | null;
+
+  @Column({ type: 'text', nullable: true })
+  defaultReason!: string | null;
+
   @Column({ type: 'uuid', nullable: true })
   cancelledById!: string | null;
 

@@ -10,6 +10,8 @@ import { JobsModule } from '../jobs/jobs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuctionLifecycleProcessor } from './auction-lifecycle.processor';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
+import { AuctionPaymentDeadlineProcessor } from './auction-payment-deadline.processor';
+import { AuctionSettlementService } from './auction-settlement.service';
 import { AuctionsController } from './auctions.controller';
 import { AuctionsService } from './auctions.service';
 import { Auction } from './entities/auction.entity';
@@ -31,9 +33,11 @@ import { Auction } from './entities/auction.entity';
   controllers: [AuctionsController],
   providers: [
     AuctionsService,
+    AuctionSettlementService,
     AuctionLifecycleProcessor,
+    AuctionPaymentDeadlineProcessor,
     AuctionLifecycleScheduler,
   ],
-  exports: [AuctionsService, TypeOrmModule],
+  exports: [AuctionsService, AuctionSettlementService, TypeOrmModule],
 })
 export class AuctionsModule {}

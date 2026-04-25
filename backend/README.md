@@ -32,6 +32,9 @@ MONNIFY_API_KEY=MK_TEST_...
 MONNIFY_CLIENT_SECRET=...
 MONNIFY_CONTRACT_CODE=...
 MONNIFY_SOURCE_ACCOUNT_NUMBER=...
+OPENINARY_URL=https://openinary.example.com
+OPENINARY_API_KEY=...
+OPENINARY_FOLDER=auction
 ```
 
 Where to find the values in Monnify:
@@ -108,6 +111,31 @@ payment account:
 
 ```txt
 GET /api/v1/auctions/:id/payment-instructions
+```
+
+The winner can either transfer the full winning amount to the shown bank
+account, or transfer part externally and ask admin to use part of their wallet
+balance to complete payment. Admin confirms the final split:
+
+```txt
+POST /api/v1/admin/auctions/:id/settle-payment
+```
+
+Example request:
+
+```json
+{
+  "externalPaymentKobo": 60000000,
+  "walletPaymentKobo": 10000000,
+  "note": "Transfer confirmed and wallet balance applied"
+}
+```
+
+If payment is not confirmed before `paymentDeadlineAt`, the payment-deadline
+worker marks the auction as defaulted. Admins can also do this manually:
+
+```txt
+POST /api/v1/admin/auctions/:id/default-payment
 ```
 
 Admins manage the payment account shown to winners:

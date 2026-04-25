@@ -74,9 +74,6 @@ importers:
       class-validator:
         specifier: ^0.14.1
         version: 0.14.4
-      cloudinary:
-        specifier: ^2.9.0
-        version: 2.9.0
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
@@ -1673,10 +1670,6 @@ packages:
   clone@1.0.4:
     resolution: {integrity: sha512-JQHZ2QMW6l3aH/j6xCqQThY/9OH4D/9ls34cgkUBiEeocRTU04tHfKPBsUK1PqZCUQM7GiA0IIXJSuXHI64Kbg==}
     engines: {node: '>=0.8'}
-
-  cloudinary@2.9.0:
-    resolution: {integrity: sha512-F3iKMOy4y0zy0bi5JBp94SC7HY7i/ImfTPSUV07iJmRzH1Iz8WavFfOlJTR1zvYM/xKGoiGZ3my/zy64In0IQQ==}
-    engines: {node: '>=9'}
 
   cluster-key-slot@1.1.2:
     resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
@@ -5380,10 +5373,6 @@ snapshots:
       wrap-ansi: 7.0.0
 
   clone@1.0.4: {}
-
-  cloudinary@2.9.0:
-    dependencies:
-      lodash: 4.18.1
 
   cluster-key-slot@1.1.2: {}
 

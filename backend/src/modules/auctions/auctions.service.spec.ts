@@ -5,7 +5,6 @@ import { BidStatus } from '../../common/enums/bid-status.enum';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
 import { NotificationType } from '../../common/enums/notification-type.enum';
-import { UserRole } from '../../common/enums/user-role.enum';
 import type { NotificationsService } from '../notifications/notifications.service';
 import type { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { AuctionsService } from './auctions.service';
@@ -22,7 +21,6 @@ describe('AuctionsService', () => {
   let carListingsRepository: { findOneBy: jest.Mock };
   let gadgetListingsRepository: { findOneBy: jest.Mock };
   let feesRepository: { findOneBy: jest.Mock };
-  let paymentAccountsRepository: { findOneBy: jest.Mock };
   let biddingSettingsRepository: { findOneBy: jest.Mock };
   let notificationsService: { create: jest.Mock };
   let lifecycleScheduler: {
@@ -52,7 +50,6 @@ describe('AuctionsService', () => {
     carListingsRepository = { findOneBy: jest.fn() };
     gadgetListingsRepository = { findOneBy: jest.fn() };
     feesRepository = { findOneBy: jest.fn() };
-    paymentAccountsRepository = { findOneBy: jest.fn() };
     biddingSettingsRepository = { findOneBy: jest.fn() };
     notificationsService = { create: jest.fn() };
     lifecycleScheduler = {
@@ -68,7 +65,6 @@ describe('AuctionsService', () => {
       carListingsRepository as never,
       gadgetListingsRepository as never,
       feesRepository as never,
-      paymentAccountsRepository as never,
       biddingSettingsRepository as never,
       notificationsService as unknown as NotificationsService,
       lifecycleScheduler as unknown as AuctionLifecycleScheduler,
@@ -290,44 +286,6 @@ describe('AuctionsService', () => {
     );
   });
 
-  it('returns payment instructions to the winning bidder', async () => {
-    const auction = createAuction({
-      status: AuctionStatus.AwaitingPayment,
-      winnerId: 'winner-id',
-      currentWinningBidId: 'winning-bid-id',
-      paymentDeadlineAt: new Date('2026-04-25T15:00:00.000Z'),
-    });
-    auctionsRepository.findOneBy.mockResolvedValue(auction);
-    bidsRepository.findOneBy.mockResolvedValue(
-      createBid({ id: 'winning-bid-id', amountKobo: 7000000 }),
-    );
-    paymentAccountsRepository.findOneBy.mockResolvedValue({
-      bankName: 'Providus Bank',
-      accountNumber: '3635734512',
-      accountName: 'KcPele Auctions',
-    });
-
-    await expect(
-      service.getPaymentInstructions(
-        {
-          id: 'winner-id',
-          role: UserRole.IndividualBidder,
-          authRole: 'user',
-          sessionId: 'session-id',
-        },
-        auction.id,
-      ),
-    ).resolves.toEqual({
-      auction: expect.objectContaining({ id: auction.id }),
-      winningBid: { id: 'winning-bid-id', amountKobo: 7000000 },
-      paymentDeadlineAt: auction.paymentDeadlineAt,
-      paymentAccount: {
-        bankName: 'Providus Bank',
-        accountNumber: '3635734512',
-        accountName: 'KcPele Auctions',
-      },
-    });
-  });
 });
 
 function createListing() {
@@ -361,6 +319,12 @@ function createAuction(overrides: Record<string, unknown> = {}) {
     currentWinningBidId: null,
     winnerId: null,
     paymentDeadlineAt: null,
+    externalPaymentKobo: null,
+    walletPaymentKobo: null,
+    settledById: null,
+    settledAt: null,
+    defaultedAt: null,
+    defaultReason: null,
     cancelledById: null,
     cancellationReason: null,
     cancelledAt: null,
@@ -393,6 +357,10 @@ function createManager(input?: {
         return Promise.resolve(input?.auction ?? createAuction());
       }
 
+      if (entity.name === 'Bid') {
+        return Promise.resolve(input?.bids?.[0] ?? null);
+      }
+
       return Promise.resolve(null);
     }),
     find: jest.fn((entity) => {
@@ -402,6 +370,7 @@ function createManager(input?: {
 
       return Promise.resolve([]);
     }),
+    create: jest.fn((_entity, value) => value),
     save: jest.fn(async (value) => value),
   };
 }

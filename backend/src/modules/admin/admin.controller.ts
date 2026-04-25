@@ -19,9 +19,11 @@ import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AdminService } from './admin.service';
 import { AuthorizeWithdrawalDto } from './dto/authorize-withdrawal.dto';
 import { CreateAccessCodeDto } from './dto/create-access-code.dto';
+import { DefaultAuctionPaymentDto } from './dto/default-auction-payment.dto';
 import { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
 import { ReviewListingDto } from './dto/review-listing.dto';
+import { SettleAuctionPaymentDto } from './dto/settle-auction-payment.dto';
 import { UpdateBiddingSettingDto } from './dto/update-bidding-setting.dto';
 import { UpdatePaymentAccountDto } from './dto/update-payment-account.dto';
 import { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
@@ -189,5 +191,26 @@ export class AdminController {
   @ApiCreatedResponse({ description: 'Withdrawal OTP resend requested.' })
   resendWithdrawalOtp(@Param('id') id: string) {
     return this.adminService.resendWithdrawalOtp(id);
+  }
+
+  @Post('auctions/:id/settle-payment')
+  @ApiOperation({ summary: 'Confirm winner payment and settle an auction' })
+  @ApiCreatedResponse({ description: 'Auction payment settled.' })
+  settleAuctionPayment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: SettleAuctionPaymentDto,
+  ) {
+    return this.adminService.settleAuctionPayment(user.id, id, dto);
+  }
+
+  @Post('auctions/:id/default-payment')
+  @ApiOperation({ summary: 'Mark an unpaid auction winner as defaulted' })
+  @ApiCreatedResponse({ description: 'Auction payment defaulted.' })
+  defaultAuctionPayment(
+    @Param('id') id: string,
+    @Body() dto: DefaultAuctionPaymentDto,
+  ) {
+    return this.adminService.defaultAuctionPayment(id, dto);
   }
 }

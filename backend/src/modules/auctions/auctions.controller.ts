@@ -20,6 +20,7 @@ import { UserRole } from '../../common/enums/user-role.enum';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { AuctionSettlementService } from './auction-settlement.service';
 import { AuctionsService } from './auctions.service';
 import { CancelAuctionDto } from './dto/cancel-auction.dto';
 import { ListAuctionsQueryDto } from './dto/list-auctions-query.dto';
@@ -27,7 +28,10 @@ import { ListAuctionsQueryDto } from './dto/list-auctions-query.dto';
 @ApiTags('auctions')
 @Controller('auctions')
 export class AuctionsController {
-  constructor(private readonly auctionsService: AuctionsService) {}
+  constructor(
+    private readonly auctionsService: AuctionsService,
+    private readonly auctionSettlementService: AuctionSettlementService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List auctions' })
@@ -59,7 +63,7 @@ export class AuctionsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
   ) {
-    return this.auctionsService.getPaymentInstructions(user, id);
+    return this.auctionSettlementService.getPaymentInstructions(user, id);
   }
 
   @Post(':id/cancel')

@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AuthService } from '../auth/auth.service';
+import { AuctionSettlementService } from './auction-settlement.service';
 import { AuctionsController } from './auctions.controller';
 import { AuctionsService } from './auctions.service';
 import type { CancelAuctionDto } from './dto/cancel-auction.dto';
@@ -19,23 +20,24 @@ describe('AuctionsController', () => {
     list: jest.Mock;
     findOne: jest.Mock;
     listBids: jest.Mock;
-    getPaymentInstructions: jest.Mock;
     cancel: jest.Mock;
   };
+  let settlementService: { getPaymentInstructions: jest.Mock };
 
   beforeEach(async () => {
     service = {
       list: jest.fn(),
       findOne: jest.fn(),
       listBids: jest.fn(),
-      getPaymentInstructions: jest.fn(),
       cancel: jest.fn(),
     };
+    settlementService = { getPaymentInstructions: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       controllers: [AuctionsController],
       providers: [
         { provide: AuctionsService, useValue: service },
+        { provide: AuctionSettlementService, useValue: settlementService },
         { provide: AuthService, useValue: { getAuthenticatedUser: jest.fn() } },
       ],
     }).compile();
@@ -70,7 +72,7 @@ describe('AuctionsController', () => {
   });
 
   it('gets winner payment instructions', async () => {
-    service.getPaymentInstructions.mockResolvedValue({
+    settlementService.getPaymentInstructions.mockResolvedValue({
       paymentAccount: { accountNumber: '3635734512' },
     });
 
@@ -79,7 +81,7 @@ describe('AuctionsController', () => {
     ).resolves.toEqual({
       paymentAccount: { accountNumber: '3635734512' },
     });
-    expect(service.getPaymentInstructions).toHaveBeenCalledWith(
+    expect(settlementService.getPaymentInstructions).toHaveBeenCalledWith(
       admin,
       'auction-id',
     );
