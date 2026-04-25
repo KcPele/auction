@@ -13,6 +13,11 @@ const CATEGORIES: Array<{ id: "cars" | "gadgets"; label: string; sub: string; ic
   { id: "gadgets", label: "Gadgets", sub: "63 live · 128 opening", icon: "phone" },
 ];
 
+const ROW_THUMB_BG = {
+  background:
+    "repeating-linear-gradient(135deg, rgba(255,170,90,0.04) 0 8px, rgba(255,170,90,0.07) 8px 16px), linear-gradient(180deg, #3a2d1f, #231810)",
+};
+
 export function HomeScreen() {
   const liveAuctions = AUCTIONS.filter((a) => a.live);
   const myActive = MY_BIDS.filter((b) => b.status === "leading" || b.status === "outbid");
@@ -20,24 +25,24 @@ export function HomeScreen() {
 
   return (
     <>
-      <h1 className="dash-page-title" style={{ marginTop: 4 }}>
+      <h1 className="m-0 mt-1 font-display text-[26px] font-semibold tracking-tight">
         Auctions
       </h1>
 
       <WalletHero />
 
-      <div className="dash-section-header">
+      <div className="my-3 mt-5 flex items-center justify-between">
         <div>
-          <div className="dash-section-h" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="dash-live-dot" /> Live now
+          <div className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+            <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-red" /> Live now
           </div>
-          <div className="dash-section-sub">{liveAuctions.length} auctions closing soon</div>
+          <div className="text-xs text-fg-dim">{liveAuctions.length} auctions closing soon</div>
         </div>
-        <Link href="/dashboard/browse" className="dash-section-all">
+        <Link href="/dashboard/browse" className="text-xs font-medium text-accent">
           See all →
         </Link>
       </div>
-      <div className="dash-auction-scroll">
+      <div className="-mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1.5 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         {liveAuctions.map((a) => (
           <AuctionTile key={a.id} a={a} />
         ))}
@@ -49,46 +54,52 @@ export function HomeScreen() {
         allHref="/dashboard/bids"
         allLabel="All →"
       />
-      <div className="dash-card">
+      <div className="rounded-[14px] border border-line bg-surface p-3.5">
         {myActive.slice(0, 3).map((b) => (
           <BidRow key={b.id} bid={b} auction={AUCTIONS.find((x) => x.id === b.id)} />
         ))}
       </div>
 
       <SectionHeader title="Browse by category" />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div className="grid grid-cols-2 gap-2.5">
         {CATEGORIES.map((c) => (
           <Link
             key={c.id}
             href={`/dashboard/browse?cat=${c.id}`}
-            className="dash-card"
-            style={{ textAlign: "left", padding: 16, display: "block" }}
+            className="block rounded-[14px] border border-line bg-surface p-4 text-left"
           >
-            <div style={{ color: "var(--accent)", marginBottom: 8 }}>
+            <div className="mb-2 text-accent">
               <Icon name={c.icon} size={28} />
             </div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{c.label}</div>
-            <div style={{ fontSize: 11, color: "var(--fg-dim)" }}>{c.sub}</div>
+            <div className="text-sm font-semibold">{c.label}</div>
+            <div className="text-[11px] text-fg-dim">{c.sub}</div>
           </Link>
         ))}
       </div>
 
       <SectionHeader title="Opening soon" allHref="/dashboard/browse" allLabel="All →" />
-      <div className="dash-card">
+      <div className="rounded-[14px] border border-line bg-surface p-3.5">
         {openingSoon.map((a) => (
-          <Link key={a.id} href={`/dashboard/auction/${a.id}`} className="dash-row">
-            <div className="dash-row-thumb">
+          <Link
+            key={a.id}
+            href={`/dashboard/auction/${a.id}`}
+            className="grid w-full cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-3 border-b border-line py-3 text-left text-fg last:border-b-0"
+          >
+            <div
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-line text-[rgba(255,200,140,0.4)]"
+              style={ROW_THUMB_BG}
+            >
               <Icon name={a.cat === "cars" ? "car" : "phone"} size={22} />
             </div>
             <div>
-              <div className="dash-row-title">{a.title}</div>
-              <div className="dash-row-meta">
+              <div className="text-[13px] font-medium">{a.title}</div>
+              <div className="text-[11px] text-fg-dim">
                 Opens in <Countdown endsIn={a.endsIn} compact />
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div className="dash-tile-bid-lbl">Starts at</div>
-              <div className="dash-row-amt" style={{ color: "var(--accent-light)" }}>
+            <div className="text-right">
+              <div className="text-[9px] uppercase tracking-[0.08em] text-fg-dim">Starts at</div>
+              <div className="font-mono text-[13px] font-semibold tabular-nums text-accent-light">
                 {fmtNaira(a.start)}
               </div>
             </div>

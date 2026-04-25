@@ -6,6 +6,7 @@ import { User } from '../users/entities/user.entity';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { AuctionsModule } from '../auctions/auctions.module';
+import { WalletsModule } from '../wallets/wallets.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AccessCode } from './entities/access-code.entity';
@@ -14,6 +15,7 @@ import { PlatformFeeSetting } from './entities/platform-fee-setting.entity';
 @Module({
   imports: [
     AuctionsModule,
+    WalletsModule,
     TypeOrmModule.forFeature([
       User,
       AccessCode,

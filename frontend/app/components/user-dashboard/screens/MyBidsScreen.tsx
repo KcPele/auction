@@ -45,9 +45,9 @@ export function MyBidsScreen() {
 
   return (
     <>
-      <h1 className="dash-page-title">My bids</h1>
+      <h1 className="m-0 font-display text-[26px] font-semibold tracking-tight">My bids</h1>
 
-      <div className="dash-seg">
+      <div className="my-3 grid auto-cols-fr grid-flow-col rounded-[10px] border border-line bg-surface p-[3px]">
         {(
           [
             { id: "active", label: "Active", count: active.length },
@@ -58,33 +58,31 @@ export function MyBidsScreen() {
           <button
             key={t.id}
             type="button"
-            className={`dash-seg-btn ${tab === t.id ? "active" : ""}`}
+            className={`inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[7px] border-none px-1.5 py-2 text-center text-[12px] ${
+              tab === t.id ? "bg-accent/[0.12] font-semibold text-accent" : "bg-transparent font-medium text-fg-muted"
+            }`}
             onClick={() => setTab(t.id)}
           >
-            {t.label} <span className="dash-seg-count">{t.count}</span>
+            {t.label}
+            <span className="rounded bg-white/[0.04] px-1.5 py-px font-mono text-[10px]">
+              {t.count}
+            </span>
           </button>
         ))}
       </div>
 
       {tab === "active" && firstOutbid && (
-        <div
-          className="dash-card"
-          style={{
-            background: "rgba(239,74,58,0.06)",
-            borderColor: "rgba(239,74,58,0.2)",
-            marginBottom: 12,
-          }}
-        >
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <div style={{ color: "var(--red)" }}>
+        <div className="mb-3 rounded-[14px] border border-red/20 bg-red/[0.06] p-3.5">
+          <div className="flex items-center gap-2.5">
+            <div className="text-red">
               <Icon name="flame" size={18} />
             </div>
-            <div style={{ flex: 1, fontSize: 13 }}>
+            <div className="flex-1 text-[13px]">
               You&apos;ve been outbid on <strong>{lookup(firstOutbid.id).title}</strong>
             </div>
             <Link
               href={`/dashboard/auction/${firstOutbid.id}`}
-              style={{ color: "var(--red)", fontWeight: 600, fontSize: 12 }}
+              className="text-xs font-semibold text-red"
             >
               Raise →
             </Link>
@@ -92,48 +90,29 @@ export function MyBidsScreen() {
         </div>
       )}
 
-      <div className="dash-card">
+      <div className="rounded-[14px] border border-line bg-surface p-3.5">
         {list.length === 0 ? (
-          <div style={{ padding: 30, textAlign: "center", color: "var(--fg-dim)" }}>
-            Nothing here yet.
-          </div>
+          <div className="py-8 text-center text-fg-dim">Nothing here yet.</div>
         ) : (
           list.map((b) => <BidRow key={b.id} bid={b} auction={lookup(b.id)} />)
         )}
       </div>
 
       {tab === "won" && (
-        <div className="dash-card" style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-            iPad Pro 11&quot; — Delivery
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12 }}>
+        <div className="mt-3 rounded-[14px] border border-line bg-surface p-3.5">
+          <div className="mb-2 text-[13px] font-semibold">iPad Pro 11&quot; — Delivery</div>
+          <div className="flex flex-col gap-2.5 text-xs">
             {DELIVERY_STEPS.map((s, i) => (
-              <div key={i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <div key={i} className="flex items-center gap-2.5">
                 <div
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    background: s.done ? "var(--green)" : "var(--surface-2)",
-                    color: s.done ? "#0a0806" : "var(--fg-dim)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
+                  className={`flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-full ${
+                    s.done ? "bg-green text-[#0a0806]" : "bg-surface-2 text-fg-dim"
+                  }`}
                 >
                   {s.done && <Icon name="check" size={11} strokeWidth={2.5} />}
                 </div>
-                <span style={{ flex: 1, color: s.done ? "var(--fg)" : "var(--fg-muted)" }}>
-                  {s.label}
-                </span>
-                <span
-                  className="dash-dim"
-                  style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}
-                >
-                  {s.when}
-                </span>
+                <span className={`flex-1 ${s.done ? "text-fg" : "text-fg-muted"}`}>{s.label}</span>
+                <span className="font-mono text-[11px] text-fg-dim">{s.when}</span>
               </div>
             ))}
           </div>

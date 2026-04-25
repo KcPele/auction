@@ -50,6 +50,15 @@ export type InitiateWithdrawalInput = {
   destinationAccountName: string;
 };
 
+export type AuthorizeWithdrawalInput = {
+  reference: string;
+  authorizationCode: string;
+};
+
+type ResendWithdrawalOtpResponse = {
+  message: string;
+};
+
 export class MonnifyProvider {
   private accessToken: string | null = null;
   private accessTokenExpiresAt = 0;
@@ -97,6 +106,30 @@ export class MonnifyProvider {
     const response = await this.request<TransferResponse>(
       '/api/v2/disbursements/single',
       { method: 'POST', body },
+    );
+
+    return response.responseBody;
+  }
+
+  async authorizeWithdrawal(input: AuthorizeWithdrawalInput) {
+    const response = await this.request<TransferResponse>(
+      '/api/v2/disbursements/single/validate-otp',
+      {
+        method: 'POST',
+        body: {
+          reference: input.reference,
+          authorizationCode: input.authorizationCode,
+        },
+      },
+    );
+
+    return response.responseBody;
+  }
+
+  async resendWithdrawalOtp(reference: string) {
+    const response = await this.request<ResendWithdrawalOtpResponse>(
+      '/api/v2/disbursements/single/resend-otp',
+      { method: 'POST', body: { reference } },
     );
 
     return response.responseBody;

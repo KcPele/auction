@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { PaymentProvider } from '../../common/enums/payment-provider.enum';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
 import { WalletWithdrawalStatus } from '../../common/enums/wallet-withdrawal-status.enum';
@@ -70,6 +70,44 @@ export class WalletWithdrawalsService {
     }
 
     return { withdrawal: presentWithdrawal(withdrawal) };
+  }
+
+  async listPendingWithdrawals() {
+    const withdrawals = await this.withdrawalsRepository.find({
+      where: {
+        status: In([
+          WalletWithdrawalStatus.Pending,
+          WalletWithdrawalStatus.Processing,
+        ]),
+      },
+      order: { createdAt: 'ASC' },
+    });
+
+    return { withdrawals: withdrawals.map(presentWithdrawal) };
+  }
+
+  async authorizeWithdrawal(withdrawalId: string, authorizationCode: string) {
+    const withdrawal = await this.findAuthorizableWithdrawal(withdrawalId);
+    const payout = await this.monnifyProvider.authorizeWithdrawal({
+      reference: withdrawal.providerReference,
+      authorizationCode,
+    });
+    const updated = await this.updateWithdrawalFromProvider(
+      withdrawal.providerReference,
+      payout.status,
+      payout as unknown as Record<string, unknown>,
+    );
+
+    return { withdrawal: presentWithdrawal(updated), payout };
+  }
+
+  async resendWithdrawalOtp(withdrawalId: string) {
+    const withdrawal = await this.findAuthorizableWithdrawal(withdrawalId);
+    const providerResponse = await this.monnifyProvider.resendWithdrawalOtp(
+      withdrawal.providerReference,
+    );
+
+    return { withdrawal: presentWithdrawal(withdrawal), providerResponse };
   }
 
   async updateWithdrawalFromProvider(
@@ -244,6 +282,26 @@ export class WalletWithdrawalsService {
 
     if (!withdrawal) {
       throw new NotFoundException('Withdrawal not found');
+    }
+
+    return withdrawal;
+  }
+
+  private async findAuthorizableWithdrawal(withdrawalId: string) {
+    const withdrawal = await this.withdrawalsRepository.findOneBy({
+      id: withdrawalId,
+    });
+
+    if (!withdrawal) {
+      throw new NotFoundException('Withdrawal not found');
+    }
+
+    if (
+      [WalletWithdrawalStatus.Completed, WalletWithdrawalStatus.Failed].includes(
+        withdrawal.status,
+      )
+    ) {
+      throw new BadRequestException('Withdrawal cannot be authorized');
     }
 
     return withdrawal;

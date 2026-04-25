@@ -22,6 +22,19 @@ const STATUS_OPTS: Array<{ id: StatusFilter; label: string }> = [
   { id: "soon", label: "Opening soon" },
 ];
 
+const TILE_MEDIA_BG = {
+  background:
+    "repeating-linear-gradient(135deg, rgba(255,170,90,0.03) 0 10px, rgba(255,170,90,0.07) 10px 20px), linear-gradient(180deg, #3a2d1f, #231810)",
+};
+
+function chipClass(active: boolean) {
+  return `flex-shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium ${
+    active
+      ? "border border-line-strong bg-accent/[0.12] text-accent"
+      : "border border-line bg-surface text-fg-muted"
+  }`;
+}
+
 export function BrowseScreen() {
   const params = useSearchParams();
   const initialCat = (params.get("cat") as CatFilter) || "all";
@@ -44,98 +57,76 @@ export function BrowseScreen() {
 
   return (
     <>
-      <h1 className="dash-page-title">Browse</h1>
+      <h1 className="m-0 font-display text-[26px] font-semibold tracking-tight">Browse</h1>
 
-      <div
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--line)",
-          borderRadius: 12,
-          padding: "10px 14px",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginTop: 12,
-        }}
-      >
-        <Icon name="search" size={18} style={{ color: "var(--fg-muted)" }} />
+      <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3.5 py-2.5">
+        <Icon name="search" size={18} className="text-fg-muted" />
         <input
           placeholder="Search Camry, iPhone, Lexus…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          style={{
-            flex: 1,
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            color: "var(--fg)",
-            fontSize: 14,
-          }}
+          className="flex-1 border-none bg-transparent text-sm text-fg outline-none"
         />
-        <button type="button" style={{ color: "var(--fg-muted)", background: "none", border: "none", cursor: "pointer" }}>
+        <button type="button" className="cursor-pointer border-none bg-transparent text-fg-muted">
           <Icon name="sliders" size={18} />
         </button>
       </div>
 
-      <div className="dash-chips" style={{ marginTop: 14 }}>
+      <div className="mt-3.5 flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         {CAT_OPTS.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            className={`dash-chip ${cat === c.id ? "active" : ""}`}
-            onClick={() => setCat(c.id)}
-          >
+          <button key={c.id} type="button" className={chipClass(cat === c.id)} onClick={() => setCat(c.id)}>
             {c.label}
           </button>
         ))}
-        <div style={{ width: 1, background: "var(--line)", margin: "0 4px" }} />
+        <div className="mx-1 w-px bg-line" />
         {STATUS_OPTS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            className={`dash-chip ${status === s.id ? "active" : ""}`}
-            onClick={() => setStatus(s.id)}
-          >
+          <button key={s.id} type="button" className={chipClass(status === s.id)} onClick={() => setStatus(s.id)}>
             {s.label}
           </button>
         ))}
       </div>
 
-      <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div className="mt-4 grid grid-cols-2 gap-2.5">
         {filtered.map((a) => (
           <Link
             key={a.id}
             href={`/dashboard/auction/${a.id}`}
-            className="dash-tile"
-            style={{ width: "auto" }}
+            className="block cursor-pointer overflow-hidden rounded-[14px] border border-line bg-surface text-left text-fg"
           >
-            <div className="dash-tile-media" style={{ aspectRatio: "1/1" }}>
+            <div
+              className="relative flex aspect-square items-center justify-center text-[rgba(255,200,140,0.3)]"
+              style={TILE_MEDIA_BG}
+            >
               <Icon name={a.cat === "cars" ? "car" : "phone"} size={36} />
-              <span className={`dash-tile-badge ${a.live ? "live" : "starting"}`}>
+              <span
+                className={`absolute left-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-[5px] border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] ${
+                  a.live
+                    ? "border-red/30 bg-red/15 text-red"
+                    : "border-accent/30 bg-accent/15 text-accent"
+                }`}
+              >
                 {a.live ? (
                   <>
-                    <span className="dash-live-dot" /> Live
+                    <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-red" /> Live
                   </>
                 ) : (
                   "Soon"
                 )}
               </span>
             </div>
-            <div className="dash-tile-info" style={{ padding: 10 }}>
-              <div className="dash-tile-title" style={{ fontSize: 12 }}>
-                {a.title}
-              </div>
-              <div className="dash-tile-bid-val" style={{ fontSize: 13 }}>
+            <div className="p-2.5">
+              <div className="mb-[3px] truncate text-[12px] font-semibold">{a.title}</div>
+              <div className="font-mono text-[13px] font-semibold tabular-nums text-accent-light">
                 {fmtNaira(a.live ? a.current : a.start)}
               </div>
-              <div className="dash-tile-meta">
+              <div className="text-[11px] text-fg-dim">
                 {a.bids} bids · <Countdown endsIn={a.endsIn} compact />
               </div>
             </div>
           </Link>
         ))}
         {filtered.length === 0 && (
-          <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: "var(--fg-dim)" }}>
+          <div className="col-span-full py-10 text-center text-fg-dim">
             No auctions match those filters
           </div>
         )}

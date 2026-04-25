@@ -5,6 +5,7 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AuthService } from '../auth/auth.service';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import type { AuthorizeWithdrawalDto } from './dto/authorize-withdrawal.dto';
 import type { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import type { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import type { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
@@ -30,6 +31,9 @@ describe('AdminController', () => {
     rejectListing: jest.Mock;
     listPlatformFees: jest.Mock;
     updatePlatformFee: jest.Mock;
+    listPendingWithdrawals: jest.Mock;
+    authorizeWithdrawal: jest.Mock;
+    resendWithdrawalOtp: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -44,6 +48,9 @@ describe('AdminController', () => {
       rejectListing: jest.fn(),
       listPlatformFees: jest.fn(),
       updatePlatformFee: jest.fn(),
+      listPendingWithdrawals: jest.fn(),
+      authorizeWithdrawal: jest.fn(),
+      resendWithdrawalOtp: jest.fn(),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -193,5 +200,40 @@ describe('AdminController', () => {
       controller.updatePlatformFee(adminUser, dto),
     ).resolves.toEqual({ platformFee: dto });
     expect(service.updatePlatformFee).toHaveBeenCalledWith(adminUser.id, dto);
+  });
+
+  it('lists pending wallet withdrawals', async () => {
+    service.listPendingWithdrawals.mockResolvedValue({ withdrawals: [] });
+
+    await expect(controller.listPendingWithdrawals()).resolves.toEqual({
+      withdrawals: [],
+    });
+    expect(service.listPendingWithdrawals).toHaveBeenCalledWith();
+  });
+
+  it('authorizes a wallet withdrawal with OTP', async () => {
+    const dto: AuthorizeWithdrawalDto = { authorizationCode: '886850' };
+    service.authorizeWithdrawal.mockResolvedValue({
+      withdrawal: { id: 'withdrawal-id' },
+    });
+
+    await expect(
+      controller.authorizeWithdrawal('withdrawal-id', dto),
+    ).resolves.toEqual({ withdrawal: { id: 'withdrawal-id' } });
+    expect(service.authorizeWithdrawal).toHaveBeenCalledWith(
+      'withdrawal-id',
+      dto,
+    );
+  });
+
+  it('resends a wallet withdrawal OTP', async () => {
+    service.resendWithdrawalOtp.mockResolvedValue({
+      providerResponse: { message: 'sent' },
+    });
+
+    await expect(
+      controller.resendWithdrawalOtp('withdrawal-id'),
+    ).resolves.toEqual({ providerResponse: { message: 'sent' } });
+    expect(service.resendWithdrawalOtp).toHaveBeenCalledWith('withdrawal-id');
   });
 });

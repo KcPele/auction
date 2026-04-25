@@ -10,13 +10,21 @@ import { WalletWithdrawalsService } from './wallet-withdrawals.service';
 describe('WalletWithdrawalsService', () => {
   let service: WalletWithdrawalsService;
   let dataSource: { transaction: jest.Mock };
-  let withdrawalsRepository: { findOneBy: jest.Mock };
-  let monnifyProvider: { initiateWithdrawal: jest.Mock };
+  let withdrawalsRepository: { find: jest.Mock; findOneBy: jest.Mock };
+  let monnifyProvider: {
+    authorizeWithdrawal: jest.Mock;
+    initiateWithdrawal: jest.Mock;
+    resendWithdrawalOtp: jest.Mock;
+  };
 
   beforeEach(() => {
     dataSource = { transaction: jest.fn((callback) => callback(createManager())) };
-    withdrawalsRepository = { findOneBy: jest.fn() };
-    monnifyProvider = { initiateWithdrawal: jest.fn() };
+    withdrawalsRepository = { find: jest.fn(), findOneBy: jest.fn() };
+    monnifyProvider = {
+      authorizeWithdrawal: jest.fn(),
+      initiateWithdrawal: jest.fn(),
+      resendWithdrawalOtp: jest.fn(),
+    };
     service = new WalletWithdrawalsService(
       dataSource as never,
       withdrawalsRepository as never,
@@ -93,6 +101,74 @@ describe('WalletWithdrawalsService', () => {
     await expect(
       service.getWithdrawal('user-id', 'missing-id'),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('lists pending withdrawals for admin authorization', async () => {
+    withdrawalsRepository.find.mockResolvedValue([
+      createWithdrawal({ id: 'withdrawal-a' }),
+    ]);
+
+    await expect(service.listPendingWithdrawals()).resolves.toEqual({
+      withdrawals: [expect.objectContaining({ id: 'withdrawal-a' })],
+    });
+    expect(withdrawalsRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({ order: { createdAt: 'ASC' } }),
+    );
+  });
+
+  it('authorizes a withdrawal with a Monnify OTP', async () => {
+    const wallet = createWallet({ balanceKobo: 50000 });
+    const withdrawal = createWithdrawal();
+    const manager = createManager({ wallet, withdrawal });
+    withdrawalsRepository.findOneBy.mockResolvedValue(withdrawal);
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+    monnifyProvider.authorizeWithdrawal.mockResolvedValue({
+      reference: withdrawal.providerReference,
+      status: 'SUCCESS',
+    });
+
+    await expect(
+      service.authorizeWithdrawal('withdrawal-id', '886850'),
+    ).resolves.toEqual({
+      withdrawal: expect.objectContaining({
+        status: WalletWithdrawalStatus.Completed,
+      }),
+      payout: expect.objectContaining({ status: 'SUCCESS' }),
+    });
+    expect(monnifyProvider.authorizeWithdrawal).toHaveBeenCalledWith({
+      reference: withdrawal.providerReference,
+      authorizationCode: '886850',
+    });
+  });
+
+  it('resends a withdrawal OTP', async () => {
+    const withdrawal = createWithdrawal();
+    withdrawalsRepository.findOneBy.mockResolvedValue(withdrawal);
+    monnifyProvider.resendWithdrawalOtp.mockResolvedValue({
+      message: 'Authorization code will be processed',
+    });
+
+    await expect(
+      service.resendWithdrawalOtp('withdrawal-id'),
+    ).resolves.toEqual({
+      withdrawal: expect.objectContaining({ id: 'withdrawal-id' }),
+      providerResponse: expect.objectContaining({
+        message: 'Authorization code will be processed',
+      }),
+    });
+    expect(monnifyProvider.resendWithdrawalOtp).toHaveBeenCalledWith(
+      withdrawal.providerReference,
+    );
+  });
+
+  it('does not authorize completed withdrawals', async () => {
+    withdrawalsRepository.findOneBy.mockResolvedValue(
+      createWithdrawal({ status: WalletWithdrawalStatus.Completed }),
+    );
+
+    await expect(
+      service.authorizeWithdrawal('withdrawal-id', '886850'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
 

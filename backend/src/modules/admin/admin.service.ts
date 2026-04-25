@@ -23,6 +23,8 @@ import { AccessCode } from './entities/access-code.entity';
 import { PlatformFeeSetting } from './entities/platform-fee-setting.entity';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
 import { AuctionsService } from '../auctions/auctions.service';
+import { WalletWithdrawalsService } from '../wallets/wallet-withdrawals.service';
+import { AuthorizeWithdrawalDto } from './dto/authorize-withdrawal.dto';
 
 @Injectable()
 export class AdminService {
@@ -42,6 +44,7 @@ export class AdminService {
     @InjectRepository(GadgetListing)
     private readonly gadgetListingsRepository: Repository<GadgetListing>,
     private readonly auctionsService: AuctionsService,
+    private readonly walletWithdrawalsService: WalletWithdrawalsService,
   ) {}
 
   async createAccessCode(adminId: string, dto: CreateAccessCodeDto) {
@@ -152,6 +155,21 @@ export class AdminService {
     });
 
     return { platformFee: await this.feesRepository.save(fee) };
+  }
+
+  listPendingWithdrawals() {
+    return this.walletWithdrawalsService.listPendingWithdrawals();
+  }
+
+  authorizeWithdrawal(withdrawalId: string, dto: AuthorizeWithdrawalDto) {
+    return this.walletWithdrawalsService.authorizeWithdrawal(
+      withdrawalId,
+      dto.authorizationCode,
+    );
+  }
+
+  resendWithdrawalOtp(withdrawalId: string) {
+    return this.walletWithdrawalsService.resendWithdrawalOtp(withdrawalId);
   }
 
   async listPendingListings() {

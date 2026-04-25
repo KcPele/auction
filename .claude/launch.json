@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend (Next.js)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "frontend",
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "backend (NestJS)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "start:dev"],
+      "cwd": "backend",
+      "port": 4000
+    }
+  ]
+}

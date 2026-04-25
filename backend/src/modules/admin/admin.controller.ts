@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AdminService } from './admin.service';
+import { AuthorizeWithdrawalDto } from './dto/authorize-withdrawal.dto';
 import { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
@@ -128,5 +129,29 @@ export class AdminController {
     @Body() dto: UpdatePlatformFeeDto,
   ) {
     return this.adminService.updatePlatformFee(user.id, dto);
+  }
+
+  @Get('wallet-withdrawals/pending')
+  @ApiOperation({ summary: 'List wallet withdrawals awaiting authorization' })
+  @ApiOkResponse({ description: 'Pending withdrawals returned.' })
+  listPendingWithdrawals() {
+    return this.adminService.listPendingWithdrawals();
+  }
+
+  @Post('wallet-withdrawals/:id/authorize')
+  @ApiOperation({ summary: 'Authorize a Monnify wallet withdrawal with OTP' })
+  @ApiCreatedResponse({ description: 'Withdrawal authorization submitted.' })
+  authorizeWithdrawal(
+    @Param('id') id: string,
+    @Body() dto: AuthorizeWithdrawalDto,
+  ) {
+    return this.adminService.authorizeWithdrawal(id, dto);
+  }
+
+  @Post('wallet-withdrawals/:id/resend-otp')
+  @ApiOperation({ summary: 'Resend Monnify withdrawal authorization OTP' })
+  @ApiCreatedResponse({ description: 'Withdrawal OTP resend requested.' })
+  resendWithdrawalOtp(@Param('id') id: string) {
+    return this.adminService.resendWithdrawalOtp(id);
   }
 }
