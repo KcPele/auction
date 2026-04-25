@@ -1,0 +1,225 @@
+import type {
+  AdminAuction,
+  Approval,
+  Counts,
+  FeedItem,
+  HealthRow,
+  KPISet,
+  LedgerEntry,
+  Range,
+} from "./types";
+
+export const KPI_DATA: Record<Range, KPISet> = {
+  "1h": {
+    gmv: { value: 8_400_000, spark: [2, 3, 2, 4, 3, 5, 4, 6, 5, 7], delta: 4.2 },
+    settled: { value: 6, spark: [0, 1, 1, 2, 1, 2, 3, 2, 3, 4], delta: 2 },
+    holds: { value: 18_400_000, spark: [14, 15, 16, 15, 17, 18, 18, 19, 19, 20], count: 412 },
+    success: { value: 98.9, spark: [99, 99, 99, 98.9, 99, 98.9, 99, 98.9, 99, 98.9], delta: 0.1 },
+  },
+  "24h": {
+    gmv: { value: 184_200_000, spark: [40, 48, 56, 60, 72, 84, 100, 120, 148, 184], delta: 12.4 },
+    settled: { value: 142, spark: [10, 12, 9, 14, 13, 16, 14, 18, 20, 22], delta: 8 },
+    holds: { value: 34_800_000, spark: [20, 18, 22, 21, 25, 23, 27, 26, 28, 30], count: 612 },
+    success: {
+      value: 98.7,
+      spark: [99, 98.8, 99.1, 98.7, 98.9, 98.5, 98.7, 98.6, 98.8, 98.7],
+      delta: -0.3,
+    },
+  },
+  "7d": {
+    gmv: {
+      value: 1_240_000_000,
+      spark: [80, 120, 140, 160, 180, 200, 220, 240, 260, 280],
+      delta: 18.2,
+    },
+    settled: { value: 980, spark: [70, 90, 100, 110, 120, 130, 140, 150, 160, 170], delta: 42 },
+    holds: { value: 42_100_000, spark: [22, 24, 26, 28, 30, 32, 34, 36, 38, 40], count: 701 },
+    success: {
+      value: 98.4,
+      spark: [99, 98.5, 98.6, 98.4, 98.7, 98.3, 98.5, 98.4, 98.6, 98.4],
+      delta: -0.5,
+    },
+  },
+  "30d": {
+    gmv: {
+      value: 4_820_000_000,
+      spark: [200, 240, 280, 320, 360, 400, 440, 480, 520, 560],
+      delta: 24.7,
+    },
+    settled: {
+      value: 4210,
+      spark: [280, 320, 360, 400, 440, 480, 520, 560, 600, 640],
+      delta: 184,
+    },
+    holds: { value: 51_200_000, spark: [30, 34, 38, 42, 46, 50, 54, 58, 62, 66], count: 834 },
+    success: {
+      value: 98.6,
+      spark: [99, 98.7, 98.8, 98.6, 98.9, 98.5, 98.7, 98.6, 98.8, 98.6],
+      delta: 0.2,
+    },
+  },
+};
+
+export const INITIAL_FEED: FeedItem[] = [
+  { id: "F1", type: "bid", user: "damilare.o", item: "Toyota Camry XLE", amt: 4_850_000, time: "now" },
+  { id: "F2", type: "bid", user: "nkem_a", item: "iPhone 15 Pro Max", amt: 985_000, time: "8s" },
+  { id: "F3", type: "win", user: "emeka_b", item: "Samsung S24 Ultra", amt: 780_000, time: "22s" },
+  { id: "F4", type: "pay", user: "bolaji.o", item: "Lexus RX 350", amt: 9_400_000, time: "41s" },
+  { id: "F5", type: "alert", user: "admin:system", item: "OPay webhook lag +420ms", amt: null, time: "1m" },
+  { id: "F6", type: "bid", user: "zee__", item: "MacBook Pro M3", amt: 2_340_000, time: "1m" },
+  { id: "F7", type: "bid", user: "ade.p", item: "PlayStation 5 Slim", amt: 520_000, time: "2m" },
+  { id: "F8", type: "pay", user: "tunde.k", item: "DJI Mavic 3 Pro", amt: 1_450_000, time: "3m" },
+];
+
+export const INITIAL_APPROVALS: Approval[] = [
+  {
+    id: "AP-001",
+    kind: "car",
+    title: "2018 Toyota Highlander XLE",
+    by: "Dealer · AutoPearl Ltd",
+    waited: "12m",
+    mechanic: "K. Adebayo",
+    tag: "URGENT",
+    photos: 14,
+    basePrice: 5_200_000,
+    year: 2018,
+    location: "Lagos · Ikeja",
+    mileage: "84,230 km",
+    reg: "KJA-284-HJ",
+    faults: "Minor dent on rear bumper, AC needs regassing.",
+  },
+  {
+    id: "AP-002",
+    kind: "gadget",
+    title: "iPhone 15 Pro Max · 512GB",
+    by: "Emeka B.",
+    waited: "34m",
+    proof: "Receipt · Slot Ikeja",
+    photos: 8,
+    basePrice: 950_000,
+    battery: "98%",
+    specs: "512GB · Natural Titanium",
+    usage: "Personal · 4 months",
+  },
+  {
+    id: "AP-003",
+    kind: "car",
+    title: "2016 Honda CR-V EX",
+    by: "Dealer · Mighty Motors",
+    waited: "1h 02m",
+    mechanic: "D. Olaniyi",
+    photos: 16,
+    basePrice: 4_100_000,
+    year: 2016,
+    location: "Abuja · Wuse II",
+    mileage: "132,500 km",
+    reg: "ABJ-491-GS",
+  },
+  {
+    id: "AP-004",
+    kind: "gadget",
+    title: 'MacBook Pro 14" M3 · 1TB',
+    by: "Zainab O.",
+    waited: "2h 11m",
+    proof: "Receipt · Apple Gura",
+    photos: 6,
+    basePrice: 2_100_000,
+    battery: "100%",
+    specs: "M3 Pro · 18GB · 1TB · Space Black",
+    usage: "Work · 2 months, sealed box",
+  },
+  {
+    id: "AP-005",
+    kind: "gadget",
+    title: "Samsung Galaxy S24 Ultra",
+    by: "Tunde K.",
+    waited: "3h 40m",
+    proof: "Police report · Yaba",
+    photos: 7,
+    basePrice: 720_000,
+    battery: "91%",
+    specs: "512GB · Titanium Black",
+    usage: "Personal · 8 months, box missing",
+    tag: "NEEDS REVIEW",
+  },
+];
+
+export const INITIAL_AUCTIONS: AdminAuction[] = [
+  {
+    id: "AUC-4471",
+    title: "2019 Toyota Camry XLE",
+    bid: 4_850_000,
+    bidders: 47,
+    endSec: 3 * 3600 + 47 * 60 + 12,
+    totalSec: 4 * 3600,
+    elapsed: 3600 + 13 * 60,
+    holdPct: 10,
+  },
+  {
+    id: "AUC-4472",
+    title: "iPhone 15 Pro Max 256GB",
+    bid: 985_000,
+    bidders: 41,
+    endSec: 45 * 60,
+    totalSec: 2 * 3600,
+    elapsed: 75 * 60,
+    holdPct: 15,
+  },
+  {
+    id: "AUC-4473",
+    title: "2020 Kia Sportage EX",
+    bid: 11_200_000,
+    bidders: 18,
+    endSec: 6 * 3600 + 32 * 60,
+    totalSec: 8 * 3600,
+    elapsed: 88 * 60,
+    holdPct: 12,
+  },
+  {
+    id: "AUC-4474",
+    title: 'MacBook Pro M3 14"',
+    bid: 2_340_000,
+    bidders: 29,
+    endSec: 15 * 60,
+    totalSec: 90 * 60,
+    elapsed: 75 * 60,
+    holdPct: 20,
+  },
+];
+
+export const INITIAL_LEDGER: LedgerEntry[] = [
+  { id: "LDG-2948103", time: "15:47:22", user: "damilare.o", action: "Bid hold · +10%", ref: "AUC-4471", amt: 485_000, dir: "neg" },
+  { id: "LDG-2948102", time: "15:46:58", user: "emeka_b", action: "OPay top-up settled", ref: "TXN-88201", amt: 500_000, dir: "pos" },
+  { id: "LDG-2948101", time: "15:46:12", user: "nkem_a", action: "Outbid · hold released", ref: "AUC-4472", amt: 98_500, dir: "pos" },
+  { id: "LDG-2948100", time: "15:45:40", user: "chuka.v", action: "Final payment · AUC-4390", ref: "AUC-4390", amt: 6_120_000, dir: "neg" },
+  { id: "LDG-2948099", time: "15:45:04", user: "system", action: "Seller payout · tunde.k", ref: "PAY-5521", amt: 1_305_000, dir: "pos" },
+];
+
+export const INITIAL_HEALTH: HealthRow[] = [
+  { name: "OPay webhook", val: "420ms", status: "warn", note: "Latency above 300ms threshold for last 8 minutes. Investigating." },
+  { name: "WhatsApp Business API", val: "98% deliv", status: "ok", note: "Delivery rate healthy across both car and gadget campaigns." },
+  { name: "Resend (email)", val: "99.4% deliv", status: "ok", note: "All transactional email queues clear." },
+  { name: "Redis · bid queue", val: "14 jobs", status: "ok", note: "BullMQ processing normally. No stuck jobs." },
+  { name: "PostgreSQL primary", val: "12ms p95", status: "ok", note: "Connection pool 24/100. No long-running queries." },
+  { name: "Socket.IO gateway", val: "1,284 peers", status: "ok", note: "Live bid broadcast operating normally." },
+];
+
+export const INITIAL_COUNTS: Counts = {
+  auctions: 34,
+  "access-codes": 12,
+  listings: INITIAL_APPROVALS.length,
+  disputes: 3,
+};
+
+export const SECTION_LABELS: Record<string, string> = {
+  dashboard: "Dashboard",
+  auctions: "Live auctions",
+  "access-codes": "Access code requests",
+  listings: "Listing approvals",
+  disputes: "Disputes",
+  users: "Users & wallets",
+  mechanics: "Mechanics",
+  payments: "Payments & ledger",
+  notifications: "Notifications log",
+  settings: "Settings",
+};
