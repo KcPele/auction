@@ -9,8 +9,10 @@ import {
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
-import { CreateTopUpDto } from './dto/create-top-up.dto';
+import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { ListWalletLedgerQueryDto } from './dto/list-wallet-ledger-query.dto';
+import { WalletFundingService } from './wallet-funding.service';
+import { WalletWithdrawalsService } from './wallet-withdrawals.service';
 import { WalletsService } from './wallets.service';
 
 @ApiTags('wallets')
@@ -18,7 +20,11 @@ import { WalletsService } from './wallets.service';
 @UseGuards(JwtAuthGuard)
 @Controller('wallets')
 export class WalletsController {
-  constructor(private readonly walletsService: WalletsService) {}
+  constructor(
+    private readonly walletsService: WalletsService,
+    private readonly walletFundingService: WalletFundingService,
+    private readonly walletWithdrawalsService: WalletWithdrawalsService,
+  ) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user wallet balance' })
@@ -37,20 +43,30 @@ export class WalletsController {
     return this.walletsService.listLedger(user.id, query);
   }
 
-  @Post('top-ups')
-  @ApiOperation({ summary: 'Create a wallet top-up session' })
-  @ApiCreatedResponse({ description: 'Top-up session created.' })
-  createTopUp(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateTopUpDto,
-  ) {
-    return this.walletsService.createTopUp(user.id, dto);
+  @Post('funding-account')
+  @ApiOperation({ summary: 'Create or return a Monnify funding account' })
+  @ApiCreatedResponse({ description: 'Funding account returned.' })
+  getFundingAccount(@CurrentUser() user: AuthenticatedUser) {
+    return this.walletFundingService.getFundingAccount(user.id);
   }
 
-  @Get('top-ups/:id')
-  @ApiOperation({ summary: 'Get a wallet top-up by id' })
-  @ApiOkResponse({ description: 'Top-up returned.' })
-  getTopUp(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.walletsService.getTopUp(user.id, id);
+  @Post('withdrawals')
+  @ApiOperation({ summary: 'Withdraw available wallet balance' })
+  @ApiCreatedResponse({ description: 'Withdrawal initiated.' })
+  createWithdrawal(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateWithdrawalDto,
+  ) {
+    return this.walletWithdrawalsService.createWithdrawal(user.id, dto);
+  }
+
+  @Get('withdrawals/:id')
+  @ApiOperation({ summary: 'Get a wallet withdrawal by id' })
+  @ApiOkResponse({ description: 'Withdrawal returned.' })
+  getWithdrawal(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.walletWithdrawalsService.getWithdrawal(user.id, id);
   }
 }

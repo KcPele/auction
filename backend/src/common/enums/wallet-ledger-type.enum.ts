@@ -1,6 +1,8 @@
 export enum WalletLedgerType {
-  TopUpInitiated = 'TOP_UP_INITIATED',
-  TopUpConfirmed = 'TOP_UP_CONFIRMED',
+  WalletFundingConfirmed = 'WALLET_FUNDING_CONFIRMED',
+  WithdrawalRequested = 'WITHDRAWAL_REQUESTED',
+  WithdrawalFailed = 'WITHDRAWAL_FAILED',
+  WithdrawalConfirmed = 'WITHDRAWAL_CONFIRMED',
   BidHoldCreated = 'BID_HOLD_CREATED',
   BidHoldReleased = 'BID_HOLD_RELEASED',
   BidHoldApplied = 'BID_HOLD_APPLIED',

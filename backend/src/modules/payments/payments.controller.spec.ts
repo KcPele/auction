@@ -1,14 +1,14 @@
 import { Test } from '@nestjs/testing';
-import type { OpayWebhookDto } from './dto/opay-webhook.dto';
+import type { MonnifyWebhookDto } from './dto/monnify-webhook.dto';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 
 describe('PaymentsController', () => {
   let controller: PaymentsController;
-  let service: { handleOpayWebhook: jest.Mock };
+  let service: { handleMonnifyWebhook: jest.Mock };
 
   beforeEach(async () => {
-    service = { handleOpayWebhook: jest.fn() };
+    service = { handleMonnifyWebhook: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       controllers: [PaymentsController],
@@ -18,18 +18,27 @@ describe('PaymentsController', () => {
     controller = moduleRef.get(PaymentsController);
   });
 
-  it('accepts an OPay webhook', async () => {
-    const dto: OpayWebhookDto = {
-      eventId: 'event-id',
-      eventType: 'PAYMENT_SUCCESS',
-      providerReference: 'wallet_topup_reference',
-      status: 'SUCCESS',
+  it('accepts a Monnify webhook', async () => {
+    const dto: MonnifyWebhookDto = {
+      eventType: 'SUCCESSFUL_TRANSACTION',
+      eventData: {
+        transactionReference: 'MNFY|reference',
+        paymentStatus: 'PAID',
+      },
     };
-    service.handleOpayWebhook.mockResolvedValue({ alreadyProcessed: false });
+    service.handleMonnifyWebhook.mockResolvedValue({ alreadyProcessed: false });
 
-    await expect(controller.handleOpayWebhook(dto)).resolves.toEqual({
+    await expect(
+      controller.handleMonnifyWebhook(dto, 'signature', {
+        rawBody: JSON.stringify(dto),
+      }),
+    ).resolves.toEqual({
       alreadyProcessed: false,
     });
-    expect(service.handleOpayWebhook).toHaveBeenCalledWith(dto);
+    expect(service.handleMonnifyWebhook).toHaveBeenCalledWith(
+      dto,
+      'signature',
+      JSON.stringify(dto),
+    );
   });
 });

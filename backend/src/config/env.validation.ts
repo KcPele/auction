@@ -26,11 +26,11 @@ const envSchema = z.object({
     .string()
     .min(32)
     .default('local-better-auth-secret-change-before-production'),
-  OPAY_BASE_URL: z.string().optional(),
-  OPAY_MERCHANT_ID: z.string().optional(),
-  OPAY_PUBLIC_KEY: z.string().optional(),
-  OPAY_PRIVATE_KEY: z.string().optional(),
-  OPAY_WEBHOOK_SECRET: z.string().optional(),
+  MONNIFY_BASE_URL: z.string().url().default('https://sandbox.monnify.com'),
+  MONNIFY_API_KEY: z.string().optional(),
+  MONNIFY_CLIENT_SECRET: z.string().optional(),
+  MONNIFY_CONTRACT_CODE: z.string().optional(),
+  MONNIFY_SOURCE_ACCOUNT_NUMBER: z.string().optional(),
   OPENINARY_CLOUD_NAME: z.string().optional(),
   OPENINARY_API_KEY: z.string().optional(),
   OPENINARY_API_SECRET: z.string().optional(),

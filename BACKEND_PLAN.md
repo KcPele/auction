@@ -2,14 +2,14 @@
 
 ## 1. Goal
 
-Build the backend for a Nigerian cars and gadgets auction platform where verified users can list items, bidders place wallet-backed bids, winners pay through OPay within 24 hours, and users receive WhatsApp notifications around auction events.
+Build the backend for a Nigerian cars and gadgets auction platform where verified users can list items, bidders place wallet-backed bids, winners pay through Monnify-backed wallet funding within 24 hours, and users receive WhatsApp notifications around auction events.
 
 Locked stack from the spec:
 
 - NestJS, TypeScript, Node.js 22 LTS, Fastify
 - PostgreSQL, Redis, BullMQ
 - Socket.IO with Redis Pub/Sub adapter
-- OPay, Openinary, WhatsApp Business Cloud API
+- Monnify, Openinary, WhatsApp Business Cloud API
 - Better Auth email/password sessions with admin role authorization
 - Docker on Railway first, AWS later if scale requires it
 
@@ -21,7 +21,7 @@ Locked stack from the spec:
 - Store all money values in integer minor units, for example kobo.
 - Treat the wallet ledger as the audit source of truth.
 - Queue notifications and long-running work.
-- Verify OPay webhooks before changing payment or wallet state.
+- Verify Monnify webhooks before changing payment or wallet state.
 - Reuse domain services from HTTP controllers, workers, and WebSocket gateways.
 
 ## 3. Modules
@@ -182,8 +182,10 @@ Statuses:
 
 Ledger types:
 
-- `TOP_UP_INITIATED`
-- `TOP_UP_CONFIRMED`
+- `WALLET_FUNDING_CONFIRMED`
+- `WITHDRAWAL_REQUESTED`
+- `WITHDRAWAL_FAILED`
+- `WITHDRAWAL_CONFIRMED`
 - `BID_HOLD_CREATED`
 - `BID_HOLD_RELEASED`
 - `BID_HOLD_APPLIED`
@@ -193,21 +195,22 @@ Ledger types:
 
 - `GET /wallets/me`
 - `GET /wallets/me/ledger`
-- `POST /wallets/top-ups`
+- `POST /wallets/funding-account`
+- `POST /wallets/withdrawals`
+- `GET /wallets/withdrawals/:id`
 
 ### Payments
 
-- Create OPay sessions for top-ups
-- Create OPay sessions for winner final payments
-- Verify OPay webhook signatures
+- Create Monnify reserved accounts for wallet funding
+- Verify Monnify webhook signatures
 - Process webhooks idempotently
-- Confirm wallet top-ups
+- Confirm wallet funding credits
+- Initiate Monnify withdrawals
 - Settle auctions after final payment
 - Notify winner and lister
 
-- `POST /payments/top-ups`
 - `POST /payments/auctions/:auctionId/final-payment`
-- `POST /payments/opay/webhook`
+- `POST /payments/monnify/webhook`
 
 ### Notifications
 
@@ -216,7 +219,7 @@ Ledger types:
 - Push fresh dashboard notifications over WebSocket to user and admin rooms
 - Keep the notification service channel-based so email through Resend can be added later
 - Queue and retry failures
-- Send auction announcements, top-up reminders, outbid notices, winner notices, and receipts
+- Send auction announcements, wallet funding reminders, outbid notices, winner notices, and receipts
 
 Audience rules:
 
@@ -287,7 +290,7 @@ Important constraints:
 - Unique registration number per active car listing, unless admin allows relist
 - Each auction belongs to exactly one listing
 - Each accepted bid references one wallet hold
-- OPay webhook event IDs are unique
+- Monnify webhook event IDs are unique
 - Payment processing is idempotent
 - Category-based seller and buyer platform fees are reserved in the schema and snapshotted per auction
 
@@ -320,7 +323,7 @@ Important constraints:
 
 1. Winner requests payment session.
 2. Backend calculates remaining amount after held funds.
-3. OPay confirms settlement through verified webhook.
+3. Monnify confirms settlement through verified webhook.
 4. Backend applies winner hold.
 5. Backend writes payment and wallet ledger entries.
 6. Auction becomes `SETTLED`.
@@ -346,7 +349,7 @@ Important constraints:
 ## 7. Security
 
 - Better Auth password hashing and session handling
-- OPay signature verification
+- Monnify signature verification
 - Idempotent webhook handling
 - Rate limits on auth, bid, and payment endpoints
 - File upload validation
@@ -407,12 +410,13 @@ Concurrency tests:
 - [x] Gadget listing drafts and submission
 - [x] Admin approval and rejection
 
-### Milestone 4: Wallet and Top-Ups
+### Milestone 4: Wallet Funding and Withdrawals
 
 - [x] Wallets and ledger
-- [x] OPay top-up session creation
-- Verified OPay webhook processing
-- [x] Wallet top-up confirmation
+- [x] Monnify reserved funding accounts
+- [x] Verified Monnify webhook processing
+- [x] Wallet funding confirmation
+- [x] Wallet withdrawals through Monnify
 
 ### Milestone 5: Auctions and Bidding
 
@@ -435,7 +439,7 @@ Concurrency tests:
 
 ### Milestone 7: Settlement
 
-- OPay final payment
+- Final payment
 - Webhook settlement
 - 24-hour payment deadline
 - Hold forfeiture
@@ -463,7 +467,8 @@ Concurrency tests:
 - Admins can later split fees, for example seller 2% and buyer 1%, or move the full fee to buyer 3% and seller 0%.
 - Each auction stores the seller and buyer fee rates used at scheduling time so later admin changes do not rewrite old settlements.
 - Gadget minimum increment applies only when the bid would become the new highest bid.
-- Use the simplest supported OPay session/checkout flow for both top-ups and final payments, then refine after integration testing.
+- Monnify reserved accounts are the primary wallet funding method in v1.
+- The backend internal wallet ledger remains the source of truth for balances, holds, withdrawals, and settlement.
 
 ## 11. Remaining Questions
 
@@ -479,14 +484,15 @@ Build first:
 - Mechanic accounts with optional listing access
 - Car and gadget listing submission
 - Admin approval
-- Wallet top-ups through OPay
+- Wallet funding through Monnify reserved accounts
+- Wallet withdrawals through Monnify transfers
 - Wallet ledger and holds
 - Timed auctions
 - Atomic bid placement
 - WebSocket bid updates
 - BullMQ auction close jobs
 - Winner payment deadline
-- OPay final payment settlement
+- Final payment settlement
 - WhatsApp notification queue
 - Optional NIN storage without verification
 

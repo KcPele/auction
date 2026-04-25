@@ -11,7 +11,6 @@ import {
 import { bigintNumberTransformer } from '../../../common/transformers/bigint-number.transformer';
 import { User } from '../../users/entities/user.entity';
 import { WalletLedgerEntry } from './wallet-ledger-entry.entity';
-import { WalletTopUp } from './wallet-top-up.entity';
 
 @Entity('wallets')
 export class Wallet {
@@ -36,9 +35,6 @@ export class Wallet {
 
   @OneToMany(() => WalletLedgerEntry, (entry) => entry.wallet)
   ledgerEntries!: WalletLedgerEntry[];
-
-  @OneToMany(() => WalletTopUp, (topUp) => topUp.wallet)
-  topUps!: WalletTopUp[];
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;

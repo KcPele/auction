@@ -27,7 +27,7 @@ export class CreateWalletAndPaymentTables1766575000000
       )
     `);
     await queryRunner.query(`
-      CREATE TYPE "payment_provider_enum" AS ENUM ('OPAY')
+      CREATE TYPE "payment_provider_enum" AS ENUM ('MONNIFY')
     `);
     await queryRunner.query(`
       CREATE TYPE "top_up_status_enum" AS ENUM (
@@ -76,7 +76,7 @@ export class CreateWalletAndPaymentTables1766575000000
         "amountKobo" bigint NOT NULL,
         "currency" varchar(3) NOT NULL DEFAULT 'NGN',
         "status" "top_up_status_enum" NOT NULL DEFAULT 'PENDING',
-        "provider" "payment_provider_enum" NOT NULL DEFAULT 'OPAY',
+        "provider" "payment_provider_enum" NOT NULL DEFAULT 'MONNIFY',
         "providerReference" varchar(128) NOT NULL UNIQUE,
         "checkoutUrl" text,
         "providerPayload" jsonb,

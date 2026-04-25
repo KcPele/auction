@@ -8,19 +8,19 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { PaymentProvider } from '../../../common/enums/payment-provider.enum';
-import { TopUpStatus } from '../../../common/enums/top-up-status.enum';
+import { WalletWithdrawalStatus } from '../../../common/enums/wallet-withdrawal-status.enum';
 import { bigintNumberTransformer } from '../../../common/transformers/bigint-number.transformer';
 import { Wallet } from './wallet.entity';
 
-@Entity('wallet_top_ups')
-export class WalletTopUp {
+@Entity('wallet_withdrawals')
+export class WalletWithdrawal {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column({ type: 'uuid' })
   walletId!: string;
 
-  @ManyToOne(() => Wallet, (wallet) => wallet.topUps, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Wallet, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'walletId' })
   wallet!: Wallet;
 
@@ -35,31 +35,46 @@ export class WalletTopUp {
 
   @Column({
     type: 'enum',
-    enum: TopUpStatus,
-    enumName: 'top_up_status_enum',
-    default: TopUpStatus.Pending,
+    enum: WalletWithdrawalStatus,
+    enumName: 'wallet_withdrawal_status_enum',
+    default: WalletWithdrawalStatus.Pending,
   })
-  status!: TopUpStatus;
+  status!: WalletWithdrawalStatus;
 
   @Column({
     type: 'enum',
     enum: PaymentProvider,
     enumName: 'payment_provider_enum',
-    default: PaymentProvider.Opay,
+    default: PaymentProvider.Monnify,
   })
   provider!: PaymentProvider;
 
   @Column({ type: 'varchar', length: 128, unique: true })
   providerReference!: string;
 
+  @Column({ type: 'varchar', length: 32 })
+  destinationBankCode!: string;
+
+  @Column({ type: 'varchar', length: 120 })
+  destinationBankName!: string;
+
+  @Column({ type: 'varchar', length: 32 })
+  destinationAccountNumber!: string;
+
+  @Column({ type: 'varchar', length: 160 })
+  destinationAccountName!: string;
+
   @Column({ type: 'text', nullable: true })
-  checkoutUrl!: string | null;
+  narration!: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   providerPayload!: Record<string, unknown> | null;
 
   @Column({ type: 'timestamptz', nullable: true })
-  confirmedAt!: Date | null;
+  completedAt!: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  failedAt!: Date | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;

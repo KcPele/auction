@@ -1,6 +1,9 @@
+import { BadRequestException } from '@nestjs/common';
 import { PaymentProvider } from '../../common/enums/payment-provider.enum';
-import type { WalletsService } from '../wallets/wallets.service';
-import type { OpayWebhookDto } from './dto/opay-webhook.dto';
+import type { WalletFundingService } from '../wallets/wallet-funding.service';
+import type { WalletWithdrawalsService } from '../wallets/wallet-withdrawals.service';
+import type { MonnifyWebhookDto } from './dto/monnify-webhook.dto';
+import type { MonnifyProvider } from './providers/monnify.provider';
 import { PaymentsService } from './payments.service';
 
 describe('PaymentsService', () => {
@@ -9,10 +12,13 @@ describe('PaymentsService', () => {
     create: jest.Mock;
     save: jest.Mock;
   };
-  let walletsService: {
-    confirmTopUpByReference: jest.Mock;
-    failTopUpByReference: jest.Mock;
+  let walletFundingService: {
+    creditFundingAccount: jest.Mock;
   };
+  let walletWithdrawalsService: {
+    updateWithdrawalFromProvider: jest.Mock;
+  };
+  let monnifyProvider: { verifyWebhookSignature: jest.Mock };
   let service: PaymentsService;
 
   beforeEach(() => {
@@ -21,71 +27,109 @@ describe('PaymentsService', () => {
       create: jest.fn((value) => value),
       save: jest.fn(async (value) => value),
     };
-    walletsService = {
-      confirmTopUpByReference: jest.fn(),
-      failTopUpByReference: jest.fn(),
+    walletFundingService = {
+      creditFundingAccount: jest.fn(),
     };
+    walletWithdrawalsService = {
+      updateWithdrawalFromProvider: jest.fn(),
+    };
+    monnifyProvider = { verifyWebhookSignature: jest.fn().mockReturnValue(true) };
     service = new PaymentsService(
       webhookEventsRepository as never,
-      walletsService as unknown as WalletsService,
+      walletFundingService as unknown as WalletFundingService,
+      walletWithdrawalsService as unknown as WalletWithdrawalsService,
+      monnifyProvider as unknown as MonnifyProvider,
     );
   });
 
-  it('confirms wallet top-ups from successful OPay webhooks', async () => {
-    const dto = createWebhookDto('SUCCESS');
+  it('credits wallet funding from successful Monnify collection webhooks', async () => {
+    const dto = createCollectionWebhook();
     webhookEventsRepository.findOneBy.mockResolvedValue(null);
-    walletsService.confirmTopUpByReference.mockResolvedValue({
+    walletFundingService.creditFundingAccount.mockResolvedValue({
       alreadyProcessed: false,
     });
 
-    await expect(service.handleOpayWebhook(dto)).resolves.toEqual({
+    await expect(
+      service.handleMonnifyWebhook(dto, 'signature', JSON.stringify(dto)),
+    ).resolves.toEqual({
       webhookEvent: expect.objectContaining({
-        provider: PaymentProvider.Opay,
-        eventId: dto.eventId,
+        provider: PaymentProvider.Monnify,
+        eventId: 'MNFY|reference',
         processedAt: expect.any(Date),
       }),
       result: { alreadyProcessed: false },
       alreadyProcessed: false,
     });
-    expect(walletsService.confirmTopUpByReference).toHaveBeenCalledWith(
-      dto.providerReference,
+    expect(walletFundingService.creditFundingAccount).toHaveBeenCalledWith({
+      accountReference: 'wallet_user-id',
+      amountKobo: 500000,
+      reference: 'MNFY|reference',
+      metadata: dto,
+    });
+  });
+
+  it('updates withdrawals from Monnify disbursement webhooks', async () => {
+    const dto: MonnifyWebhookDto = {
+      eventType: 'SUCCESSFUL_DISBURSEMENT',
+      eventData: {
+        transactionReference: 'wallet_withdrawal_reference',
+        status: 'SUCCESS',
+      },
+    };
+    webhookEventsRepository.findOneBy.mockResolvedValue(null);
+    walletWithdrawalsService.updateWithdrawalFromProvider.mockResolvedValue({
+      id: 'withdrawal-id',
+    });
+
+    await service.handleMonnifyWebhook(dto, 'signature', JSON.stringify(dto));
+
+    expect(
+      walletWithdrawalsService.updateWithdrawalFromProvider,
+    ).toHaveBeenCalledWith(
+      'wallet_withdrawal_reference',
+      'SUCCESS',
       dto,
     );
   });
 
-  it('marks wallet top-ups failed from failed OPay webhooks', async () => {
-    const dto = createWebhookDto('FAILED');
-    webhookEventsRepository.findOneBy.mockResolvedValue(null);
-    walletsService.failTopUpByReference.mockResolvedValue({
-      alreadyProcessed: false,
-    });
+  it('rejects invalid Monnify signatures', async () => {
+    monnifyProvider.verifyWebhookSignature.mockReturnValue(false);
 
-    await service.handleOpayWebhook(dto);
-
-    expect(walletsService.failTopUpByReference).toHaveBeenCalledWith(
-      dto.providerReference,
-      dto,
-    );
+    await expect(
+      service.handleMonnifyWebhook(
+        createCollectionWebhook(),
+        'bad-signature',
+        '{}',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('does not process duplicate webhook events twice', async () => {
     webhookEventsRepository.findOneBy.mockResolvedValue({ id: 'event-id' });
 
-    await expect(service.handleOpayWebhook(createWebhookDto())).resolves.toEqual({
+    await expect(
+      service.handleMonnifyWebhook(
+        createCollectionWebhook(),
+        'signature',
+        '{}',
+      ),
+    ).resolves.toEqual({
       webhookEvent: { id: 'event-id' },
       alreadyProcessed: true,
     });
-    expect(walletsService.confirmTopUpByReference).not.toHaveBeenCalled();
+    expect(walletFundingService.creditFundingAccount).not.toHaveBeenCalled();
   });
 });
 
-function createWebhookDto(
-  status: OpayWebhookDto['status'] = 'SUCCESS',
-): OpayWebhookDto {
+function createCollectionWebhook(): MonnifyWebhookDto {
   return {
-    eventId: 'event-id',
-    eventType: 'PAYMENT_SUCCESS',
-    providerReference: 'wallet_topup_reference',
-    status,
+    eventType: 'SUCCESSFUL_TRANSACTION',
+    eventData: {
+      product: { reference: 'wallet_user-id' },
+      transactionReference: 'MNFY|reference',
+      paymentReference: 'payment-reference',
+      paymentStatus: 'PAID',
+      amountPaid: 5000,
+    },
   };
 }
