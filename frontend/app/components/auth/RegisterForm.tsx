@@ -8,12 +8,15 @@ import { AuthButton } from "./primitives/AuthButton";
 import { Checkbox } from "./primitives/Checkbox";
 import { Field, Input, PhoneInput } from "./primitives/Field";
 import { Icon } from "./primitives/Icon";
+import { NinVerifyField } from "./primitives/NinVerifyField";
 
 export function RegisterForm() {
   const router = useRouter();
   const [pw, setPw] = useState("");
   const [accept, setAccept] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const [nin, setNin] = useState("");
+  const [ninVerified, setNinVerified] = useState(false);
   const strength = usePasswordStrength(pw);
 
   return (
@@ -87,6 +90,15 @@ export function RegisterForm() {
           </div>
         </Field>
 
+        <NinVerifyField
+          label="NIN"
+          hint="Optional · skip to verify later"
+          meta="Type your 11-digit NIN and tap Verify, or skip and complete in Account → KYC."
+          value={nin}
+          onChange={setNin}
+          onVerified={() => setNinVerified(true)}
+        />
+
         <Field
           label="Referral code"
           hint="Optional"
@@ -104,10 +116,18 @@ export function RegisterForm() {
 
         <AuthButton
           disabled={!accept}
-          onClick={() => router.push("/otp?ctx=register")}
+          onClick={() =>
+            router.push(`/otp?ctx=register${ninVerified ? "&kyc=nin" : ""}`)
+          }
         >
           Create account <Icon name="arrow-r" size={16} strokeWidth={2} />
         </AuthButton>
+
+        {!ninVerified && (
+          <p className="mt-2 text-center text-[11px] text-fg-dim">
+            You can skip NIN now and verify later from your account settings.
+          </p>
+        )}
 
         <AuthDivider>Or sign up with</AuthDivider>
 

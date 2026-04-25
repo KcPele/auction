@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PlatformFeeSetting } from '../admin/entities/platform-fee-setting.entity';
+import { PaymentAccountSetting } from '../admin/entities/payment-account-setting.entity';
+import { BiddingSetting } from '../admin/entities/bidding-setting.entity';
 import { Bid } from '../bids/entities/bid.entity';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { JobsModule } from '../jobs/jobs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { WalletsModule } from '../wallets/wallets.module';
 import { AuctionLifecycleProcessor } from './auction-lifecycle.processor';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { AuctionsController } from './auctions.controller';
@@ -21,10 +22,11 @@ import { Auction } from './entities/auction.entity';
       CarListing,
       GadgetListing,
       PlatformFeeSetting,
+      PaymentAccountSetting,
+      BiddingSetting,
     ]),
     JobsModule,
     NotificationsModule,
-    WalletsModule,
   ],
   controllers: [AuctionsController],
   providers: [

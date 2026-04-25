@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { Icon, type IconName } from "../primitives/Icon";
 
@@ -24,11 +25,17 @@ interface SettingItem {
   label: string;
   sub: string;
   icon: IconName;
+  href?: string;
 }
 const SETTINGS: SettingItem[] = [
   { label: "Personal details", sub: "Name, phone, address", icon: "user" },
   { label: "Saved payment methods", sub: "2 cards · 1 bank", icon: "wallet" },
-  { label: "KYC & verification", sub: "BVN confirmed", icon: "shield" },
+  {
+    label: "KYC & verification",
+    sub: "Verify NIN · BVN optional",
+    icon: "shield",
+    href: "/kyc?ctx=account",
+  },
   { label: "Watchlist", sub: "12 auctions", icon: "heart" },
   { label: "Help & support", sub: "FAQ · WhatsApp: +234 700 BIDNJA", icon: "help" },
   { label: "Terms & privacy", sub: "Last updated Mar 2026", icon: "lock" },
@@ -149,24 +156,33 @@ export function ProfileScreen() {
 
       <div className="my-3 mt-5 text-[15px] font-semibold tracking-tight">Account</div>
       <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
-        {SETTINGS.map((r) => (
-          <button
-            key={r.label}
-            type="button"
-            className="flex w-full cursor-pointer items-center gap-3 border-b border-line px-4 py-3.5 text-left text-sm last:border-b-0"
-          >
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-fg-muted">
-              <Icon name={r.icon} size={16} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium">{r.label}</div>
-              <div className="mt-0.5 text-xs text-fg-dim">{r.sub}</div>
-            </div>
-            <div className="text-fg-dim">
-              <Icon name="chevron" size={16} />
-            </div>
-          </button>
-        ))}
+        {SETTINGS.map((r) => {
+          const inner = (
+            <>
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-fg-muted">
+                <Icon name={r.icon} size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">{r.label}</div>
+                <div className="mt-0.5 text-xs text-fg-dim">{r.sub}</div>
+              </div>
+              <div className="text-fg-dim">
+                <Icon name="chevron" size={16} />
+              </div>
+            </>
+          );
+          const cls =
+            "flex w-full cursor-pointer items-center gap-3 border-b border-line px-4 py-3.5 text-left text-sm last:border-b-0";
+          return r.href ? (
+            <Link key={r.label} href={r.href} className={cls}>
+              {inner}
+            </Link>
+          ) : (
+            <button key={r.label} type="button" className={cls}>
+              {inner}
+            </button>
+          );
+        })}
       </div>
 
       <button

@@ -22,6 +22,8 @@ import { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
 import { ReviewListingDto } from './dto/review-listing.dto';
+import { UpdateBiddingSettingDto } from './dto/update-bidding-setting.dto';
+import { UpdatePaymentAccountDto } from './dto/update-payment-account.dto';
 import { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
 
 @ApiTags('admin')
@@ -129,6 +131,40 @@ export class AdminController {
     @Body() dto: UpdatePlatformFeeDto,
   ) {
     return this.adminService.updatePlatformFee(user.id, dto);
+  }
+
+  @Get('settings/bidding')
+  @ApiOperation({ summary: 'Get bidding qualification setting' })
+  @ApiOkResponse({ description: 'Bidding setting returned.' })
+  getBiddingSetting() {
+    return this.adminService.getBiddingSetting();
+  }
+
+  @Patch('settings/bidding')
+  @ApiOperation({ summary: 'Update bidding qualification percentage' })
+  @ApiOkResponse({ description: 'Bidding setting updated.' })
+  updateBiddingSetting(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateBiddingSettingDto,
+  ) {
+    return this.adminService.updateBiddingSetting(user.id, dto);
+  }
+
+  @Get('settings/payment-account')
+  @ApiOperation({ summary: 'Get winner payment account setting' })
+  @ApiOkResponse({ description: 'Payment account returned.' })
+  getPaymentAccount() {
+    return this.adminService.getPaymentAccount();
+  }
+
+  @Patch('settings/payment-account')
+  @ApiOperation({ summary: 'Update winner payment account setting' })
+  @ApiOkResponse({ description: 'Payment account updated.' })
+  updatePaymentAccount(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdatePaymentAccountDto,
+  ) {
+    return this.adminService.updatePaymentAccount(user.id, dto);
   }
 
   @Get('wallet-withdrawals/pending')

@@ -68,6 +68,39 @@ POST /api/v1/payments/monnify/webhook
 
 The backend verifies the webhook signature and credits the internal wallet.
 
+## Bidding Flow
+
+Wallet balance is only a bid qualification check. Placing a bid does not hold,
+debit, or release wallet funds.
+
+Example:
+
+```txt
+Auction base price: NGN 500,000
+Bid requirement percent: 10
+Required wallet balance: NGN 50,000
+```
+
+If a user has at least `NGN 50,000` in their wallet, they can place any valid
+bid amount that meets the auction base price and minimum increment rules. Their
+wallet balance stays unchanged after bidding.
+
+At auction close, the winner has 24 hours to pay into the admin-configured
+payment account:
+
+```txt
+GET /api/v1/auctions/:id/payment-instructions
+```
+
+Admins manage the payment account shown to winners:
+
+```txt
+GET /api/v1/admin/settings/bidding
+PATCH /api/v1/admin/settings/bidding
+GET /api/v1/admin/settings/payment-account
+PATCH /api/v1/admin/settings/payment-account
+```
+
 ## Withdrawals
 
 Users withdraw through:

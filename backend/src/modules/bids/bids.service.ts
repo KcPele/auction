@@ -46,29 +46,23 @@ export class BidsService {
         currentTopBid,
         dto.amountKobo,
       );
-      const holdAmountKobo = this.calculateHoldAmount(
-        dto.amountKobo,
+      const requiredBalanceKobo = this.calculateRequiredBalance(
+        auction.basePriceKobo,
         auction.holdPercent,
       );
-      const holdReference = `bid_hold_${auction.id}_${userId}_${Date.now()}`;
-      const { hold } = await this.walletsService.createBidHold(manager, {
+      await this.walletsService.assertBidQualification(manager, {
         userId,
-        auctionId: auction.id,
-        amountKobo: holdAmountKobo,
-        reference: holdReference,
-        metadata: { auctionId: auction.id, bidAmountKobo: dto.amountKobo },
+        requiredBalanceKobo,
       });
       const bid = await manager.save(
         manager.create(Bid, {
           auctionId: auction.id,
           bidderId: userId,
           amountKobo: dto.amountKobo,
-          walletHoldId: hold.id,
+          walletHoldId: null,
           status: becomesTopBid ? BidStatus.Winning : BidStatus.Accepted,
         }),
       );
-
-      await this.walletsService.attachBidToHold(manager, hold.id, bid.id);
 
       if (becomesTopBid) {
         await this.replaceTopBid(manager, auction, currentTopBid, bid);
@@ -77,7 +71,10 @@ export class BidsService {
       return {
         response: {
           bid: presentBid(bid),
-          walletHold: hold,
+          bidRequirement: {
+            percent: auction.holdPercent,
+            requiredBalanceKobo,
+          },
           auction,
           isTopBid: becomesTopBid,
         },
@@ -171,8 +168,8 @@ export class BidsService {
     return amountKobo > currentTopBid.amountKobo;
   }
 
-  private calculateHoldAmount(amountKobo: number, holdPercent: number) {
-    return Math.ceil((amountKobo * holdPercent) / 100);
+  private calculateRequiredBalance(basePriceKobo: number, holdPercent: number) {
+    return Math.ceil((basePriceKobo * holdPercent) / 100);
   }
 
   private async replaceTopBid(
@@ -181,18 +178,9 @@ export class BidsService {
     previousTopBid: Bid | null,
     bid: Bid,
   ) {
-    if (previousTopBid?.walletHoldId) {
+    if (previousTopBid) {
       previousTopBid.status = BidStatus.Outbid;
       await manager.save(previousTopBid);
-      await this.walletsService.releaseBidHold(manager, {
-        holdId: previousTopBid.walletHoldId,
-        reference: `outbid_release_${previousTopBid.id}`,
-        metadata: {
-          auctionId: auction.id,
-          bidId: previousTopBid.id,
-          newTopBidId: bid.id,
-        },
-      });
     }
 
     auction.currentWinningBidId = bid.id;

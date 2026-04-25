@@ -50,6 +50,18 @@ export class AuctionsController {
     return this.auctionsService.listBids(id);
   }
 
+  @Get(':id/payment-instructions')
+  @ApiCookieAuth('better-auth.session_token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get winner payment instructions' })
+  @ApiOkResponse({ description: 'Payment instructions returned.' })
+  getPaymentInstructions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.auctionsService.getPaymentInstructions(user, id);
+  }
+
   @Post(':id/cancel')
   @ApiCookieAuth('better-auth.session_token')
   @Roles(UserRole.Admin)

@@ -52,7 +52,7 @@ export function Apply() {
   return (
     <Section id="sell">
       <div
-        className="relative grid items-center gap-15 overflow-hidden rounded-lg border border-line-strong px-12 py-[72px] md:grid-cols-[1.3fr_1fr]"
+        className="relative grid items-center gap-10 overflow-hidden rounded-lg border border-line-strong px-5 py-10 md:gap-15 md:px-12 md:py-[72px] md:grid-cols-[1.3fr_1fr]"
         style={{
           background:
             "linear-gradient(135deg, rgba(255,122,26,0.15), rgba(184,68,13,0.08)), linear-gradient(180deg, var(--surface-2), var(--surface))",
@@ -91,23 +91,25 @@ export function Apply() {
           {CODES.map((c) => (
             <div
               key={c.label}
-              className={`flex items-center gap-4 rounded-md border border-dashed border-line-strong p-4 px-5 ${
+              className={`grid grid-cols-[44px_1fr_auto] items-center gap-x-3 gap-y-1 rounded-md border border-dashed border-line-strong p-3.5 md:gap-4 md:p-4 md:px-5 ${
                 c.emphasized ? "bg-[rgba(255,122,26,0.05)]" : "bg-black/35"
               }`}
             >
               <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] text-[22px] ${
+                className={`row-span-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] text-[22px] md:row-span-1 ${
                   c.emphasized ? "bg-accent text-[#0a0806]" : "bg-[rgba(255,122,26,0.1)] text-accent"
                 }`}
               >
                 {c.icon}
               </div>
-              <div className="flex-1">
+              <div className="min-w-0">
                 <div className="text-[11px] uppercase tracking-[0.1em] text-fg-dim">{c.label}</div>
                 <div className="font-semibold">{c.title}</div>
                 <div className="text-xs text-fg-muted">{c.sub}</div>
               </div>
-              <div className={`font-mono text-[11px] ${c.statusColor}`}>{c.status}</div>
+              <div className={`col-start-2 row-start-2 font-mono text-[11px] md:col-start-3 md:row-start-1 ${c.statusColor}`}>
+                {c.status}
+              </div>
             </div>
           ))}
         </div>

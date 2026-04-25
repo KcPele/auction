@@ -10,6 +10,8 @@ import type { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import type { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import type { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
 import type { ReviewListingDto } from './dto/review-listing.dto';
+import type { UpdateBiddingSettingDto } from './dto/update-bidding-setting.dto';
+import type { UpdatePaymentAccountDto } from './dto/update-payment-account.dto';
 import type { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
 
 describe('AdminController', () => {
@@ -31,6 +33,10 @@ describe('AdminController', () => {
     rejectListing: jest.Mock;
     listPlatformFees: jest.Mock;
     updatePlatformFee: jest.Mock;
+    getBiddingSetting: jest.Mock;
+    updateBiddingSetting: jest.Mock;
+    getPaymentAccount: jest.Mock;
+    updatePaymentAccount: jest.Mock;
     listPendingWithdrawals: jest.Mock;
     authorizeWithdrawal: jest.Mock;
     resendWithdrawalOtp: jest.Mock;
@@ -48,6 +54,10 @@ describe('AdminController', () => {
       rejectListing: jest.fn(),
       listPlatformFees: jest.fn(),
       updatePlatformFee: jest.fn(),
+      getBiddingSetting: jest.fn(),
+      updateBiddingSetting: jest.fn(),
+      getPaymentAccount: jest.fn(),
+      updatePaymentAccount: jest.fn(),
       listPendingWithdrawals: jest.fn(),
       authorizeWithdrawal: jest.fn(),
       resendWithdrawalOtp: jest.fn(),
@@ -200,6 +210,56 @@ describe('AdminController', () => {
       controller.updatePlatformFee(adminUser, dto),
     ).resolves.toEqual({ platformFee: dto });
     expect(service.updatePlatformFee).toHaveBeenCalledWith(adminUser.id, dto);
+  });
+
+  it('gets the bidding setting', async () => {
+    service.getBiddingSetting.mockResolvedValue({
+      biddingSetting: { bidRequirementPercent: 10 },
+    });
+
+    await expect(controller.getBiddingSetting()).resolves.toEqual({
+      biddingSetting: { bidRequirementPercent: 10 },
+    });
+    expect(service.getBiddingSetting).toHaveBeenCalledWith();
+  });
+
+  it('updates the bidding setting', async () => {
+    const dto: UpdateBiddingSettingDto = { bidRequirementPercent: 15 };
+    service.updateBiddingSetting.mockResolvedValue({ biddingSetting: dto });
+
+    await expect(
+      controller.updateBiddingSetting(adminUser, dto),
+    ).resolves.toEqual({ biddingSetting: dto });
+    expect(service.updateBiddingSetting).toHaveBeenCalledWith(
+      adminUser.id,
+      dto,
+    );
+  });
+
+  it('gets the payment account setting', async () => {
+    service.getPaymentAccount.mockResolvedValue({ paymentAccount: null });
+
+    await expect(controller.getPaymentAccount()).resolves.toEqual({
+      paymentAccount: null,
+    });
+    expect(service.getPaymentAccount).toHaveBeenCalledWith();
+  });
+
+  it('updates the payment account setting', async () => {
+    const dto: UpdatePaymentAccountDto = {
+      bankName: 'Providus Bank',
+      accountNumber: '3635734512',
+      accountName: 'KcPele Auctions',
+    };
+    service.updatePaymentAccount.mockResolvedValue({ paymentAccount: dto });
+
+    await expect(
+      controller.updatePaymentAccount(adminUser, dto),
+    ).resolves.toEqual({ paymentAccount: dto });
+    expect(service.updatePaymentAccount).toHaveBeenCalledWith(
+      adminUser.id,
+      dto,
+    );
   });
 
   it('lists pending wallet withdrawals', async () => {

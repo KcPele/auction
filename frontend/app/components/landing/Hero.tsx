@@ -15,7 +15,7 @@ export function Hero() {
   return (
     <section className="relative isolate overflow-hidden px-5 py-20 pb-[120px] md:px-10">
       <div
-        className="pointer-events-none absolute left-1/2 top-[-200px] -z-10 h-[900px] w-[1400px] -translate-x-1/2 blur-[20px]"
+        className="pointer-events-none absolute left-1/2 top-[-200px] -z-10 h-[900px] w-[1400px] -translate-x-1/2 opacity-40 blur-[20px] md:opacity-100"
         style={{ background: HERO_GLOW }}
       />
       <div

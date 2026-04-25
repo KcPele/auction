@@ -41,6 +41,24 @@ export class WalletsService {
     return { ledgerEntries };
   }
 
+  async assertBidQualification(
+    manager: EntityManager,
+    input: {
+      userId: string;
+      requiredBalanceKobo: number;
+    },
+  ) {
+    const wallet = await this.ensureWalletForUpdate(input.userId, manager);
+
+    if (wallet.balanceKobo < input.requiredBalanceKobo) {
+      throw new BadRequestException(
+        'Wallet balance does not meet the auction bid requirement',
+      );
+    }
+
+    return { wallet };
+  }
+
   async createBidHold(
     manager: EntityManager,
     input: {

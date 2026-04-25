@@ -10,6 +10,8 @@ import { WalletsModule } from '../wallets/wallets.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AccessCode } from './entities/access-code.entity';
+import { BiddingSetting } from './entities/bidding-setting.entity';
+import { PaymentAccountSetting } from './entities/payment-account-setting.entity';
 import { PlatformFeeSetting } from './entities/platform-fee-setting.entity';
 
 @Module({
@@ -21,7 +23,9 @@ import { PlatformFeeSetting } from './entities/platform-fee-setting.entity';
       AccessCode,
       ListingAccessApplication,
       UserListingPermission,
+      BiddingSetting,
       PlatformFeeSetting,
+      PaymentAccountSetting,
       CarListing,
       GadgetListing,
     ]),

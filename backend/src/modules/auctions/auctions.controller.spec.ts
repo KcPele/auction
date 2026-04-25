@@ -19,6 +19,7 @@ describe('AuctionsController', () => {
     list: jest.Mock;
     findOne: jest.Mock;
     listBids: jest.Mock;
+    getPaymentInstructions: jest.Mock;
     cancel: jest.Mock;
   };
 
@@ -27,6 +28,7 @@ describe('AuctionsController', () => {
       list: jest.fn(),
       findOne: jest.fn(),
       listBids: jest.fn(),
+      getPaymentInstructions: jest.fn(),
       cancel: jest.fn(),
     };
 
@@ -65,6 +67,22 @@ describe('AuctionsController', () => {
       bids: [],
     });
     expect(service.listBids).toHaveBeenCalledWith('auction-id');
+  });
+
+  it('gets winner payment instructions', async () => {
+    service.getPaymentInstructions.mockResolvedValue({
+      paymentAccount: { accountNumber: '3635734512' },
+    });
+
+    await expect(
+      controller.getPaymentInstructions(admin, 'auction-id'),
+    ).resolves.toEqual({
+      paymentAccount: { accountNumber: '3635734512' },
+    });
+    expect(service.getPaymentInstructions).toHaveBeenCalledWith(
+      admin,
+      'auction-id',
+    );
   });
 
   it('cancels an auction', async () => {

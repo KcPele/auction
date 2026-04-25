@@ -5,8 +5,8 @@ import { BidStatus } from '../../common/enums/bid-status.enum';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
 import { NotificationType } from '../../common/enums/notification-type.enum';
+import { UserRole } from '../../common/enums/user-role.enum';
 import type { NotificationsService } from '../notifications/notifications.service';
-import type { WalletsService } from '../wallets/wallets.service';
 import type { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { AuctionsService } from './auctions.service';
 
@@ -18,11 +18,12 @@ describe('AuctionsService', () => {
     save: jest.Mock;
     find: jest.Mock;
   };
-  let bidsRepository: { find: jest.Mock };
+  let bidsRepository: { find: jest.Mock; findOneBy: jest.Mock };
   let carListingsRepository: { findOneBy: jest.Mock };
   let gadgetListingsRepository: { findOneBy: jest.Mock };
   let feesRepository: { findOneBy: jest.Mock };
-  let walletsService: { releaseBidHold: jest.Mock };
+  let paymentAccountsRepository: { findOneBy: jest.Mock };
+  let biddingSettingsRepository: { findOneBy: jest.Mock };
   let notificationsService: { create: jest.Mock };
   let lifecycleScheduler: {
     scheduleAuctionLifecycle: jest.Mock;
@@ -47,11 +48,12 @@ describe('AuctionsService', () => {
       })),
       find: jest.fn(),
     };
-    bidsRepository = { find: jest.fn() };
+    bidsRepository = { find: jest.fn(), findOneBy: jest.fn() };
     carListingsRepository = { findOneBy: jest.fn() };
     gadgetListingsRepository = { findOneBy: jest.fn() };
     feesRepository = { findOneBy: jest.fn() };
-    walletsService = { releaseBidHold: jest.fn() };
+    paymentAccountsRepository = { findOneBy: jest.fn() };
+    biddingSettingsRepository = { findOneBy: jest.fn() };
     notificationsService = { create: jest.fn() };
     lifecycleScheduler = {
       scheduleAuctionLifecycle: jest.fn(),
@@ -66,7 +68,8 @@ describe('AuctionsService', () => {
       carListingsRepository as never,
       gadgetListingsRepository as never,
       feesRepository as never,
-      walletsService as unknown as WalletsService,
+      paymentAccountsRepository as never,
+      biddingSettingsRepository as never,
       notificationsService as unknown as NotificationsService,
       lifecycleScheduler as unknown as AuctionLifecycleScheduler,
     );
@@ -79,6 +82,9 @@ describe('AuctionsService', () => {
     feesRepository.findOneBy.mockResolvedValue({
       sellerFeeBps: 300,
       buyerFeeBps: 0,
+    });
+    biddingSettingsRepository.findOneBy.mockResolvedValue({
+      bidRequirementPercent: 15,
     });
 
     await expect(
@@ -98,6 +104,7 @@ describe('AuctionsService', () => {
       expect.objectContaining({
         basePriceKobo: 5000000,
         minimumBidIncrementKobo: 100000,
+        holdPercent: 15,
         endTime: new Date('2026-04-24T15:00:00.000Z'),
       }),
     );
@@ -248,7 +255,7 @@ describe('AuctionsService', () => {
     expect(lifecycleScheduler.schedulePaymentDeadline).not.toHaveBeenCalled();
   });
 
-  it('closes an auction with a winner and releases losing holds', async () => {
+  it('closes an auction with a winner and marks losing bids as outbid', async () => {
     const auction = createAuction({
       status: AuctionStatus.Live,
       startTime: new Date(Date.now() - 120_000),
@@ -271,11 +278,7 @@ describe('AuctionsService', () => {
       winningBid,
       changed: true,
     });
-    expect(losingBid.status).toBe(BidStatus.Released);
-    expect(walletsService.releaseBidHold).toHaveBeenCalledWith(
-      manager,
-      expect.objectContaining({ holdId: 'losing-hold-id' }),
-    );
+    expect(losingBid.status).toBe(BidStatus.Outbid);
     expect(lifecycleScheduler.schedulePaymentDeadline).toHaveBeenCalledWith(
       auction,
     );
@@ -285,6 +288,45 @@ describe('AuctionsService', () => {
         title: 'You won an auction',
       }),
     );
+  });
+
+  it('returns payment instructions to the winning bidder', async () => {
+    const auction = createAuction({
+      status: AuctionStatus.AwaitingPayment,
+      winnerId: 'winner-id',
+      currentWinningBidId: 'winning-bid-id',
+      paymentDeadlineAt: new Date('2026-04-25T15:00:00.000Z'),
+    });
+    auctionsRepository.findOneBy.mockResolvedValue(auction);
+    bidsRepository.findOneBy.mockResolvedValue(
+      createBid({ id: 'winning-bid-id', amountKobo: 7000000 }),
+    );
+    paymentAccountsRepository.findOneBy.mockResolvedValue({
+      bankName: 'Providus Bank',
+      accountNumber: '3635734512',
+      accountName: 'KcPele Auctions',
+    });
+
+    await expect(
+      service.getPaymentInstructions(
+        {
+          id: 'winner-id',
+          role: UserRole.IndividualBidder,
+          authRole: 'user',
+          sessionId: 'session-id',
+        },
+        auction.id,
+      ),
+    ).resolves.toEqual({
+      auction: expect.objectContaining({ id: auction.id }),
+      winningBid: { id: 'winning-bid-id', amountKobo: 7000000 },
+      paymentDeadlineAt: auction.paymentDeadlineAt,
+      paymentAccount: {
+        bankName: 'Providus Bank',
+        accountNumber: '3635734512',
+        accountName: 'KcPele Auctions',
+      },
+    });
   });
 });
 

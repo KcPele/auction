@@ -14,12 +14,15 @@ import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
 import { NotificationAudience } from '../../common/enums/notification-audience.enum';
 import { NotificationType } from '../../common/enums/notification-type.enum';
+import { UserRole } from '../../common/enums/user-role.enum';
+import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { PaymentAccountSetting } from '../admin/entities/payment-account-setting.entity';
 import { PlatformFeeSetting } from '../admin/entities/platform-fee-setting.entity';
+import { BiddingSetting } from '../admin/entities/bidding-setting.entity';
 import { Bid } from '../bids/entities/bid.entity';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { NotificationsService } from '../notifications/notifications.service';
-import { WalletsService } from '../wallets/wallets.service';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { CancelAuctionDto } from './dto/cancel-auction.dto';
 import { ListAuctionsQueryDto } from './dto/list-auctions-query.dto';
@@ -52,7 +55,10 @@ export class AuctionsService implements OnApplicationBootstrap {
     private readonly gadgetListingsRepository: Repository<GadgetListing>,
     @InjectRepository(PlatformFeeSetting)
     private readonly feesRepository: Repository<PlatformFeeSetting>,
-    private readonly walletsService: WalletsService,
+    @InjectRepository(PaymentAccountSetting)
+    private readonly paymentAccountsRepository: Repository<PaymentAccountSetting>,
+    @InjectRepository(BiddingSetting)
+    private readonly biddingSettingsRepository: Repository<BiddingSetting>,
     private readonly notificationsService: NotificationsService,
     private readonly lifecycleScheduler: AuctionLifecycleScheduler,
   ) {}
@@ -73,6 +79,7 @@ export class AuctionsService implements OnApplicationBootstrap {
 
     const listing = await this.findApprovedListing(category, listingId);
     const fee = await this.findFee(category);
+    const biddingSetting = await this.findBiddingSetting();
     const endTime = new Date(
       listing.startTime.getTime() + listing.durationMinutes * 60_000,
     );
@@ -83,7 +90,7 @@ export class AuctionsService implements OnApplicationBootstrap {
         sellerId: listing.listerId,
         basePriceKobo: Number(listing.basePriceKobo),
         minimumBidIncrementKobo: Number(listing.minimumBidIncrementKobo),
-        holdPercent: listing.holdPercent,
+        holdPercent: biddingSetting.bidRequirementPercent,
         sellerFeeBps: fee.sellerFeeBps,
         buyerFeeBps: fee.buyerFeeBps,
         startTime: listing.startTime,
@@ -144,6 +151,49 @@ export class AuctionsService implements OnApplicationBootstrap {
 
     return {
       auction: presentAuction(await this.auctionsRepository.save(auction)),
+    };
+  }
+
+  async getPaymentInstructions(user: AuthenticatedUser, auctionId: string) {
+    const auction = await this.findAuction(auctionId);
+
+    if (auction.status !== AuctionStatus.AwaitingPayment) {
+      throw new BadRequestException('Auction is not awaiting payment');
+    }
+
+    if (auction.winnerId !== user.id && user.role !== UserRole.Admin) {
+      throw new BadRequestException('Only the winner can view payment instructions');
+    }
+
+    if (!auction.currentWinningBidId) {
+      throw new NotFoundException('Winning bid not found');
+    }
+
+    const [winningBid, paymentAccount] = await Promise.all([
+      this.bidsRepository.findOneBy({ id: auction.currentWinningBidId }),
+      this.paymentAccountsRepository.findOneBy({ id: 'default' }),
+    ]);
+
+    if (!winningBid) {
+      throw new NotFoundException('Winning bid not found');
+    }
+
+    if (!paymentAccount) {
+      throw new NotFoundException('Payment account is not configured');
+    }
+
+    return {
+      auction: presentAuction(auction),
+      winningBid: {
+        id: winningBid.id,
+        amountKobo: winningBid.amountKobo,
+      },
+      paymentDeadlineAt: auction.paymentDeadlineAt,
+      paymentAccount: {
+        bankName: paymentAccount.bankName,
+        accountNumber: paymentAccount.accountNumber,
+        accountName: paymentAccount.accountName,
+      },
     };
   }
 
@@ -249,7 +299,7 @@ export class AuctionsService implements OnApplicationBootstrap {
       winningBid.status = BidStatus.Winning;
 
       await manager.save(winningBid);
-      await this.releaseLosingBidHolds(manager, auction, bids, winningBid);
+      await this.markLosingBids(manager, bids, winningBid);
       await manager.save(auction);
 
       return {
@@ -354,6 +404,14 @@ export class AuctionsService implements OnApplicationBootstrap {
     return existing ?? DefaultPlatformFees[category];
   }
 
+  private async findBiddingSetting() {
+    const existing = await this.biddingSettingsRepository.findOneBy({
+      id: 'default',
+    });
+
+    return existing ?? { bidRequirementPercent: 10 };
+  }
+
   private async scheduleOpenLifecycleJobs() {
     const auctions = await this.auctionsRepository.find({
       where: [
@@ -380,30 +438,16 @@ export class AuctionsService implements OnApplicationBootstrap {
     });
   }
 
-  private async releaseLosingBidHolds(
+  private async markLosingBids(
     manager: EntityManager,
-    auction: Auction,
     bids: Bid[],
     winningBid: Bid,
   ) {
     const losingBids = bids.filter((bid) => bid.id !== winningBid.id);
 
     for (const bid of losingBids) {
-      if (!bid.walletHoldId) {
-        continue;
-      }
-
-      bid.status = BidStatus.Released;
+      bid.status = BidStatus.Outbid;
       await manager.save(bid);
-      await this.walletsService.releaseBidHold(manager, {
-        holdId: bid.walletHoldId,
-        reference: `auction_close_release_${bid.id}`,
-        metadata: {
-          auctionId: auction.id,
-          bidId: bid.id,
-          winningBidId: winningBid.id,
-        },
-      });
     }
   }
 

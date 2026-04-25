@@ -10,9 +10,11 @@
 ### Frontend
 - always create components and a component should not do more than at max 3things
 - use lucide icons and only create custom svgs in the public/icons folder if and where neccessery
+
 - do not hardcode colors, fonts, sizes, etc , create the variable name and make use of it, if they are sizes or font use the tailwindcss size that matchs what u want else u can create a resuable style(size etc) in styles folder and use it
 - designs should aslo be mobile responsive
 - state management use zuztand and zod for validations
+- make use or react query toolKit
 - use hooks to abstract logic and component should render the ui
 - use tailwindcss for styling
 - use shadcn ui for components, try not to reinvent the wheel, use components and style them appropriately

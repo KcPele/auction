@@ -1,20 +1,27 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { AuthFormBody, AuthFormTop } from "../AuthFormBody";
+import { AuthButton } from "../primitives/AuthButton";
 import { Icon } from "../primitives/Icon";
+import { NinVerifyField } from "../primitives/NinVerifyField";
 import { Stepper } from "../primitives/Stepper";
-import { KycBvn } from "./KycBvn";
-import { KycSelfie } from "./KycSelfie";
-import { KycUpload } from "./KycUpload";
-
-const STEP_NAMES = ["BVN", "ID", "Selfie"] as const;
 
 export function KycFlow() {
   const router = useRouter();
-  const [step, setStep] = useState<0 | 1 | 2>(0);
+  const params = useSearchParams();
+  const ctx = params.get("ctx") ?? "register";
+  const isAccount = ctx === "account";
 
-  const onBack = () => (step === 0 ? router.push("/otp?ctx=register") : setStep((step - 1) as 0 | 1));
+  const [nin, setNin] = useState("");
+  const [ninVerified, setNinVerified] = useState(false);
+  const [bvn, setBvn] = useState("");
+  const [bvnVerified, setBvnVerified] = useState(false);
+
+  const onBack = () =>
+    isAccount ? router.push("/dashboard/profile") : router.push("/otp?ctx=register");
+
+  const goNext = () => router.push(isAccount ? "/dashboard/profile" : "/verified");
 
   return (
     <>
@@ -28,21 +35,60 @@ export function KycFlow() {
           </button>
         }
         right={
-          <button
-            onClick={() => router.push("/")}
-            className="text-fg-muted hover:text-fg"
-          >
-            Skip for now
+          <button onClick={goNext} className="text-fg-muted hover:text-fg">
+            {isAccount ? "Cancel" : "Skip for now"}
           </button>
         }
       />
       <AuthFormBody
-        stepper={<Stepper steps={["Account", "Verify", "KYC"]} current={2} />}
-        eyebrow={`Step ${step + 1} of 3 · ${STEP_NAMES[step]}`}
+        stepper={
+          isAccount ? undefined : <Stepper steps={["Account", "Verify", "KYC"]} current={2} />
+        }
+        eyebrow={isAccount ? "Account · Verify identity" : "Step 3 of 3 · Identity"}
       >
-        {step === 0 && <KycBvn onNext={() => setStep(1)} />}
-        {step === 1 && <KycUpload onNext={() => setStep(2)} />}
-        {step === 2 && <KycSelfie onNext={() => router.push("/verified")} />}
+        <h1 className="m-0 mb-2 font-display text-4xl font-semibold leading-[1.1] tracking-[-0.025em]">
+          Verify your identity.
+        </h1>
+        <p className="m-0 mb-8 max-w-[420px] text-sm text-fg-muted">
+          Type your NIN and tap Verify. BVN is optional — adding it speeds up high-value escrow
+          releases.
+        </p>
+
+        <NinVerifyField
+          label="NIN"
+          hint="Required to bid"
+          value={nin}
+          onChange={setNin}
+          onVerified={() => setNinVerified(true)}
+          meta="Dial *346# from your registered phone to find your NIN."
+        />
+
+        <NinVerifyField
+          label="BVN"
+          hint="Optional"
+          placeholder="22•••••••••"
+          value={bvn}
+          onChange={setBvn}
+          onVerified={() => setBvnVerified(true)}
+          meta="Dial *565*0# to find yours. Skip if you'd rather add later."
+        />
+
+        <AuthButton disabled={!ninVerified} onClick={goNext}>
+          {ninVerified
+            ? bvnVerified
+              ? "Continue · Fully verified"
+              : "Continue · NIN verified"
+            : "Verify NIN to continue"}
+          <Icon name="arrow-r" size={16} strokeWidth={2} />
+        </AuthButton>
+
+        <div className="mt-5 flex items-start gap-3.5 rounded-[10px] border border-line bg-surface p-3.5 text-xs leading-[1.5] text-fg-muted">
+          <Icon name="lock" size={16} />
+          <div>
+            Encrypted in transit and at rest. Only used to verify identity — never shared with
+            sellers or third parties.
+          </div>
+        </div>
       </AuthFormBody>
     </>
   );

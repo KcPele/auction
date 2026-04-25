@@ -18,8 +18,12 @@ import { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
 import { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
 import { ReviewListingDto } from './dto/review-listing.dto';
+import { UpdateBiddingSettingDto } from './dto/update-bidding-setting.dto';
+import { UpdatePaymentAccountDto } from './dto/update-payment-account.dto';
 import { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
 import { AccessCode } from './entities/access-code.entity';
+import { BiddingSetting } from './entities/bidding-setting.entity';
+import { PaymentAccountSetting } from './entities/payment-account-setting.entity';
 import { PlatformFeeSetting } from './entities/platform-fee-setting.entity';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
 import { AuctionsService } from '../auctions/auctions.service';
@@ -37,8 +41,12 @@ export class AdminService {
     private readonly applicationsRepository: Repository<ListingAccessApplication>,
     @InjectRepository(UserListingPermission)
     private readonly permissionsRepository: Repository<UserListingPermission>,
+    @InjectRepository(BiddingSetting)
+    private readonly biddingSettingsRepository: Repository<BiddingSetting>,
     @InjectRepository(PlatformFeeSetting)
     private readonly feesRepository: Repository<PlatformFeeSetting>,
+    @InjectRepository(PaymentAccountSetting)
+    private readonly paymentAccountsRepository: Repository<PaymentAccountSetting>,
     @InjectRepository(CarListing)
     private readonly carListingsRepository: Repository<CarListing>,
     @InjectRepository(GadgetListing)
@@ -155,6 +163,46 @@ export class AdminService {
     });
 
     return { platformFee: await this.feesRepository.save(fee) };
+  }
+
+  async getBiddingSetting() {
+    return { biddingSetting: await this.findOrCreateBiddingSetting() };
+  }
+
+  async updateBiddingSetting(adminId: string, dto: UpdateBiddingSettingDto) {
+    const biddingSetting = await this.findOrCreateBiddingSetting();
+
+    biddingSetting.bidRequirementPercent = dto.bidRequirementPercent;
+    biddingSetting.updatedById = adminId;
+
+    return {
+      biddingSetting: await this.biddingSettingsRepository.save(biddingSetting),
+    };
+  }
+
+  async getPaymentAccount() {
+    return {
+      paymentAccount: await this.paymentAccountsRepository.findOneBy({
+        id: 'default',
+      }),
+    };
+  }
+
+  async updatePaymentAccount(adminId: string, dto: UpdatePaymentAccountDto) {
+    const existing = await this.paymentAccountsRepository.findOneBy({
+      id: 'default',
+    });
+    const paymentAccount = this.paymentAccountsRepository.create({
+      ...(existing ?? { id: 'default' }),
+      bankName: dto.bankName.trim(),
+      accountNumber: dto.accountNumber.trim(),
+      accountName: dto.accountName.trim(),
+      updatedById: adminId,
+    });
+
+    return {
+      paymentAccount: await this.paymentAccountsRepository.save(paymentAccount),
+    };
   }
 
   listPendingWithdrawals() {
@@ -294,6 +342,23 @@ export class AdminService {
         category,
         sellerFeeBps: defaults.sellerFeeBps,
         buyerFeeBps: defaults.buyerFeeBps,
+      }),
+    );
+  }
+
+  private async findOrCreateBiddingSetting() {
+    const existing = await this.biddingSettingsRepository.findOneBy({
+      id: 'default',
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    return this.biddingSettingsRepository.save(
+      this.biddingSettingsRepository.create({
+        id: 'default',
+        bidRequirementPercent: 10,
       }),
     );
   }
