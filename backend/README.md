@@ -68,6 +68,24 @@ POST /api/v1/payments/monnify/webhook
 
 The backend verifies the webhook signature and credits the internal wallet.
 
+## Uploads
+
+Single upload:
+
+```txt
+POST /api/v1/uploads
+```
+
+Bulk upload:
+
+```txt
+POST /api/v1/uploads/bulk
+```
+
+Send `multipart/form-data` with `files`, `purpose`, and optional `category`.
+Bulk upload accepts up to 10 files. `POST /api/v1/uploads/batch` is kept as a
+compatibility alias.
+
 ## Bidding Flow
 
 Wallet balance is only a bid qualification check. Placing a bid does not hold,
