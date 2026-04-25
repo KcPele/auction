@@ -100,31 +100,6 @@ describe('UploadsController', () => {
     );
   });
 
-  it('bulk uploads multipart files', async () => {
-    service.uploadBatch.mockResolvedValue({ uploadAssets: [] });
-
-    await expect(
-      controller.uploadBulk(currentUser, {
-        file: jest.fn(),
-        files: async function* () {
-          yield createMultipartFile();
-        },
-      }),
-    ).resolves.toEqual({ uploadAssets: [] });
-
-    expect(service.uploadBatch).toHaveBeenCalledWith(
-      currentUser.id,
-      [
-        {
-          originalName: 'car.jpg',
-          mimeType: 'image/jpeg',
-          buffer: Buffer.from('file'),
-        },
-      ],
-      UploadPurpose.ListingPhoto,
-      ListingCategory.Car,
-    );
-  });
 });
 
 function createMultipartFile(filename = 'car.jpg') {

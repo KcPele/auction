@@ -20,6 +20,7 @@ import { Bid } from '../bids/entities/bid.entity';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { User } from '../users/entities/user.entity';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { CancelAuctionDto } from './dto/cancel-auction.dto';
 import { ListAuctionsQueryDto } from './dto/list-auctions-query.dto';
@@ -54,6 +55,8 @@ export class AuctionsService implements OnApplicationBootstrap {
     private readonly feesRepository: Repository<PlatformFeeSetting>,
     @InjectRepository(BiddingSetting)
     private readonly biddingSettingsRepository: Repository<BiddingSetting>,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
     private readonly notificationsService: NotificationsService,
     private readonly lifecycleScheduler: AuctionLifecycleScheduler,
   ) {}
@@ -100,10 +103,21 @@ export class AuctionsService implements OnApplicationBootstrap {
   }
 
   async list(query: ListAuctionsQueryDto) {
+    let auctionIds: string[] | null = null;
+
+    if (query.search) {
+      auctionIds = await this.searchAuctionIds(query.search);
+      if (auctionIds.length === 0) {
+        return { auctions: [] };
+      }
+    }
+
     const where = {
       ...(query.category ? { category: query.category } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(auctionIds ? { id: In(auctionIds) } : {}),
     };
+
     const auctions = await this.auctionsRepository.find({
       where,
       order: { startTime: 'ASC', createdAt: 'DESC' },
@@ -115,7 +129,13 @@ export class AuctionsService implements OnApplicationBootstrap {
   }
 
   async findOne(id: string) {
-    return { auction: presentAuction(await this.findAuction(id)) };
+    const auction = await this.findAuction(id);
+    const listing = await this.findListing(auction.category, auction.listingId);
+
+    return {
+      auction: presentAuction(auction),
+      listing: listing ? this.presentListing(auction.category, listing) : null,
+    };
   }
 
   async listBids(auctionId: string) {
@@ -125,7 +145,36 @@ export class AuctionsService implements OnApplicationBootstrap {
       order: { amountKobo: 'DESC', createdAt: 'ASC' },
     });
 
-    return { bids };
+    if (bids.length === 0) {
+      return { bids: [] };
+    }
+
+    const bidderIds = [...new Set(bids.map((b) => b.bidderId))];
+    const users = await this.usersRepository.find({
+      where: { id: In(bidderIds) },
+      select: ['id', 'firstName', 'lastName'],
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const enrichedBids = bids.map((bid) => {
+      const bidder = userMap.get(bid.bidderId);
+      const handle = bidder
+        ? `@${bidder.firstName.toLowerCase()}***`
+        : '@unknown';
+
+      return {
+        id: bid.id,
+        userId: bid.bidderId,
+        handle,
+        amountKobo: bid.amountKobo,
+        placedAt: bid.createdAt,
+        isLeading:
+          bid.status === BidStatus.Winning || bid.status === BidStatus.Accepted,
+        status: bid.status,
+      };
+    });
+
+    return { bids: enrichedBids };
   }
 
   async cancel(adminId: string, auctionId: string, dto: CancelAuctionDto) {
@@ -298,6 +347,100 @@ export class AuctionsService implements OnApplicationBootstrap {
       auction: presentAuction(result.auction),
       winningBid: result.winningBid,
       changed: result.changed,
+    };
+  }
+
+  private async searchAuctionIds(keyword: string): Promise<string[]> {
+    const term = `%${keyword}%`;
+    const carResults = await this.carListingsRepository
+      .createQueryBuilder('car')
+      .select('car.id', 'listingId')
+      .where(
+        'car.make ILIKE :term OR car.model ILIKE :term OR car.colour ILIKE :term OR CAST(car.year AS TEXT) ILIKE :term',
+        { term },
+      )
+      .getRawMany();
+
+    const gadgetResults = await this.gadgetListingsRepository
+      .createQueryBuilder('gadget')
+      .select('gadget.id', 'listingId')
+      .where(
+        'gadget.brand ILIKE :term OR gadget.model ILIKE :term OR gadget.type ILIKE :term OR gadget.colour ILIKE :term',
+        { term },
+      )
+      .getRawMany();
+
+    const listingIds = [
+      ...carResults.map((r) => r.listingId),
+      ...gadgetResults.map((r) => r.listingId),
+    ];
+
+    if (listingIds.length === 0) return [];
+
+    const auctions = await this.auctionsRepository.find({
+      where: { listingId: In(listingIds) },
+      select: ['id'],
+    });
+
+    return auctions.map((a) => a.id);
+  }
+
+  private async findListing(category: ListingCategory, listingId: string) {
+    const repo = this.getListingRepository(category);
+    return repo.findOneBy({ id: listingId });
+  }
+
+  private presentListing(
+    category: ListingCategory,
+    listing: CarListing | GadgetListing,
+  ) {
+    if (category === ListingCategory.Car) {
+      const car = listing as CarListing;
+      return {
+        id: car.id,
+        type: 'car',
+        make: car.make,
+        model: car.model,
+        year: car.year,
+        colour: car.colour,
+        registrationNumber: car.registrationNumber,
+        mileage: car.mileage,
+        condition: car.condition,
+        knownFaults: car.knownFaults,
+        mechanicId: car.mechanicId,
+        photoUrls: car.photoUrls,
+        basePriceKobo: Number(car.basePriceKobo),
+        status: car.status,
+        reviewedById: car.reviewedById,
+        reviewNote: car.reviewNote,
+        reviewedAt: car.reviewedAt,
+        createdAt: car.createdAt,
+        updatedAt: car.updatedAt,
+      };
+    }
+
+    const gadget = listing as GadgetListing;
+    return {
+      id: gadget.id,
+      type: 'gadget',
+      gadgetType: gadget.type,
+      brand: gadget.brand,
+      model: gadget.model,
+      colour: gadget.colour,
+      batteryHealthPercent: gadget.batteryHealthPercent,
+      specs: gadget.specs,
+      usageHistory: gadget.usageHistory,
+      defects: gadget.defects,
+      proofDocumentUrl: gadget.proofDocumentUrl,
+      photoUrls: gadget.photoUrls,
+      videoUrls: gadget.videoUrls,
+      basePriceKobo: Number(gadget.basePriceKobo),
+      status: gadget.status,
+      reviewedById: gadget.reviewedById,
+      reviewNote: gadget.reviewNote,
+      reviewedAt: gadget.reviewedAt,
+      createdAt: gadget.createdAt,
+      updatedAt: gadget.updatedAt,
     };
   }
 

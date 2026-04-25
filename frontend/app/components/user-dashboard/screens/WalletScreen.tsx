@@ -36,6 +36,8 @@ const PRIMARY_BTN_BG = {
 };
 
 export function WalletScreen() {
+  // Integration: fetch balance from GET /api/v1/wallets/me
+  // Integration: fetch activity from GET /api/v1/wallets/me/ledger?limit=20&offset=0
   const [filter, setFilter] = useState<Filter>("all");
   const filtered = useMemo(
     () => (filter === "all" ? ACTIVITY : ACTIVITY.filter((x) => x.type === filter)),
@@ -102,6 +104,13 @@ export function WalletScreen() {
         style={PRIMARY_BTN_BG}
       >
         + Top up wallet
+      </Link>
+
+      <Link
+        href="/dashboard/wallet/withdrawals"
+        className="mt-2 block rounded-xl border border-line bg-surface px-5 py-3.5 text-center text-sm font-medium text-fg-muted"
+      >
+        Withdrawal history
       </Link>
     </>
   );

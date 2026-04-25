@@ -28,6 +28,12 @@ export class NotificationPreference {
   @Column({ type: 'boolean', default: false })
   readyToBid!: boolean;
 
+  @Column({ type: 'boolean', default: true })
+  emailEnabled!: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  pushEnabled!: boolean;
+
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt!: Date;
 }

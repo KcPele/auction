@@ -10,7 +10,9 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
+import { InitiateTopupDto } from './dto/initiate-topup.dto';
 import { ListWalletLedgerQueryDto } from './dto/list-wallet-ledger-query.dto';
+import { ListWithdrawalsQueryDto } from './dto/list-withdrawals-query.dto';
 import { WalletFundingService } from './wallet-funding.service';
 import { WalletWithdrawalsService } from './wallet-withdrawals.service';
 import { WalletsService } from './wallets.service';
@@ -43,11 +45,31 @@ export class WalletsController {
     return this.walletsService.listLedger(user.id, query);
   }
 
+  @Get('me/withdrawals')
+  @ApiOperation({ summary: 'List current user withdrawals' })
+  @ApiOkResponse({ description: 'Withdrawals returned.' })
+  listWithdrawals(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListWithdrawalsQueryDto,
+  ) {
+    return this.walletWithdrawalsService.listUserWithdrawals(user.id, query);
+  }
+
   @Post('funding-account')
   @ApiOperation({ summary: 'Create or return a Monnify funding account' })
   @ApiCreatedResponse({ description: 'Funding account returned.' })
   getFundingAccount(@CurrentUser() user: AuthenticatedUser) {
     return this.walletFundingService.getFundingAccount(user.id);
+  }
+
+  @Post('topup/initiate')
+  @ApiOperation({ summary: 'Initiate a wallet top-up' })
+  @ApiCreatedResponse({ description: 'Top-up details returned.' })
+  initiateTopup(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: InitiateTopupDto,
+  ) {
+    return this.walletFundingService.initiateTopup(user.id, dto);
   }
 
   @Post('withdrawals')

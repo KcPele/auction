@@ -10,6 +10,8 @@ import { WalletFundingAccountStatus } from '../../common/enums/wallet-funding-ac
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
 import { MonnifyProvider } from '../payments/providers/monnify.provider';
 import { User } from '../users/entities/user.entity';
+import { ListingCategory } from '../../common/enums/listing-category.enum';
+import { InitiateTopupDto } from './dto/initiate-topup.dto';
 import { WalletFundingAccount } from './entities/wallet-funding-account.entity';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
 import { Wallet } from './entities/wallet.entity';
@@ -84,6 +86,17 @@ export class WalletFundingService {
     );
 
     return { fundingAccount: presentFundingAccount(fundingAccount), created: true };
+  }
+
+  async initiateTopup(userId: string, _dto: InitiateTopupDto) {
+    const { fundingAccount } = await this.getFundingAccount(userId);
+
+    return {
+      accountNumber: fundingAccount.accountNumber,
+      bankName: fundingAccount.bankName,
+      accountName: fundingAccount.accountName,
+      reference: fundingAccount.accountReference,
+    };
   }
 
   async creditFundingAccount(input: {

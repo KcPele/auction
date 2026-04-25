@@ -18,9 +18,11 @@ const MAIN: NavItem[] = [
   { href: "/dashboard/browse", label: "Browse auctions", icon: "search" },
   { href: "/dashboard/bids", label: "My bids", icon: "gavel", badge: 2 },
   { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
+  { href: "/dashboard/listings", label: "My listings", icon: "tag" },
 ];
 const META: NavItem[] = [
   { href: "/dashboard/notifications", label: "Notifications", icon: "bell", badge: 2 },
+  { href: "/dashboard/watchlist", label: "Watchlist", icon: "heart" },
   { href: "/dashboard/profile", label: "Profile & settings", icon: "user" },
 ];
 

@@ -34,6 +34,7 @@ type BetterAuthInstance = {
       };
       session: { id: string };
     } | null>;
+    signInEmail: (context: { body: Record<string, unknown>; headers: Headers }) => Promise<Response>;
   };
 };
 
@@ -45,6 +46,8 @@ type BetterAuthUser = {
   lastName?: string;
   appRole?: string;
   nin?: string | null;
+  referralCode?: string;
+  name?: string;
 };
 
 @Injectable()
@@ -82,6 +85,36 @@ export class AuthService implements OnModuleDestroy {
         body,
       }),
     );
+  }
+
+  async signInWithPhone(phone: string, password: string, headers: IncomingHttpHeaders) {
+    const user = await this.usersRepository.findOneBy({ phone });
+    if (!user) {
+      throw new UnauthorizedException('Invalid phone number or password');
+    }
+
+    const auth = await this.getAuth();
+    const { fromNodeHeaders } = await this.getNodeHelpers();
+
+    const authApi = auth.api as Record<string, unknown>;
+    const signIn = authApi.signInEmail as (context: {
+      body: Record<string, unknown>;
+      headers: Headers;
+    }) => Promise<Response>;
+
+    return signIn({
+      body: { email: user.email, password },
+      headers: fromNodeHeaders(headers),
+    });
+  }
+
+  async verifyNin(nin: string) {
+    const existing = await this.usersRepository.findOneBy({ nin });
+    if (existing) {
+      return { verified: true, name: `${existing.firstName} ${existing.lastName}` };
+    }
+
+    return { verified: true, name: null };
   }
 
   async getAuthenticatedUser(
@@ -144,7 +177,19 @@ export class AuthService implements OnModuleDestroy {
         .split(',')
         .map((origin) => origin.trim())
         .filter(Boolean),
-      emailAndPassword: { enabled: true, minPasswordLength: 8 },
+      emailAndPassword: {
+        enabled: true,
+        minPasswordLength: 8,
+        sendResetPassword: async (_data: { url: string; token: string; user: unknown }) => {
+          return;
+        },
+      },
+      emailVerification: {
+        sendOnSignUp: false,
+        sendVerificationEmail: async (_data: { url: string; token: string; user: unknown }) => {
+          return;
+        },
+      },
       advanced: { database: { generateId: 'uuid' } },
       user: this.userSchema,
       session: this.sessionSchema,
@@ -155,7 +200,11 @@ export class AuthService implements OnModuleDestroy {
         user: {
           create: {
             before: async (user: BetterAuthUser) => ({
-              data: { ...user, role: 'user' },
+              data: {
+                ...user,
+                name: user.name ?? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+                role: 'user',
+              },
             }),
             after: async (user: BetterAuthUser) => {
               await this.createAppProfile(user as BetterAuthUser);
@@ -283,6 +332,7 @@ export class AuthService implements OnModuleDestroy {
         defaultValue: UserRole.IndividualBidder,
       },
       nin: { type: 'string', required: false },
+      referralCode: { type: 'string', required: false, fieldName: 'referral_code' },
     },
   } as const;
 

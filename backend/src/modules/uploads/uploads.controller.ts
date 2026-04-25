@@ -83,18 +83,6 @@ export class UploadsController {
     return this.uploadMany(user.id, request);
   }
 
-  @Post('bulk')
-  @ApiOperation({ summary: 'Bulk upload up to 10 listing files' })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadBatchDto })
-  @ApiCreatedResponse({ description: 'Files uploaded and metadata stored.' })
-  async uploadBulk(
-    @CurrentUser() user: AuthenticatedUser,
-    @Req() request: MultipartRequest,
-  ) {
-    return this.uploadMany(user.id, request);
-  }
-
   private async uploadMany(userId: string, request: MultipartRequest) {
     const files: Awaited<ReturnType<typeof this.toUploadFile>>[] = [];
     let purpose: UploadPurpose | undefined;

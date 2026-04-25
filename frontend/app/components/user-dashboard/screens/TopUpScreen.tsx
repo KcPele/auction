@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Icon, type IconName } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
 
-type MethodId = "paystack" | "transfer" | "flutter";
+type MethodId = "paystack" | "transfer" | "flutter" | "monnify";
 interface Method {
   id: MethodId;
   title: string;
@@ -16,6 +16,7 @@ const METHODS: Method[] = [
   { id: "paystack", title: "Paystack · Card / USSD", sub: "Instant · 1.5% fee capped at ₦2,000", icon: "zap" },
   { id: "transfer", title: "Bank transfer", sub: "Wema Bank · 1234567890 · BidNaija Escrow", icon: "arrow-r" },
   { id: "flutter", title: "Flutterwave", sub: "Card / Bank / Barter", icon: "refresh" },
+  { id: "monnify", title: "Monnify (Virtual Account)", sub: "Your dedicated account · Free", icon: "wallet" },
 ];
 const QUICK = [100_000, 250_000, 500_000, 1_000_000];
 
@@ -24,11 +25,11 @@ const PRIMARY_BTN_BG = {
 };
 
 function feeFor(method: MethodId, amt: number) {
-  if (method === "transfer") return "Free";
+  if (method === "transfer" || method === "monnify") return "Free";
   return fmtNaira(Math.min(amt * 0.015, 2_000));
 }
 function methodLabel(m: MethodId) {
-  return m === "paystack" ? "Paystack" : m === "flutter" ? "Flutterwave" : "bank details";
+  return m === "paystack" ? "Paystack" : m === "flutter" ? "Flutterwave" : m === "monnify" ? "Monnify" : "bank details";
 }
 
 export function TopUpScreen() {
@@ -109,6 +110,7 @@ export function TopUpScreen() {
       <button
         type="button"
         onClick={() => {
+          // Integration: for monnify, POST /api/v1/wallets/funding-account to get virtual account
           alert(
             `Top up ${fmtNaira(amt)} via ${method} — in a live build, this redirects to the gateway.`,
           );

@@ -8,6 +8,7 @@ import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { JobsModule } from '../jobs/jobs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { User } from '../users/entities/user.entity';
 import { AuctionLifecycleProcessor } from './auction-lifecycle.processor';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { AuctionPaymentDeadlineProcessor } from './auction-payment-deadline.processor';
@@ -15,6 +16,7 @@ import { AuctionSettlementService } from './auction-settlement.service';
 import { AuctionsController } from './auctions.controller';
 import { AuctionsService } from './auctions.service';
 import { Auction } from './entities/auction.entity';
+import { AuctionDelivery } from './entities/auction-delivery.entity';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { Auction } from './entities/auction.entity';
       PlatformFeeSetting,
       PaymentAccountSetting,
       BiddingSetting,
+      User,
+      AuctionDelivery,
     ]),
     JobsModule,
     NotificationsModule,

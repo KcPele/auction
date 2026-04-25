@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { AuctionStatus } from '../../../common/enums/auction-status.enum';
 import { ListingCategory } from '../../../common/enums/listing-category.enum';
 
@@ -14,6 +14,11 @@ export class ListAuctionsQueryDto {
   @IsOptional()
   @IsEnum(AuctionStatus)
   status?: AuctionStatus;
+
+  @ApiPropertyOptional({ example: 'camry', description: 'Search keyword' })
+  @IsOptional()
+  @IsString()
+  search?: string;
 
   @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
   @IsOptional()

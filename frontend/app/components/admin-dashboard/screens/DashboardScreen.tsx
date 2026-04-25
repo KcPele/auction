@@ -22,6 +22,11 @@ export function DashboardScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const k = KPI_DATA[range];
 
+  // Integration: replace INITIAL_COUNTS with counts from:
+  // GET /admin/listing-access-applications/pending
+  // GET /admin/listings/pending
+  // GET /admin/wallet-withdrawals/pending
+
   const exportReport = () => {
     downloadCSV(`bidnaija-dashboard-${range}-${Date.now()}.csv`, [
       ["Metric", "Value", "Delta"],

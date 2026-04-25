@@ -37,6 +37,7 @@ const DELIVERY_STEPS = [
 ];
 
 export function MyBidsScreen() {
+  // Integration: fetch from GET /api/v1/users/me/bids?status=active|scheduled|won
   const [tab, setTab] = useState<TabId>("active");
   const active = MY_BIDS.filter((b) => b.status === "leading" || b.status === "outbid");
   const scheduled = MY_BIDS.filter((b) => b.status === "scheduled");

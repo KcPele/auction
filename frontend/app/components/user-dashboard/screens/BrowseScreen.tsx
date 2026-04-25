@@ -47,6 +47,9 @@ export function BrowseScreen() {
   }, [initialCat]);
 
   const filtered = useMemo(() => {
+    // Integration: replace with GET /api/v1/auctions?category=CAR|GADGET&status=LIVE|SCHEDULED&limit=20&offset=0
+    // cat: "cars" -> category=CAR, "gadgets" -> category=GADGET
+    // status: "live" -> status=LIVE, "soon" -> status=SCHEDULED
     let list = AUCTIONS;
     if (cat !== "all") list = list.filter((a) => a.cat === cat);
     if (status === "live") list = list.filter((a) => a.live);

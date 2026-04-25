@@ -38,6 +38,9 @@ function buildHistory(current: number, inc: number): HistoryEntry[] {
 }
 
 export function DetailScreen({ id }: { id: string }) {
+  // Integration: fetch from GET /api/v1/auctions/{id}
+  // Integration: fetch bids from GET /api/v1/auctions/{id}/bids
+  // Integration: fetch listing detail from GET /api/v1/cars/{id} or GET /api/v1/gadgets/{id}
   const a = AUCTIONS.find((x) => x.id === id);
   if (!a) notFound();
 
@@ -45,6 +48,8 @@ export function DetailScreen({ id }: { id: string }) {
   const suggested = (a.current || a.start) + minIncrement;
   const [bidAmt, setBidAmt] = useState(suggested);
   const [photo, setPhoto] = useState(0);
+  const [showCancel, setShowCancel] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const history = buildHistory(a.current || a.start, minIncrement);
 
   return (
@@ -172,6 +177,51 @@ export function DetailScreen({ id }: { id: string }) {
         ))}
       </div>
 
+      {/* Cancel auction action (for listing owner) */}
+      {a.live && (
+        <div className="my-4">
+          {showCancel ? (
+            <div className="rounded-[14px] border border-red/20 bg-surface p-3.5">
+              <div className="mb-2 text-[13px] font-semibold text-red">Cancel this auction?</div>
+              <textarea
+                className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent placeholder:text-fg-dim"
+                rows={2}
+                placeholder="Reason for cancellation"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+              />
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCancel(false)}
+                  className="flex-1 rounded-lg border border-line bg-surface p-2 text-xs font-medium text-fg-muted"
+                >
+                  Keep auction
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Integration: POST /api/v1/auctions/{id}/cancel with { reason: cancelReason }
+                    alert(`Auction cancelled. Reason: ${cancelReason}`);
+                  }}
+                  className="flex-1 rounded-lg border border-red/30 bg-red/[0.08] p-2 text-xs font-semibold text-red"
+                >
+                  Confirm cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowCancel(true)}
+              className="w-full rounded-xl border border-red/20 bg-transparent p-3 text-xs font-medium text-red"
+            >
+              Cancel auction
+            </button>
+          )}
+        </div>
+      )}
+
       {a.live ? (
         <div
           className="sticky bottom-0 -mx-[18px] -mb-6 flex items-center gap-2.5 px-[18px] pt-3.5"
@@ -196,6 +246,7 @@ export function DetailScreen({ id }: { id: string }) {
             className="cursor-pointer whitespace-nowrap rounded-xl border-none px-5 py-3.5 text-sm font-bold text-[#1a0a00]"
             style={BID_BTN_BG}
             onClick={() =>
+              // Integration: POST /api/v1/auctions/{id}/bids with { amountKobo: bidAmt }
               alert(
                 `Bid confirmed at ${fmtNaira(bidAmt)}.\n10% (${fmtNaira(bidAmt * 0.1)}) held from wallet.`,
               )

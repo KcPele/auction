@@ -3,6 +3,8 @@ import { LiveAuctions } from "../widgets/LiveAuctions";
 import { SectionHeader } from "./SectionHeader";
 
 export function AuctionsScreen() {
+  // Integration: fetch from GET /api/v1/admin/auctions?status=LIVE
+  // when backend admin auction endpoint is available
   return (
     <>
       <SectionHeader

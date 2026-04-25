@@ -19,6 +19,9 @@ const ROW_THUMB_BG = {
 };
 
 export function HomeScreen() {
+  // Integration: fetch from GET /api/v1/auctions?status=LIVE
+  // Integration: fetch wallet from GET /api/v1/wallets/me
+  // Integration: fetch user from GET /api/v1/users/me
   const liveAuctions = AUCTIONS.filter((a) => a.live);
   const myActive = MY_BIDS.filter((b) => b.status === "leading" || b.status === "outbid");
   const openingSoon = AUCTIONS.filter((a) => !a.live).slice(0, 3);

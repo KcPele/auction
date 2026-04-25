@@ -4,31 +4,60 @@ import { Card, CardBody, CardHead } from "../widgets/Card";
 import { SectionHeader } from "./SectionHeader";
 import { NumberInput } from "../../ui/NumberInput";
 
-interface SettingsState {
+// --- Platform fees per category (backend: /admin/settings/platform-fees) ---
+interface CategoryFees {
+  sellerFeeBps: number;
+  buyerFeeBps: number;
+}
+
+interface FeesState {
+  CAR: CategoryFees;
+  GADGET: CategoryFees;
+}
+
+// --- Bidding (backend: /admin/settings/bidding) ---
+interface BiddingState {
+  bidRequirementPercent: number;
+}
+
+// --- Payment account (backend: /admin/settings/payment-account) ---
+interface PaymentAccount {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+}
+
+// --- Holds & escrow (backend: /admin/settings/escrow) ---
+interface EscrowState {
   holdMin: number;
   holdMax: number;
   paymentWindowHrs: number;
-  buyerFeePct: number;
-  sellerFeePct: number;
   autoExtendMin: number;
-  emailEnabled: boolean;
-  waEnabled: boolean;
-  pauseNewListings: boolean;
 }
 
-const DEFAULTS: SettingsState = {
+const DEFAULT_FEES: FeesState = {
+  CAR: { sellerFeeBps: 300, buyerFeeBps: 0 },
+  GADGET: { sellerFeeBps: 500, buyerFeeBps: 250 },
+};
+
+const DEFAULT_BIDDING: BiddingState = {
+  bidRequirementPercent: 10,
+};
+
+const DEFAULT_PAYMENT: PaymentAccount = {
+  bankName: "Providus Bank",
+  accountNumber: "3635734512",
+  accountName: "KcPele Auctions",
+};
+
+const DEFAULT_ESCROW: EscrowState = {
   holdMin: 10,
   holdMax: 20,
   paymentWindowHrs: 24,
-  buyerFeePct: 2.5,
-  sellerFeePct: 5,
   autoExtendMin: 2,
-  emailEnabled: true,
-  waEnabled: true,
-  pauseNewListings: false,
 };
 
-function NumInput({
+function NumInputField({
   label,
   sub,
   value,
@@ -91,13 +120,34 @@ function Toggle({
   );
 }
 
+function bpsToPercent(bps: number): number {
+  return bps / 100;
+}
+
+function percentToBps(pct: number): number {
+  return Math.round(pct * 100);
+}
+
 export function SettingsScreen() {
-  const [s, setS] = useState<SettingsState>(DEFAULTS);
+  const [fees, setFees] = useState<FeesState>(DEFAULT_FEES);
+  const [bidding, setBidding] = useState<BiddingState>(DEFAULT_BIDDING);
+  const [payment, setPayment] = useState<PaymentAccount>(DEFAULT_PAYMENT);
+  const [escrow, setEscrow] = useState<EscrowState>(DEFAULT_ESCROW);
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [waEnabled, setWaEnabled] = useState(true);
+  const [pauseNewListings, setPauseNewListings] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  const upd = <K extends keyof SettingsState>(k: K, v: SettingsState[K]) =>
-    setS((p) => ({ ...p, [k]: v }));
+
+  const updateFee = (cat: "CAR" | "GADGET", field: keyof CategoryFees, bps: number) =>
+    setFees((p) => ({ ...p, [cat]: { ...p[cat], [field]: bps } }));
 
   const save = () => {
+    // API calls for integration:
+    // PATCH /admin/settings/platform-fees (per category)
+    // PATCH /admin/settings/bidding
+    // PATCH /admin/settings/payment-account
+    // PATCH /admin/settings/escrow
+    // PATCH /admin/settings/toggles
     setSavedAt(new Date().toLocaleTimeString());
   };
 
@@ -105,7 +155,7 @@ export function SettingsScreen() {
     <>
       <SectionHeader
         title="Platform settings"
-        sub="Hold percentage range, payment window, fee structure, and platform-wide toggles."
+        sub="Fee structure per category, bidding qualification, payment account, and platform toggles."
         action={
           <div className="flex items-center gap-3">
             {savedAt && <span className="text-[11px] text-green">Saved · {savedAt}</span>}
@@ -122,88 +172,166 @@ export function SettingsScreen() {
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
+        {/* Car fees */}
         <Card>
-          <CardHead title="Holds & escrow" />
+          <CardHead title="Car fees" />
           <CardBody>
             <div className="grid grid-cols-2 gap-4">
-              <NumInput
+              <NumInputField
+                label="Seller fee"
+                sub={`${bpsToPercent(fees.CAR.sellerFeeBps)}%`}
+                value={bpsToPercent(fees.CAR.sellerFeeBps)}
+                onChange={(v) => updateFee("CAR", "sellerFeeBps", percentToBps(v))}
+                suffix="%"
+                step={0.1}
+              />
+              <NumInputField
+                label="Buyer fee"
+                sub={`${bpsToPercent(fees.CAR.buyerFeeBps)}%`}
+                value={bpsToPercent(fees.CAR.buyerFeeBps)}
+                onChange={(v) => updateFee("CAR", "buyerFeeBps", percentToBps(v))}
+                suffix="%"
+                step={0.1}
+              />
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Gadget fees */}
+        <Card>
+          <CardHead title="Gadget fees" />
+          <CardBody>
+            <div className="grid grid-cols-2 gap-4">
+              <NumInputField
+                label="Seller fee"
+                sub={`${bpsToPercent(fees.GADGET.sellerFeeBps)}%`}
+                value={bpsToPercent(fees.GADGET.sellerFeeBps)}
+                onChange={(v) => updateFee("GADGET", "sellerFeeBps", percentToBps(v))}
+                suffix="%"
+                step={0.1}
+              />
+              <NumInputField
+                label="Buyer fee"
+                sub={`${bpsToPercent(fees.GADGET.buyerFeeBps)}%`}
+                value={bpsToPercent(fees.GADGET.buyerFeeBps)}
+                onChange={(v) => updateFee("GADGET", "buyerFeeBps", percentToBps(v))}
+                suffix="%"
+                step={0.1}
+              />
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Bidding qualification */}
+        <Card>
+          <CardHead title="Bidding" />
+          <CardBody>
+            <NumInputField
+              label="Bid requirement"
+              sub="Minimum wallet % of base price to place a bid"
+              value={bidding.bidRequirementPercent}
+              onChange={(v) => setBidding({ bidRequirementPercent: v })}
+              suffix="%"
+            />
+          </CardBody>
+        </Card>
+
+        {/* Payment account */}
+        <Card>
+          <CardHead title="Payment account" />
+          <CardBody>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-fg-muted">Bank name</label>
+                <input
+                  type="text"
+                  value={payment.bankName}
+                  onChange={(e) => setPayment((p) => ({ ...p, bankName: e.target.value }))}
+                  className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-fg-muted">Account number</label>
+                <input
+                  type="text"
+                  value={payment.accountNumber}
+                  onChange={(e) => setPayment((p) => ({ ...p, accountNumber: e.target.value }))}
+                  className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-fg-muted">Account name</label>
+                <input
+                  type="text"
+                  value={payment.accountName}
+                  onChange={(e) => setPayment((p) => ({ ...p, accountName: e.target.value }))}
+                  className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+                />
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Holds & escrow */}
+        <Card className="lg:col-span-2">
+          <CardHead title="Holds & escrow" />
+          <CardBody>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <NumInputField
                 label="Min hold"
                 sub="On low-value bids"
-                value={s.holdMin}
-                onChange={(v) => upd("holdMin", v)}
+                value={escrow.holdMin}
+                onChange={(v) => setEscrow((p) => ({ ...p, holdMin: v }))}
                 suffix="%"
               />
-              <NumInput
+              <NumInputField
                 label="Max hold"
                 sub="On high-value bids"
-                value={s.holdMax}
-                onChange={(v) => upd("holdMax", v)}
+                value={escrow.holdMax}
+                onChange={(v) => setEscrow((p) => ({ ...p, holdMax: v }))}
                 suffix="%"
               />
-              <NumInput
+              <NumInputField
                 label="Payment window"
                 sub="After auction win"
-                value={s.paymentWindowHrs}
-                onChange={(v) => upd("paymentWindowHrs", v)}
+                value={escrow.paymentWindowHrs}
+                onChange={(v) => setEscrow((p) => ({ ...p, paymentWindowHrs: v }))}
                 suffix="hours"
               />
-              <NumInput
+              <NumInputField
                 label="Auto-extend"
                 sub="On last-minute bid"
-                value={s.autoExtendMin}
-                onChange={(v) => upd("autoExtendMin", v)}
+                value={escrow.autoExtendMin}
+                onChange={(v) => setEscrow((p) => ({ ...p, autoExtendMin: v }))}
                 suffix="min"
               />
             </div>
           </CardBody>
         </Card>
 
-        <Card>
-          <CardHead title="Fees" />
-          <CardBody>
-            <div className="grid grid-cols-2 gap-4">
-              <NumInput
-                label="Buyer fee"
-                sub="On final bid"
-                value={s.buyerFeePct}
-                onChange={(v) => upd("buyerFeePct", v)}
-                suffix="%"
-                step={0.1}
-              />
-              <NumInput
-                label="Seller fee"
-                sub="On payout"
-                value={s.sellerFeePct}
-                onChange={(v) => upd("sellerFeePct", v)}
-                suffix="%"
-                step={0.1}
-              />
-            </div>
-          </CardBody>
-        </Card>
-
+        {/* Platform toggles */}
         <Card className="lg:col-span-2">
           <CardHead title="Platform toggles" />
           <CardBody>
             <Toggle
               label="Email notifications"
               sub="Resend integration"
-              on={s.emailEnabled}
-              onChange={(v) => upd("emailEnabled", v)}
+              on={emailEnabled}
+              onChange={setEmailEnabled}
             />
             <div className="border-t border-line" />
             <Toggle
               label="WhatsApp notifications"
               sub="WhatsApp Business API"
-              on={s.waEnabled}
-              onChange={(v) => upd("waEnabled", v)}
+              on={waEnabled}
+              onChange={setWaEnabled}
             />
             <div className="border-t border-line" />
             <Toggle
               label="Pause new listings"
               sub="Block new submissions while issues are investigated"
-              on={s.pauseNewListings}
-              onChange={(v) => upd("pauseNewListings", v)}
+              on={pauseNewListings}
+              onChange={setPauseNewListings}
             />
           </CardBody>
         </Card>

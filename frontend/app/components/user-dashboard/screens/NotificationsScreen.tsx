@@ -30,22 +30,50 @@ const ICON_BG: Record<NotifKind, string> = {
 };
 
 export function NotificationsScreen() {
+  // Integration: fetch from GET /api/v1/notifications?unreadOnly=false&limit=20&offset=0
   const [filter, setFilter] = useState<Filter>("all");
+  const [items, setItems] = useState(NOTIFS);
   const filtered = useMemo(
-    () => (filter === "all" ? NOTIFS : NOTIFS.filter((n) => n.kind === filter)),
-    [filter],
+    () => (filter === "all" ? items : items.filter((n) => n.kind === filter)),
+    [filter, items],
   );
+
+  const markRead = (id: number) => {
+    // Integration: PATCH /api/v1/notifications/{id}/read
+    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, unread: false } : n)));
+  };
+
+  const markAllRead = () => {
+    // Integration: PATCH /api/v1/notifications/read-all
+    setItems((prev) => prev.map((n) => ({ ...n, unread: false })));
+  };
+
+  const hasUnread = items.some((n) => n.unread);
+
   return (
     <>
-      <h1 className="m-0 font-display text-[26px] font-semibold tracking-tight">Notifications</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="m-0 font-display text-[26px] font-semibold tracking-tight">Notifications</h1>
+        {hasUnread && (
+          <button
+            type="button"
+            onClick={markAllRead}
+            className="text-xs font-medium text-accent hover:text-accent-2"
+          >
+            Mark all read
+          </button>
+        )}
+      </div>
       <div className="mt-3">
         <Chips options={FILTERS} value={filter} onChange={setFilter} />
       </div>
       <div className="mt-2">
         {filtered.map((n) => (
-          <div
+          <button
             key={n.id}
-            className={`relative grid grid-cols-[36px_1fr_auto] gap-3 border-b border-line py-3.5 ${
+            type="button"
+            onClick={() => markRead(n.id)}
+            className={`relative grid w-full grid-cols-[36px_1fr_auto] gap-3 border-b border-line py-3.5 text-left ${
               n.unread
                 ? "before:absolute before:-left-2.5 before:top-[22px] before:h-1 before:w-1 before:rounded-full before:bg-accent before:content-['']"
                 : ""
@@ -59,7 +87,7 @@ export function NotificationsScreen() {
               <div className="mt-0.5 text-xs leading-[1.45] text-fg-muted">{n.desc}</div>
             </div>
             <div className="font-mono text-[10px] text-fg-dim">{n.time}</div>
-          </div>
+          </button>
         ))}
       </div>
     </>

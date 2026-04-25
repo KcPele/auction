@@ -47,6 +47,15 @@ export class User {
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  isBanned!: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  banReason!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  bannedAt!: Date | null;
+
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens!: RefreshToken[];
 

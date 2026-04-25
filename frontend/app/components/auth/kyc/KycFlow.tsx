@@ -15,8 +15,6 @@ export function KycFlow() {
 
   const [nin, setNin] = useState("");
   const [ninVerified, setNinVerified] = useState(false);
-  const [bvn, setBvn] = useState("");
-  const [bvnVerified, setBvnVerified] = useState(false);
 
   const onBack = () =>
     isAccount ? router.push("/dashboard/profile") : router.push("/otp?ctx=register");
@@ -50,8 +48,7 @@ export function KycFlow() {
           Verify your identity.
         </h1>
         <p className="m-0 mb-8 max-w-[420px] text-sm text-fg-muted">
-          Type your NIN and tap Verify. BVN is optional — adding it speeds up high-value escrow
-          releases.
+          Type your NIN and tap Verify to complete your identity verification.
         </p>
 
         <NinVerifyField
@@ -63,22 +60,8 @@ export function KycFlow() {
           meta="Dial *346# from your registered phone to find your NIN."
         />
 
-        <NinVerifyField
-          label="BVN"
-          hint="Optional"
-          placeholder="22•••••••••"
-          value={bvn}
-          onChange={setBvn}
-          onVerified={() => setBvnVerified(true)}
-          meta="Dial *565*0# to find yours. Skip if you'd rather add later."
-        />
-
         <AuthButton disabled={!ninVerified} onClick={goNext}>
-          {ninVerified
-            ? bvnVerified
-              ? "Continue · Fully verified"
-              : "Continue · NIN verified"
-            : "Verify NIN to continue"}
+          {ninVerified ? "Continue" : "Verify NIN to continue"}
           <Icon name="arrow-r" size={16} strokeWidth={2} />
         </AuthButton>
 

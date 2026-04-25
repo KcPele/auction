@@ -17,9 +17,10 @@ const selfRegistrationRoles = [
 ] as const;
 
 export class SignUpEmailDto {
-  @ApiProperty({ example: 'Ada Okafor' })
+  @ApiPropertyOptional({ example: 'Ada Okafor', description: 'Auto-derived from firstName + lastName if omitted' })
+  @IsOptional()
   @IsString()
-  name!: string;
+  name?: string;
 
   @ApiProperty({ example: 'buyer@example.com' })
   @IsEmail()
@@ -54,6 +55,11 @@ export class SignUpEmailDto {
   @IsOptional()
   @IsString()
   nin?: string;
+
+  @ApiPropertyOptional({ description: 'Optional referral code' })
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

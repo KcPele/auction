@@ -3,16 +3,15 @@ import Link from "next/link";
 import { useState } from "react";
 import { Icon, type IconName } from "../primitives/Icon";
 
-interface AlertChannel {
-  id: "wa" | "email" | "push";
+interface NotifPref {
+  id: "whatsappEnabled" | "readyToBid";
   label: string;
   sub: string;
   icon: IconName;
 }
-const ALERT_CHANNELS: AlertChannel[] = [
-  { id: "wa", label: "WhatsApp", sub: "+234 812 ••• 4471", icon: "wa" },
-  { id: "email", label: "Email", sub: "adaeze@gmail.com", icon: "mail" },
-  { id: "push", label: "Push notifications", sub: "This device", icon: "bell" },
+const NOTIF_PREFS: NotifPref[] = [
+  { id: "whatsappEnabled", label: "WhatsApp alerts", sub: "+234 812 ••• 4471", icon: "wa" },
+  { id: "readyToBid", label: "Bid alerts", sub: "Notify when auctions you watch go live", icon: "gavel" },
 ];
 
 const STATS = [
@@ -26,21 +25,8 @@ interface SettingItem {
   sub: string;
   icon: IconName;
   href?: string;
+  action?: () => void;
 }
-const SETTINGS: SettingItem[] = [
-  { label: "Personal details", sub: "Name, phone, address", icon: "user" },
-  { label: "Saved payment methods", sub: "2 cards · 1 bank", icon: "wallet" },
-  {
-    label: "KYC & verification",
-    sub: "Verify NIN · BVN optional",
-    icon: "shield",
-    href: "/kyc?ctx=account",
-  },
-  { label: "Watchlist", sub: "12 auctions", icon: "heart" },
-  { label: "Help & support", sub: "FAQ · WhatsApp: +234 700 BIDNJA", icon: "help" },
-  { label: "Terms & privacy", sub: "Last updated Mar 2026", icon: "lock" },
-];
-
 const AVATAR_BG = {
   background: "linear-gradient(135deg, var(--accent), var(--accent-deep))",
 };
@@ -55,13 +41,34 @@ const PRIMARY_BTN_BG = {
 };
 
 export function ProfileScreen() {
-  const [alerts, setAlerts] = useState<Record<AlertChannel["id"], boolean>>({
-    wa: true,
-    email: true,
-    push: false,
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({
+    whatsappEnabled: true,
+    emailEnabled: true,
+    pushEnabled: false,
+    readyToBid: true,
   });
-  const toggle = (id: AlertChannel["id"]) =>
-    setAlerts((s) => ({ ...s, [id]: !s[id] }));
+  const togglePref = (id: string) =>
+    setNotifPrefs((s) => ({ ...s, [id]: !s[id] }));
+
+  const [showEditDetails, setShowEditDetails] = useState(false);
+  const [firstName, setFirstName] = useState("Adaeze");
+  const [lastName, setLastName] = useState("Okafor");
+  const [phone, setPhone] = useState("+234 812 345 6789");
+  const [nin, setNin] = useState("");
+
+  const SETTINGS: SettingItem[] = [
+    { label: "Personal details", sub: "Name, phone, NIN", icon: "user", action: () => setShowEditDetails(true) },
+    { label: "Saved payment methods", sub: "2 cards · 1 bank", icon: "wallet" },
+    {
+      label: "KYC & verification",
+      sub: "Verify NIN",
+      icon: "shield",
+      href: "/kyc?ctx=account",
+    },
+    { label: "Watchlist", sub: "12 auctions", icon: "heart", href: "/dashboard/watchlist" },
+    { label: "Help & support", sub: "FAQ · WhatsApp: +234 700 BIDNJA", icon: "help" },
+    { label: "Terms & privacy", sub: "Last updated Mar 2026", icon: "lock" },
+  ];
 
   return (
     <>
@@ -70,19 +77,78 @@ export function ProfileScreen() {
           className="mb-3 flex h-20 w-20 items-center justify-center rounded-full text-[28px] font-bold text-[#0a0806]"
           style={AVATAR_BG}
         >
-          AO
+          {firstName[0]}{lastName[0]}
         </div>
-        <div className="font-display text-[22px] font-semibold tracking-tight">Adaeze Okafor</div>
-        <div className="text-[13px] text-fg-muted">@adaeze.o · Member since Mar 2025</div>
+        <div className="font-display text-[22px] font-semibold tracking-tight">{firstName} {lastName}</div>
+        <div className="text-[13px] text-fg-muted">@{firstName.toLowerCase()}.{lastName.toLowerCase().charAt(0)} · Member since Mar 2025</div>
         <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full border border-green/25 bg-green/[0.08] px-2.5 py-1 text-[11px] font-semibold text-green">
-            <Icon name="shield" size={10} strokeWidth={2.2} /> BVN verified
-          </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-accent/25 bg-accent/[0.08] px-2.5 py-1 text-[11px] font-semibold text-accent">
             <Icon name="key" size={10} strokeWidth={2.2} /> Ready-to-Bid
           </span>
         </div>
       </div>
+
+      {/* Edit Personal Details Modal */}
+      {showEditDetails && (
+        <div className="mb-4 rounded-[14px] border border-line bg-surface p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-[15px] font-semibold tracking-tight">Edit personal details</div>
+            <button
+              type="button"
+              onClick={() => setShowEditDetails(false)}
+              className="rounded-lg p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg"
+            >
+              <Icon name="x" size={16} />
+            </button>
+          </div>
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-fg-muted">First name</label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-fg-muted">Last name</label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-fg-muted">Phone</label>
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-fg-muted">NIN</label>
+              <input
+                type="text"
+                value={nin}
+                onChange={(e) => setNin(e.target.value)}
+                placeholder="11-digit NIN"
+                className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent placeholder:text-fg-dim"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowEditDetails(false)}
+              className="mt-1 rounded-lg p-2.5 text-sm font-semibold text-[#1a0a00] accent-gradient-bg"
+            >
+              Save changes
+            </button>
+          </div>
+        </div>
+      )}
 
       <div
         className="relative mt-0 overflow-hidden rounded-[22px] border border-line-strong p-5"
@@ -126,9 +192,9 @@ export function ProfileScreen() {
         ))}
       </div>
 
-      <div className="my-3 mt-5 text-[15px] font-semibold tracking-tight">Alerts</div>
+      <div className="my-3 mt-5 text-[15px] font-semibold tracking-tight">Notification preferences</div>
       <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
-        {ALERT_CHANNELS.map((r) => (
+        {NOTIF_PREFS.map((r) => (
           <div
             key={r.id}
             className="flex w-full items-center gap-3 border-b border-line px-4 py-3.5 text-left text-sm last:border-b-0"
@@ -142,10 +208,10 @@ export function ProfileScreen() {
             </div>
             <button
               type="button"
-              onClick={() => toggle(r.id)}
+              onClick={() => togglePref(r.id)}
               aria-label={`Toggle ${r.label}`}
               className={`relative h-6 w-[42px] flex-shrink-0 cursor-pointer rounded-full border transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:transition-all after:content-[''] ${
-                alerts[r.id]
+                notifPrefs[r.id]
                   ? "border-accent bg-accent after:left-[21px] after:bg-[#0a0806]"
                   : "border-line bg-surface-2 after:bg-fg-muted"
               }`}
@@ -178,7 +244,7 @@ export function ProfileScreen() {
               {inner}
             </Link>
           ) : (
-            <button key={r.label} type="button" className={cls}>
+            <button key={r.label} type="button" className={cls} onClick={r.action}>
               {inner}
             </button>
           );

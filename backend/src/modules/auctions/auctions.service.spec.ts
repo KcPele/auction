@@ -22,6 +22,7 @@ describe('AuctionsService', () => {
   let gadgetListingsRepository: { findOneBy: jest.Mock };
   let feesRepository: { findOneBy: jest.Mock };
   let biddingSettingsRepository: { findOneBy: jest.Mock };
+  let usersRepository: { find: jest.Mock; findOneBy: jest.Mock };
   let notificationsService: { create: jest.Mock };
   let lifecycleScheduler: {
     scheduleAuctionLifecycle: jest.Mock;
@@ -51,6 +52,7 @@ describe('AuctionsService', () => {
     gadgetListingsRepository = { findOneBy: jest.fn() };
     feesRepository = { findOneBy: jest.fn() };
     biddingSettingsRepository = { findOneBy: jest.fn() };
+    usersRepository = { find: jest.fn(), findOneBy: jest.fn() };
     notificationsService = { create: jest.fn() };
     lifecycleScheduler = {
       scheduleAuctionLifecycle: jest.fn(),
@@ -66,6 +68,7 @@ describe('AuctionsService', () => {
       gadgetListingsRepository as never,
       feesRepository as never,
       biddingSettingsRepository as never,
+      usersRepository as never,
       notificationsService as unknown as NotificationsService,
       lifecycleScheduler as unknown as AuctionLifecycleScheduler,
     );
@@ -169,10 +172,11 @@ describe('AuctionsService', () => {
 
   it('lists bids for an existing auction', async () => {
     auctionsRepository.findOneBy.mockResolvedValue(createAuction());
-    bidsRepository.find.mockResolvedValue([{ id: 'bid-id' }]);
+    bidsRepository.find.mockResolvedValue([{ id: 'bid-id', bidderId: 'bidder-id', amountKobo: 5000000, status: BidStatus.Accepted, createdAt: new Date('2026-04-24T14:00:00.000Z') }]);
+    usersRepository.find.mockResolvedValue([{ id: 'bidder-id', firstName: 'Ada', lastName: 'Okafor' }]);
 
     await expect(service.listBids('auction-id')).resolves.toEqual({
-      bids: [{ id: 'bid-id' }],
+      bids: [expect.objectContaining({ id: 'bid-id', handle: '@ada***' })],
     });
   });
 

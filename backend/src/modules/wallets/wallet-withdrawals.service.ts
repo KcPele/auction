@@ -7,6 +7,7 @@ import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
 import { WalletWithdrawalStatus } from '../../common/enums/wallet-withdrawal-status.enum';
 import { MonnifyProvider } from '../payments/providers/monnify.provider';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
+import { ListWithdrawalsQueryDto } from './dto/list-withdrawals-query.dto';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
 import { WalletWithdrawal } from './entities/wallet-withdrawal.entity';
 import { Wallet } from './entities/wallet.entity';
@@ -70,6 +71,25 @@ export class WalletWithdrawalsService {
     }
 
     return { withdrawal: presentWithdrawal(withdrawal) };
+  }
+
+  async listUserWithdrawals(userId: string, query: ListWithdrawalsQueryDto) {
+    const where: Record<string, unknown> = { userId };
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    const [withdrawals, total] = await this.withdrawalsRepository.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      take: query.limit,
+      skip: query.offset,
+    });
+
+    return {
+      items: withdrawals.map(presentWithdrawal),
+      total,
+    };
   }
 
   async listPendingWithdrawals() {

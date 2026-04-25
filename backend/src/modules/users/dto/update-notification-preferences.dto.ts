@@ -11,4 +11,14 @@ export class UpdateNotificationPreferencesDto {
   @IsOptional()
   @IsBoolean()
   readyToBid?: boolean;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  emailEnabled?: boolean;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  pushEnabled?: boolean;
 }

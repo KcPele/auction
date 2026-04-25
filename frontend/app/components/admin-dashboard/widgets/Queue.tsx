@@ -91,14 +91,24 @@ export function Queue() {
                 <button
                   type="button"
                   className="rounded-[5px] border border-green/30 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-green hover:bg-green/10"
-                  onClick={() => drop(q.id)}
+                  onClick={() => {
+                    const category = q.kind === "car" ? "CAR" : "GADGET";
+                    // API: POST /admin/listings/{category}/{id}/approve
+                    alert(`Approve: /admin/listings/${category}/${q.id}/approve`);
+                    drop(q.id);
+                  }}
                 >
                   Approve
                 </button>
                 <button
                   type="button"
                   className="rounded-[5px] border border-red/30 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-red hover:bg-red/10"
-                  onClick={() => drop(q.id)}
+                  onClick={() => {
+                    const category = q.kind === "car" ? "CAR" : "GADGET";
+                    // API: POST /admin/listings/{category}/{id}/reject
+                    alert(`Reject: /admin/listings/${category}/${q.id}/reject`);
+                    drop(q.id);
+                  }}
                 >
                   Deny
                 </button>

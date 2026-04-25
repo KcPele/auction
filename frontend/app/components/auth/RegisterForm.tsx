@@ -12,11 +12,17 @@ import { NinVerifyField } from "./primitives/NinVerifyField";
 
 export function RegisterForm() {
   const router = useRouter();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [pw, setPw] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [accept, setAccept] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [nin, setNin] = useState("");
   const [ninVerified, setNinVerified] = useState(false);
+  const [appRole, setAppRole] = useState<string>("INDIVIDUAL_BIDDER");
   const strength = usePasswordStrength(pw);
 
   return (
@@ -39,10 +45,18 @@ export function RegisterForm() {
       >
         <div className="mb-1.5 grid grid-cols-2 gap-3">
           <Field label="First name">
-            <Input placeholder="Adaeze" defaultValue="Adaeze" />
+            <Input
+              placeholder="Adaeze"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
           </Field>
           <Field label="Last name">
-            <Input placeholder="Okafor" defaultValue="Okafor" />
+            <Input
+              placeholder="Okafor"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
           </Field>
         </div>
 
@@ -50,12 +64,30 @@ export function RegisterForm() {
           <Input
             type="email"
             placeholder="adaeze@gmail.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             leftIcon={<Icon name="mail" size={18} />}
           />
         </Field>
 
         <Field label="Phone number">
-          <PhoneInput placeholder="812 345 6789" />
+          <PhoneInput
+            placeholder="812 345 6789"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </Field>
+
+        <Field label="I am a" hint="Select your role">
+          <select
+            value={appRole}
+            onChange={(e) => setAppRole(e.target.value)}
+            className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-3 text-[15px] text-fg outline-none transition-colors focus:border-accent focus:bg-surface-2"
+          >
+            <option value="INDIVIDUAL_BIDDER">Individual Bidder</option>
+            <option value="CAR_DEALER">Car Dealer</option>
+            <option value="MECHANIC">Mechanic</option>
+          </select>
         </Field>
 
         <Field
@@ -104,7 +136,12 @@ export function RegisterForm() {
           hint="Optional"
           meta="Get ₦5,000 top-up credit on your first won auction."
         >
-          <Input placeholder="BN-XXXX-XXXX" leftIcon={<Icon name="tag" size={18} />} />
+          <Input
+            placeholder="BN-XXXX-XXXX"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value)}
+            leftIcon={<Icon name="tag" size={18} />}
+          />
         </Field>
 
         <Checkbox checked={accept} onChange={setAccept}>
@@ -116,9 +153,12 @@ export function RegisterForm() {
 
         <AuthButton
           disabled={!accept}
-          onClick={() =>
-            router.push(`/otp?ctx=register${ninVerified ? "&kyc=nin" : ""}`)
-          }
+          onClick={() => {
+            // API payload mapping (for integration):
+            // name: `${firstName} ${lastName}`
+            // firstName, lastName, email, password, phone, appRole, nin, referralCode
+            router.push(`/otp?ctx=register${ninVerified ? "&kyc=nin" : ""}`);
+          }}
         >
           Create account <Icon name="arrow-r" size={16} strokeWidth={2} />
         </AuthButton>
