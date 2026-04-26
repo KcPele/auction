@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
+import { DeliveryStatus } from '../../common/enums/delivery-status.enum';
 import { NotificationAudience } from '../../common/enums/notification-audience.enum';
 import { NotificationType } from '../../common/enums/notification-type.enum';
 import { UserRole } from '../../common/enums/user-role.enum';
@@ -18,6 +19,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { WalletLedgerEntry } from '../wallets/entities/wallet-ledger-entry.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { Auction } from './entities/auction.entity';
+import { AuctionDelivery } from './entities/auction-delivery.entity';
 import { presentAuction } from './presenters/auction.presenter';
 
 type SettleAuctionPaymentInput = {
@@ -48,6 +50,8 @@ export class AuctionSettlementService {
     private readonly bidsRepository: Repository<Bid>,
     @InjectRepository(PaymentAccountSetting)
     private readonly paymentAccountsRepository: Repository<PaymentAccountSetting>,
+    @InjectRepository(AuctionDelivery)
+    private readonly deliveryRepository: Repository<AuctionDelivery>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -210,6 +214,105 @@ export class AuctionSettlementService {
     }
 
     return { auction: presentAuction(result.auction), changed: result.changed };
+  }
+
+  async confirmWinnerPayment(
+    user: AuthenticatedUser,
+    auctionId: string,
+    note?: string,
+  ) {
+    const auction = await this.findAuction(auctionId);
+
+    if (auction.status !== AuctionStatus.AwaitingPayment) {
+      throw new BadRequestException('Auction is not awaiting payment');
+    }
+
+    if (auction.winnerId !== user.id) {
+      throw new BadRequestException('Only the winner can confirm payment');
+    }
+
+    await this.createLifecycleNotifications([
+      {
+        recipientId: auction.sellerId,
+        type: NotificationType.System,
+        title: 'Winner payment notification',
+        message: `The winner has confirmed they made the transfer.${note ? ` Note: ${note}` : ''}`,
+        data: { auctionId: auction.id, winnerConfirmed: true },
+      },
+    ]);
+
+    return { message: 'Payment confirmation sent. Admin will verify and settle.' };
+  }
+
+  async updateDeliveryStatus(
+    user: AuthenticatedUser,
+    auctionId: string,
+    status: DeliveryStatus,
+  ) {
+    const auction = await this.findAuction(auctionId);
+
+    if (auction.status !== AuctionStatus.Settled) {
+      throw new BadRequestException('Auction is not settled yet');
+    }
+
+    const delivery = await this.deliveryRepository.findOneBy({ auctionId });
+    if (!delivery) {
+      throw new NotFoundException('Delivery record not found');
+    }
+
+    if (delivery.sellerId !== user.id && user.role !== UserRole.Admin) {
+      throw new BadRequestException('Only the seller or admin can update delivery status');
+    }
+
+    const validTransitions: Record<string, string[]> = {
+      [DeliveryStatus.PaymentConfirmed]: [DeliveryStatus.SellerShips],
+      [DeliveryStatus.SellerShips]: [DeliveryStatus.Inspection],
+      [DeliveryStatus.Inspection]: [DeliveryStatus.Dispatch],
+      [DeliveryStatus.Dispatch]: [DeliveryStatus.Delivered],
+    };
+
+    const allowed = validTransitions[delivery.status] ?? [];
+    if (!allowed.includes(status)) {
+      throw new BadRequestException(
+        `Cannot transition from ${delivery.status} to ${status}`,
+      );
+    }
+
+    delivery.status = status;
+    await this.deliveryRepository.save(delivery);
+
+    const recipientId =
+      delivery.sellerId === user.id ? delivery.winnerId : delivery.sellerId;
+    await this.createLifecycleNotifications([
+      {
+        recipientId,
+        type: NotificationType.System,
+        title: 'Delivery update',
+        message: `Delivery status updated to ${status.replace(/_/g, ' ').toLowerCase()}.`,
+        data: { auctionId, deliveryStatus: status },
+      },
+    ]);
+
+    return { delivery };
+  }
+
+  async getDeliveryStatus(user: AuthenticatedUser, auctionId: string) {
+    const auction = await this.findAuction(auctionId);
+
+    if (
+      auction.winnerId !== user.id &&
+      auction.sellerId !== user.id &&
+      user.role !== UserRole.Admin
+    ) {
+      throw new BadRequestException('Not authorized to view delivery status');
+    }
+
+    const delivery = await this.deliveryRepository.findOneBy({ auctionId });
+    if (!delivery) {
+      throw new NotFoundException('Delivery record not found');
+    }
+
+    return { delivery };
   }
 
   private async findAuction(id: string) {

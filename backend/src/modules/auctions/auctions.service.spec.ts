@@ -6,6 +6,7 @@ import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
 import { NotificationType } from '../../common/enums/notification-type.enum';
 import type { NotificationsService } from '../notifications/notifications.service';
+import type { BidsGateway } from '../bids/bids.gateway';
 import type { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { AuctionsService } from './auctions.service';
 
@@ -24,6 +25,7 @@ describe('AuctionsService', () => {
   let biddingSettingsRepository: { findOneBy: jest.Mock };
   let usersRepository: { find: jest.Mock; findOneBy: jest.Mock };
   let notificationsService: { create: jest.Mock };
+  let bidsGateway: { emitStatusChanged: jest.Mock; emitAuctionClosed: jest.Mock };
   let lifecycleScheduler: {
     scheduleAuctionLifecycle: jest.Mock;
     scheduleAuctionStart: jest.Mock;
@@ -54,6 +56,7 @@ describe('AuctionsService', () => {
     biddingSettingsRepository = { findOneBy: jest.fn() };
     usersRepository = { find: jest.fn(), findOneBy: jest.fn() };
     notificationsService = { create: jest.fn() };
+    bidsGateway = { emitStatusChanged: jest.fn(), emitAuctionClosed: jest.fn() };
     lifecycleScheduler = {
       scheduleAuctionLifecycle: jest.fn(),
       scheduleAuctionStart: jest.fn(),
@@ -71,6 +74,7 @@ describe('AuctionsService', () => {
       usersRepository as never,
       notificationsService as unknown as NotificationsService,
       lifecycleScheduler as unknown as AuctionLifecycleScheduler,
+      bidsGateway as unknown as BidsGateway,
     );
   });
 

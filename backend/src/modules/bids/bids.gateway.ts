@@ -115,6 +115,34 @@ export class BidsGateway implements OnGatewayConnection {
     });
   }
 
+  emitStatusChanged(input: {
+    auctionId: string;
+    previousStatus: string;
+    newStatus: string;
+  }) {
+    this.server
+      .to(this.auctionRoom(input.auctionId))
+      .emit('auction.statusChanged', {
+        auctionId: input.auctionId,
+        previousStatus: input.previousStatus,
+        newStatus: input.newStatus,
+      });
+  }
+
+  emitAuctionClosed(input: {
+    auctionId: string;
+    winnerId: string | null;
+    winningBid: { id: string; amountKobo: number } | null;
+  }) {
+    this.server
+      .to(this.auctionRoom(input.auctionId))
+      .emit('auction.closed', {
+        auctionId: input.auctionId,
+        winnerId: input.winnerId,
+        winningBid: input.winningBid,
+      });
+  }
+
   private auctionRoom(auctionId: string) {
     return `auction:${auctionId}`;
   }

@@ -4,6 +4,7 @@ import { PlatformFeeSetting } from '../admin/entities/platform-fee-setting.entit
 import { PaymentAccountSetting } from '../admin/entities/payment-account-setting.entity';
 import { BiddingSetting } from '../admin/entities/bidding-setting.entity';
 import { Bid } from '../bids/entities/bid.entity';
+import { BidsModule } from '../bids/bids.module';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { JobsModule } from '../jobs/jobs.module';
@@ -33,6 +34,7 @@ import { AuctionDelivery } from './entities/auction-delivery.entity';
     ]),
     JobsModule,
     NotificationsModule,
+    BidsModule,
   ],
   controllers: [AuctionsController],
   providers: [

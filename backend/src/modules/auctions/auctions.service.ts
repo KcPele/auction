@@ -21,6 +21,7 @@ import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../users/entities/user.entity';
+import { BidsGateway } from '../bids/bids.gateway';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { CancelAuctionDto } from './dto/cancel-auction.dto';
 import { ListAuctionsQueryDto } from './dto/list-auctions-query.dto';
@@ -59,6 +60,7 @@ export class AuctionsService implements OnApplicationBootstrap {
     private readonly usersRepository: Repository<User>,
     private readonly notificationsService: NotificationsService,
     private readonly lifecycleScheduler: AuctionLifecycleScheduler,
+    private readonly bidsGateway: BidsGateway,
   ) {}
 
   async onApplicationBootstrap() {
@@ -220,6 +222,12 @@ export class AuctionsService implements OnApplicationBootstrap {
     });
 
     if (result.changed) {
+      this.bidsGateway.emitStatusChanged({
+        auctionId: result.auction.id,
+        previousStatus: AuctionStatus.Scheduled,
+        newStatus: AuctionStatus.Live,
+      });
+
       await this.createLifecycleNotifications([
         {
           recipientId: result.auction.sellerId,
@@ -336,6 +344,24 @@ export class AuctionsService implements OnApplicationBootstrap {
     });
 
     if (result.changed) {
+      const previousStatus = result.auction.status === AuctionStatus.Ended
+        ? AuctionStatus.Live
+        : AuctionStatus.Scheduled;
+
+      this.bidsGateway.emitStatusChanged({
+        auctionId: result.auction.id,
+        previousStatus,
+        newStatus: result.auction.status,
+      });
+
+      this.bidsGateway.emitAuctionClosed({
+        auctionId: result.auction.id,
+        winnerId: result.auction.winnerId,
+        winningBid: result.winningBid
+          ? { id: result.winningBid.id, amountKobo: result.winningBid.amountKobo }
+          : null,
+      });
+
       await this.createLifecycleNotifications(result.notifications);
 
       if (result.winningBid && result.auction.paymentDeadlineAt) {

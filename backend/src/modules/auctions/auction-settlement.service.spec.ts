@@ -14,6 +14,7 @@ describe('AuctionSettlementService', () => {
   let auctionsRepository: { findOneBy: jest.Mock };
   let bidsRepository: { findOneBy: jest.Mock };
   let paymentAccountsRepository: { findOneBy: jest.Mock };
+  let deliveryRepository: { findOneBy: jest.Mock; save: jest.Mock };
   let notificationsService: { create: jest.Mock };
   let service: AuctionSettlementService;
 
@@ -22,12 +23,14 @@ describe('AuctionSettlementService', () => {
     auctionsRepository = { findOneBy: jest.fn() };
     bidsRepository = { findOneBy: jest.fn() };
     paymentAccountsRepository = { findOneBy: jest.fn() };
+    deliveryRepository = { findOneBy: jest.fn(), save: jest.fn() };
     notificationsService = { create: jest.fn() };
     service = new AuctionSettlementService(
       dataSource as never,
       auctionsRepository as never,
       bidsRepository as never,
       paymentAccountsRepository as never,
+      deliveryRepository as never,
       notificationsService as unknown as NotificationsService,
     );
   });

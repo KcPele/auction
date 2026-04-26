@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -23,7 +24,9 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AuctionSettlementService } from './auction-settlement.service';
 import { AuctionsService } from './auctions.service';
 import { CancelAuctionDto } from './dto/cancel-auction.dto';
+import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { ListAuctionsQueryDto } from './dto/list-auctions-query.dto';
+import { UpdateDeliveryStatusDto } from './dto/update-delivery-status.dto';
 
 @ApiTags('auctions')
 @Controller('auctions')
@@ -79,5 +82,43 @@ export class AuctionsController {
     @Body() dto: CancelAuctionDto,
   ) {
     return this.auctionsService.cancel(user.id, id, dto);
+  }
+
+  @Post(':id/confirm-payment')
+  @ApiCookieAuth('better-auth.session_token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Winner confirms they have made the payment' })
+  @ApiOkResponse({ description: 'Payment confirmation sent.' })
+  confirmPayment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: ConfirmPaymentDto,
+  ) {
+    return this.auctionSettlementService.confirmWinnerPayment(user, id, dto.note);
+  }
+
+  @Get(':id/delivery')
+  @ApiCookieAuth('better-auth.session_token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get delivery status for a settled auction' })
+  @ApiOkResponse({ description: 'Delivery status returned.' })
+  getDelivery(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.auctionSettlementService.getDeliveryStatus(user, id);
+  }
+
+  @Patch(':id/delivery')
+  @ApiCookieAuth('better-auth.session_token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update delivery status (seller or admin)' })
+  @ApiOkResponse({ description: 'Delivery status updated.' })
+  updateDelivery(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateDeliveryStatusDto,
+  ) {
+    return this.auctionSettlementService.updateDeliveryStatus(user, id, dto.status);
   }
 }
