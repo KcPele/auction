@@ -2,11 +2,12 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaymentProvider } from '../../common/enums/payment-provider.enum';
-import { MonnifyWebhookDto } from './dto/monnify-webhook.dto';
+import { AccountNameQueryDto } from './dto/account-name-query.dto';
+import { StrowalletWebhookDto } from './dto/strowallet-webhook.dto';
 import { PaymentWebhookEvent } from './entities/payment-webhook-event.entity';
 import { WalletFundingService } from '../wallets/wallet-funding.service';
 import { WalletWithdrawalsService } from '../wallets/wallet-withdrawals.service';
-import { MonnifyProvider } from './providers/monnify.provider';
+import { StrowalletProvider } from './providers/strowallet.provider';
 
 @Injectable()
 export class PaymentsService {
@@ -15,19 +16,22 @@ export class PaymentsService {
     private readonly webhookEventsRepository: Repository<PaymentWebhookEvent>,
     private readonly walletFundingService: WalletFundingService,
     private readonly walletWithdrawalsService: WalletWithdrawalsService,
-    private readonly monnifyProvider: MonnifyProvider,
+    private readonly strowalletProvider: StrowalletProvider,
   ) {}
 
-  async handleMonnifyWebhook(
-    dto: MonnifyWebhookDto,
-    signature: string | undefined,
-    rawPayload: string,
-  ) {
-    if (!this.monnifyProvider.verifyWebhookSignature(rawPayload, signature)) {
-      throw new BadRequestException('Invalid Monnify signature');
-    }
+  listBanks() {
+    return this.strowalletProvider.getBanks();
+  }
 
-    const eventId = this.getMonnifyEventId(dto);
+  getAccountName(query: AccountNameQueryDto) {
+    return this.strowalletProvider.getAccountName({
+      bankCode: query.bankCode,
+      accountNumber: query.accountNumber,
+    });
+  }
+
+  async handleStrowalletWebhook(dto: StrowalletWebhookDto, rawPayload: string) {
+    const eventId = this.getStrowalletEventId(dto);
     const existing = await this.webhookEventsRepository.findOneBy({
       eventId,
     });
@@ -39,14 +43,14 @@ export class PaymentsService {
     const payload = dto as unknown as Record<string, unknown>;
     const webhookEvent = await this.webhookEventsRepository.save(
       this.webhookEventsRepository.create({
-        provider: PaymentProvider.Monnify,
+        provider: PaymentProvider.Strowallet,
         eventId,
-        eventType: dto.eventType,
+        eventType: this.readOptionalString(dto, 'event') ?? dto.type ?? null,
         payload,
       }),
     );
 
-    const result = await this.processMonnifyWebhook(dto, payload);
+    const result = await this.processStrowalletWebhook(dto, payload);
     webhookEvent.processedAt = new Date();
 
     return {
@@ -56,29 +60,19 @@ export class PaymentsService {
     };
   }
 
-  private async processMonnifyWebhook(
-    dto: MonnifyWebhookDto,
+  private async processStrowalletWebhook(
+    dto: StrowalletWebhookDto,
     payload: Record<string, unknown>,
   ) {
-    const eventData = dto.eventData;
-
-    if (this.isSuccessfulCollection(dto)) {
-      return this.walletFundingService.creditFundingAccount({
-        accountReference: this.readString(eventData.product, 'reference'),
-        amountKobo: this.toKobo(this.readNumber(eventData, 'amountPaid')),
-        reference: this.getMonnifyEventId(dto),
-        metadata: payload,
-      });
-    }
-
-    if (dto.eventType.toUpperCase().includes('DISBURSEMENT')) {
+    const eventType = String(dto.event ?? dto.type ?? '').toUpperCase();
+    if (eventType.includes('DISBURSEMENT') || eventType.includes('TRANSFER')) {
       const reference =
-        this.readOptionalString(eventData, 'reference') ??
-        this.readString(eventData, 'transactionReference');
+        this.readOptionalString(dto, 'reference') ??
+        this.readString(dto, 'transactionReference');
       const status =
-        this.readOptionalString(eventData, 'status') ??
-        this.readOptionalString(eventData, 'transactionStatus') ??
-        this.readString(eventData, 'paymentStatus');
+        this.readOptionalString(dto, 'status') ??
+        this.readOptionalString(dto, 'transactionStatus') ??
+        this.readString(dto, 'paymentStatus');
 
       return this.walletWithdrawalsService.updateWithdrawalFromProvider(
         reference,
@@ -87,21 +81,46 @@ export class PaymentsService {
       );
     }
 
-    return { eventType: dto.eventType, ignored: true };
+    if (this.isSuccessfulCollection(dto)) {
+      return this.walletFundingService.creditFundingAccount({
+        accountReference:
+          this.readOptionalString(dto, 'accountReference') ?? undefined,
+        accountNumber:
+          dto.accountNumber ??
+          this.readOptionalString(dto, 'destinationAccountNumber') ??
+          this.readOptionalString(dto, 'beneficiaryAccountNumber') ??
+          undefined,
+        amountKobo: this.toKobo(this.readAmount(dto)),
+        reference: this.getStrowalletEventId(dto),
+        metadata: payload,
+      });
+    }
+
+    return { eventType, ignored: true };
   }
 
-  private isSuccessfulCollection(dto: MonnifyWebhookDto) {
+  private isSuccessfulCollection(dto: StrowalletWebhookDto) {
+    const status =
+      this.readOptionalString(dto, 'status') ??
+      this.readOptionalString(dto, 'paymentStatus') ??
+      this.readOptionalString(dto, 'transactionStatus') ??
+      'SUCCESS';
+    const type = String(dto.event ?? dto.type ?? 'credit').toUpperCase();
+
     return (
-      dto.eventType === 'SUCCESSFUL_TRANSACTION' &&
-      this.readString(dto.eventData, 'paymentStatus') === 'PAID'
+      ['SUCCESS', 'SUCCESSFUL', 'PAID', 'COMPLETED'].includes(
+        status.toUpperCase(),
+      ) && !type.includes('DEBIT')
     );
   }
 
-  private getMonnifyEventId(dto: MonnifyWebhookDto) {
+  private getStrowalletEventId(dto: StrowalletWebhookDto) {
     return (
-      this.readOptionalString(dto.eventData, 'transactionReference') ??
-      this.readOptionalString(dto.eventData, 'paymentReference') ??
-      `${dto.eventType}:${Date.now()}`
+      dto.sessionId ??
+      this.readOptionalString(dto, 'reference') ??
+      this.readOptionalString(dto, 'transactionReference') ??
+      this.readOptionalString(dto, 'settlementId') ??
+      `strowallet:${Date.now()}`
     );
   }
 
@@ -109,22 +128,26 @@ export class PaymentsService {
     return Math.round(amount * 100);
   }
 
-  private readNumber(source: Record<string, unknown>, key: string) {
-    const value = source[key];
-    const numberValue = Number(value);
+  private readAmount(source: Record<string, unknown>) {
+    const raw =
+      source.amount ??
+      source.transactionAmount ??
+      source.settledAmount ??
+      source.amountPaid;
 
-    if (!Number.isFinite(numberValue)) {
-      throw new BadRequestException(`Invalid Monnify ${key}`);
+    const amount = Number(raw);
+    if (!Number.isFinite(amount)) {
+      throw new BadRequestException('Invalid Strowallet amount');
     }
 
-    return numberValue;
+    return amount;
   }
 
   private readString(source: unknown, key: string) {
     const value = this.readOptionalString(source, key);
 
     if (!value) {
-      throw new BadRequestException(`Missing Monnify ${key}`);
+      throw new BadRequestException(`Missing Strowallet ${key}`);
     }
 
     return value;

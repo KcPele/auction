@@ -161,8 +161,13 @@ export class AdminDashboardService {
       services.push({ name: 'PostgreSQL', status: 'err', latency: Date.now() - pgStart });
     }
 
-    const monnifyConfigured = Boolean(process.env.MONNIFY_API_KEY && process.env.MONNIFY_CLIENT_SECRET && process.env.MONNIFY_CONTRACT_CODE);
-    services.push({ name: 'Monnify API', status: monnifyConfigured ? 'ok' : 'warn' });
+    const strowalletConfigured = Boolean(
+      process.env.STROWALLET_PUBLIC_KEY && process.env.STROWALLET_SECRET_KEY,
+    );
+    services.push({
+      name: 'Strowallet API',
+      status: strowalletConfigured ? 'ok' : 'warn',
+    });
     services.push({ name: 'Socket.IO', status: 'ok' });
 
     return { services };

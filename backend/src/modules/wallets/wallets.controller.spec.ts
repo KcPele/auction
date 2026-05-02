@@ -74,7 +74,7 @@ describe('WalletsController', () => {
     expect(service.listLedger).toHaveBeenCalledWith(currentUser.id, query);
   });
 
-  it('creates or returns a Monnify funding account', async () => {
+  it('creates or returns a Strowallet funding account', async () => {
     fundingService.getFundingAccount.mockResolvedValue({
       fundingAccount: { accountNumber: '6254727989' },
     });

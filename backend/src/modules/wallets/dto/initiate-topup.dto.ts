@@ -8,7 +8,7 @@ export class InitiateTopupDto {
   @Min(10000)
   amountKobo!: number;
 
-  @ApiProperty({ enum: ['monnify', 'bank_transfer'], example: 'monnify' })
+  @ApiProperty({ enum: ['strowallet', 'bank_transfer'], example: 'strowallet' })
   @IsString()
   method!: string;
 

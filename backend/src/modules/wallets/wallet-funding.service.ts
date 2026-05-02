@@ -8,9 +8,8 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PaymentProvider } from '../../common/enums/payment-provider.enum';
 import { WalletFundingAccountStatus } from '../../common/enums/wallet-funding-account-status.enum';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
-import { MonnifyProvider } from '../payments/providers/monnify.provider';
+import { StrowalletProvider } from '../payments/providers/strowallet.provider';
 import { User } from '../users/entities/user.entity';
-import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { InitiateTopupDto } from './dto/initiate-topup.dto';
 import { WalletFundingAccount } from './entities/wallet-funding-account.entity';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
@@ -27,13 +26,13 @@ export class WalletFundingService {
     private readonly fundingAccountsRepository: Repository<WalletFundingAccount>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    private readonly monnifyProvider: MonnifyProvider,
+    private readonly strowalletProvider: StrowalletProvider,
   ) {}
 
   async getFundingAccount(userId: string) {
     const existing = await this.fundingAccountsRepository.findOneBy({
       userId,
-      provider: PaymentProvider.Monnify,
+      provider: PaymentProvider.Strowallet,
       status: WalletFundingAccountStatus.Active,
     });
 
@@ -47,39 +46,31 @@ export class WalletFundingService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.nin) {
-      throw new BadRequestException(
-        'NIN is required to create a Monnify funding account',
-      );
-    }
-
     const wallet = await this.ensureWallet(userId);
     const accountReference = `wallet_${userId}`;
     const accountName = `${user.firstName} ${user.lastName}`.trim();
-    const response = await this.monnifyProvider.createReservedAccount({
-      accountReference,
+    const response = await this.strowalletProvider.createVirtualAccount({
+      email: user.email,
       accountName,
-      customerEmail: user.email,
-      customerName: accountName,
-      nin: user.nin,
+      phone: user.phone,
     });
-    const account = response.accounts[0];
+    const account = this.parseVirtualAccount(response);
 
     if (!account) {
-      throw new BadRequestException('Monnify did not return a funding account');
+      throw new BadRequestException('Strowallet did not return a funding account');
     }
 
     const fundingAccount = await this.fundingAccountsRepository.save(
       this.fundingAccountsRepository.create({
         walletId: wallet.id,
         userId,
-        provider: PaymentProvider.Monnify,
-        accountReference: response.accountReference,
+        provider: PaymentProvider.Strowallet,
+        accountReference,
         accountNumber: account.accountNumber,
-        accountName: account.accountName || response.accountName,
+        accountName: account.accountName || accountName,
         bankName: account.bankName,
         bankCode: account.bankCode ?? null,
-        reservationReference: response.reservationReference ?? null,
+        reservationReference: account.providerReference ?? null,
         status: WalletFundingAccountStatus.Active,
         providerPayload: response as unknown as Record<string, unknown>,
       }),
@@ -100,11 +91,16 @@ export class WalletFundingService {
   }
 
   async creditFundingAccount(input: {
-    accountReference: string;
+    accountReference?: string;
+    accountNumber?: string;
     amountKobo: number;
     reference: string;
     metadata: Record<string, unknown>;
   }) {
+    if (!input.accountReference && !input.accountNumber) {
+      throw new BadRequestException('Funding account reference is required');
+    }
+
     return this.dataSource.transaction(async (manager) => {
       const existingLedger = await manager.findOne(WalletLedgerEntry, {
         where: { reference: input.reference },
@@ -116,8 +112,10 @@ export class WalletFundingService {
 
       const fundingAccount = await manager.findOne(WalletFundingAccount, {
         where: {
-          accountReference: input.accountReference,
-          provider: PaymentProvider.Monnify,
+          ...(input.accountReference
+            ? { accountReference: input.accountReference }
+            : { accountNumber: input.accountNumber }),
+          provider: PaymentProvider.Strowallet,
           status: WalletFundingAccountStatus.Active,
         },
         lock: { mode: 'pessimistic_write' },
@@ -156,6 +154,39 @@ export class WalletFundingService {
     }
 
     return this.walletsRepository.save(this.walletsRepository.create({ userId }));
+  }
+
+  private parseVirtualAccount(response: Record<string, unknown>) {
+    const account = Array.isArray(response.accounts)
+      ? (response.accounts[0] as Record<string, unknown> | undefined)
+      : response;
+    const accountNumber = this.readOptionalString(account, 'accountNumber');
+
+    if (!accountNumber) {
+      return null;
+    }
+
+    return {
+      accountNumber,
+      accountName:
+        this.readOptionalString(account, 'accountName') ??
+        this.readOptionalString(response, 'accountName'),
+      bankName:
+        this.readOptionalString(account, 'bankName') ??
+        this.readOptionalString(response, 'bankName') ??
+        'Strowallet',
+      bankCode: this.readOptionalString(account, 'bankCode'),
+      providerReference:
+        this.readOptionalString(response, 'sessionId') ??
+        this.readOptionalString(response, 'reservationReference') ??
+        this.readOptionalString(response, 'settlementId'),
+    };
+  }
+
+  private readOptionalString(source: unknown, key: string) {
+    if (!source || typeof source !== 'object') return null;
+    const value = (source as Record<string, unknown>)[key];
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
   }
 
   private async findWalletForUpdate(manager: EntityManager, walletId: string) {

@@ -12,6 +12,7 @@ import { GadgetsModule } from './modules/gadgets/gadgets.module';
 import { GatewayModule } from './modules/gateway/gateway.module';
 import { HealthModule } from './modules/health/health.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { KycModule } from './modules/kyc/kyc.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
@@ -53,10 +54,10 @@ import { buildTypeOrmConfig } from './config/typeorm.config';
     BidsModule,
     WalletsModule,
     PaymentsModule,
+    KycModule,
     NotificationsModule,
     JobsModule,
     GatewayModule,
   ],
 })
 export class AppModule {}
-

@@ -5,7 +5,7 @@ import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { PaymentProvider } from '../../common/enums/payment-provider.enum';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
 import { WalletWithdrawalStatus } from '../../common/enums/wallet-withdrawal-status.enum';
-import { MonnifyProvider } from '../payments/providers/monnify.provider';
+import { StrowalletProvider } from '../payments/providers/strowallet.provider';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { ListWithdrawalsQueryDto } from './dto/list-withdrawals-query.dto';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
@@ -19,26 +19,32 @@ export class WalletWithdrawalsService {
     private readonly dataSource: DataSource,
     @InjectRepository(WalletWithdrawal)
     private readonly withdrawalsRepository: Repository<WalletWithdrawal>,
-    private readonly monnifyProvider: MonnifyProvider,
+    private readonly strowalletProvider: StrowalletProvider,
   ) {}
 
   async createWithdrawal(userId: string, dto: CreateWithdrawalDto) {
     const withdrawal = await this.createPendingWithdrawal(userId, dto);
 
     try {
-      const payout = await this.monnifyProvider.initiateWithdrawal({
+      const nameEnquiry = await this.strowalletProvider.getAccountName({
+        bankCode: withdrawal.destinationBankCode,
+        accountNumber: withdrawal.destinationAccountNumber,
+      });
+      const payout = await this.strowalletProvider.initiateBankTransfer({
         amountKobo: withdrawal.amountKobo,
-        reference: withdrawal.providerReference,
+        nameEnquiryReference: this.readNameEnquiryReference(nameEnquiry),
         narration: withdrawal.narration ?? 'Auction wallet withdrawal',
-        destinationBankCode: withdrawal.destinationBankCode,
-        destinationBankName: withdrawal.destinationBankName,
-        destinationAccountNumber: withdrawal.destinationAccountNumber,
-        destinationAccountName: withdrawal.destinationAccountName,
+        bankCode: withdrawal.destinationBankCode,
+        accountNumber: withdrawal.destinationAccountNumber,
+        senderName: 'Auction Wallet',
       });
       const updated = await this.updateWithdrawalFromProvider(
         withdrawal.providerReference,
-        payout.status,
-        payout as unknown as Record<string, unknown>,
+        this.readProviderStatus(payout),
+        {
+          ...(payout as Record<string, unknown>),
+          nameEnquiry,
+        },
       );
 
       return { withdrawal: presentWithdrawal(updated), payout };
@@ -49,7 +55,7 @@ export class WalletWithdrawalsService {
           reason:
             error instanceof Error
               ? error.message
-              : 'Monnify withdrawal initiation failed',
+              : 'Strowallet withdrawal initiation failed',
         },
       );
 
@@ -107,27 +113,20 @@ export class WalletWithdrawalsService {
   }
 
   async authorizeWithdrawal(withdrawalId: string, authorizationCode: string) {
-    const withdrawal = await this.findAuthorizableWithdrawal(withdrawalId);
-    const payout = await this.monnifyProvider.authorizeWithdrawal({
-      reference: withdrawal.providerReference,
-      authorizationCode,
-    });
-    const updated = await this.updateWithdrawalFromProvider(
-      withdrawal.providerReference,
-      payout.status,
-      payout as unknown as Record<string, unknown>,
+    await this.findAuthorizableWithdrawal(withdrawalId);
+    throw new BadRequestException(
+      `Strowallet bank transfers do not require withdrawal OTP authorization: ${authorizationCode}`,
     );
-
-    return { withdrawal: presentWithdrawal(updated), payout };
   }
 
   async resendWithdrawalOtp(withdrawalId: string) {
     const withdrawal = await this.findAuthorizableWithdrawal(withdrawalId);
-    const providerResponse = await this.monnifyProvider.resendWithdrawalOtp(
-      withdrawal.providerReference,
-    );
-
-    return { withdrawal: presentWithdrawal(withdrawal), providerResponse };
+    return {
+      withdrawal: presentWithdrawal(withdrawal),
+      providerResponse: {
+        message: 'Strowallet bank transfers do not require withdrawal OTP resend',
+      },
+    };
   }
 
   async updateWithdrawalFromProvider(
@@ -209,7 +208,7 @@ export class WalletWithdrawalsService {
           amountKobo: dto.amountKobo,
           currency: wallet.currency,
           status: WalletWithdrawalStatus.Pending,
-          provider: PaymentProvider.Monnify,
+          provider: PaymentProvider.Strowallet,
           providerReference: `wallet_withdrawal_${randomUUID()}`,
           destinationBankCode: dto.destinationBankCode.trim(),
           destinationBankName: dto.destinationBankName.trim(),
@@ -328,7 +327,7 @@ export class WalletWithdrawalsService {
   }
 
   private toWithdrawalStatus(status: string) {
-    if (['SUCCESS', 'COMPLETED'].includes(status)) {
+    if (['SUCCESS', 'COMPLETED', 'SUCCESSFUL'].includes(status)) {
       return WalletWithdrawalStatus.Completed;
     }
 
@@ -337,6 +336,36 @@ export class WalletWithdrawalsService {
     }
 
     return WalletWithdrawalStatus.Processing;
+  }
+
+  private readNameEnquiryReference(payload: Record<string, unknown>) {
+    const reference =
+      this.readOptionalString(payload, 'name_enquiry_reference') ??
+      this.readOptionalString(payload, 'nameEnquiryReference') ??
+      this.readOptionalString(payload, 'reference') ??
+      this.readOptionalString(payload, 'sessionId') ??
+      this.readOptionalString(payload, 'session_id');
+
+    if (!reference) {
+      throw new BadRequestException('Strowallet name enquiry reference missing');
+    }
+
+    return reference;
+  }
+
+  private readProviderStatus(payload: Record<string, unknown>) {
+    return (
+      this.readOptionalString(payload, 'status') ??
+      this.readOptionalString(payload, 'transaction_status') ??
+      this.readOptionalString(payload, 'transactionStatus') ??
+      'PROCESSING'
+    );
+  }
+
+  private readOptionalString(source: unknown, key: string) {
+    if (!source || typeof source !== 'object') return null;
+    const value = (source as Record<string, unknown>)[key];
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
   }
 
   private writeLedger(

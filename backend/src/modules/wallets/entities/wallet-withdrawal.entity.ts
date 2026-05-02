@@ -45,7 +45,7 @@ export class WalletWithdrawal {
     type: 'enum',
     enum: PaymentProvider,
     enumName: 'payment_provider_enum',
-    default: PaymentProvider.Monnify,
+    default: PaymentProvider.Strowallet,
   })
   provider!: PaymentProvider;
 

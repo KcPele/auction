@@ -1,3 +1,3 @@
 export enum PaymentProvider {
-  Monnify = 'MONNIFY',
+  Strowallet = 'STROWALLET',
 }

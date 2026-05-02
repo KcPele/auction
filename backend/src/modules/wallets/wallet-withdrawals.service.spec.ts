@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
 import { WalletWithdrawalStatus } from '../../common/enums/wallet-withdrawal-status.enum';
-import type { MonnifyProvider } from '../payments/providers/monnify.provider';
+import type { StrowalletProvider } from '../payments/providers/strowallet.provider';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
 import { WalletWithdrawal } from './entities/wallet-withdrawal.entity';
 import { Wallet } from './entities/wallet.entity';
@@ -11,24 +11,22 @@ describe('WalletWithdrawalsService', () => {
   let service: WalletWithdrawalsService;
   let dataSource: { transaction: jest.Mock };
   let withdrawalsRepository: { find: jest.Mock; findOneBy: jest.Mock };
-  let monnifyProvider: {
-    authorizeWithdrawal: jest.Mock;
-    initiateWithdrawal: jest.Mock;
-    resendWithdrawalOtp: jest.Mock;
+  let strowalletProvider: {
+    getAccountName: jest.Mock;
+    initiateBankTransfer: jest.Mock;
   };
 
   beforeEach(() => {
     dataSource = { transaction: jest.fn((callback) => callback(createManager())) };
     withdrawalsRepository = { find: jest.fn(), findOneBy: jest.fn() };
-    monnifyProvider = {
-      authorizeWithdrawal: jest.fn(),
-      initiateWithdrawal: jest.fn(),
-      resendWithdrawalOtp: jest.fn(),
+    strowalletProvider = {
+      getAccountName: jest.fn(),
+      initiateBankTransfer: jest.fn(),
     };
     service = new WalletWithdrawalsService(
       dataSource as never,
       withdrawalsRepository as never,
-      monnifyProvider as unknown as MonnifyProvider,
+      strowalletProvider as unknown as StrowalletProvider,
     );
   });
 
@@ -43,11 +41,14 @@ describe('WalletWithdrawalsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('creates a withdrawal and sends it to Monnify', async () => {
+  it('creates a withdrawal and sends it to Strowallet', async () => {
     const wallet = createWallet({ balanceKobo: 100000 });
     const manager = createManager({ wallet });
     dataSource.transaction.mockImplementation((callback) => callback(manager));
-    monnifyProvider.initiateWithdrawal.mockResolvedValue({
+    strowalletProvider.getAccountName.mockResolvedValue({
+      name_enquiry_reference: 'name-enquiry-reference',
+    });
+    strowalletProvider.initiateBankTransfer.mockResolvedValue({
       reference: 'wallet_withdrawal_reference',
       status: 'SUCCESS',
     });
@@ -116,49 +117,27 @@ describe('WalletWithdrawalsService', () => {
     );
   });
 
-  it('authorizes a withdrawal with a Monnify OTP', async () => {
-    const wallet = createWallet({ balanceKobo: 50000 });
+  it('does not authorize Strowallet withdrawals with OTP', async () => {
     const withdrawal = createWithdrawal();
-    const manager = createManager({ wallet, withdrawal });
     withdrawalsRepository.findOneBy.mockResolvedValue(withdrawal);
-    dataSource.transaction.mockImplementation((callback) => callback(manager));
-    monnifyProvider.authorizeWithdrawal.mockResolvedValue({
-      reference: withdrawal.providerReference,
-      status: 'SUCCESS',
-    });
 
     await expect(
       service.authorizeWithdrawal('withdrawal-id', '886850'),
-    ).resolves.toEqual({
-      withdrawal: expect.objectContaining({
-        status: WalletWithdrawalStatus.Completed,
-      }),
-      payout: expect.objectContaining({ status: 'SUCCESS' }),
-    });
-    expect(monnifyProvider.authorizeWithdrawal).toHaveBeenCalledWith({
-      reference: withdrawal.providerReference,
-      authorizationCode: '886850',
-    });
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('resends a withdrawal OTP', async () => {
+  it('returns a Strowallet withdrawal OTP resend message', async () => {
     const withdrawal = createWithdrawal();
     withdrawalsRepository.findOneBy.mockResolvedValue(withdrawal);
-    monnifyProvider.resendWithdrawalOtp.mockResolvedValue({
-      message: 'Authorization code will be processed',
-    });
 
     await expect(
       service.resendWithdrawalOtp('withdrawal-id'),
     ).resolves.toEqual({
       withdrawal: expect.objectContaining({ id: 'withdrawal-id' }),
       providerResponse: expect.objectContaining({
-        message: 'Authorization code will be processed',
+        message: expect.stringContaining('Strowallet'),
       }),
     });
-    expect(monnifyProvider.resendWithdrawalOtp).toHaveBeenCalledWith(
-      withdrawal.providerReference,
-    );
   });
 
   it('does not authorize completed withdrawals', async () => {

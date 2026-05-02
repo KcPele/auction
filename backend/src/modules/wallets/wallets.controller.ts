@@ -56,7 +56,7 @@ export class WalletsController {
   }
 
   @Post('funding-account')
-  @ApiOperation({ summary: 'Create or return a Monnify funding account' })
+  @ApiOperation({ summary: 'Create or return a Strowallet funding account' })
   @ApiCreatedResponse({ description: 'Funding account returned.' })
   getFundingAccount(@CurrentUser() user: AuthenticatedUser) {
     return this.walletFundingService.getFundingAccount(user.id);

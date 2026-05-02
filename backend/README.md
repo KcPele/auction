@@ -8,7 +8,7 @@ NestJS backend for the cars and gadgets auction platform.
 - PostgreSQL with TypeORM
 - Redis and BullMQ
 - Socket.IO
-- Monnify, Openinary, and WhatsApp integrations
+- Strowallet, Openinary, and WhatsApp integrations
 
 ## Local Setup
 
@@ -22,54 +22,64 @@ pnpm run start:dev
 The API starts on `http://localhost:4000/api/v1` by default.
 Swagger docs are available at `http://localhost:4000/docs`.
 
-## Monnify Setup
+## Strowallet Setup
 
 Use sandbox values while developing:
 
 ```env
-MONNIFY_BASE_URL=https://sandbox.monnify.com
-MONNIFY_API_KEY=MK_TEST_...
-MONNIFY_CLIENT_SECRET=...
-MONNIFY_CONTRACT_CODE=...
-MONNIFY_SOURCE_ACCOUNT_NUMBER=...
+STROWALLET_BASE_URL=https://strowallet.com
+STROWALLET_PUBLIC_KEY=...
+STROWALLET_SECRET_KEY=...
+STROWALLET_MERCHANT_ID=...
+STROWALLET_MODE=sandbox
+STROWALLET_WEBHOOK_URL=https://your-api.com/api/v1/payments/strowallet/webhook
+STROWALLET_WEBSITE_URL=https://your-frontend.com
+STROWALLET_DEVELOPER_CODE=
 OPENINARY_URL=https://openinary.example.com
 OPENINARY_API_KEY=...
 OPENINARY_FOLDER=auction
 ```
 
-Where to find the values in Monnify:
-
-- API key and secret: `Developer` -> `API Keys & Contracts`
-- Contract code: `Settings` -> `Contract Setup`
-- Source account for withdrawals: `Balances` account number
-
-Do not use the `Contract Setup` settlement account as the withdrawal source account. Withdrawals debit the Monnify balance account.
+Strowallet is used for virtual funding accounts, bank transfers, bank list,
+account-name lookup, BVN verification, NIN verification, OTP SMS, and
+subaccount creation.
 
 ## Wallet Funding Flow
 
 Frontend flow after login:
 
 1. `GET /api/v1/users/me`
-2. If `nin` is missing, collect it and call `PATCH /api/v1/users/me`
-3. `GET /api/v1/wallets/me`
-4. `POST /api/v1/wallets/funding-account`
-5. Show the returned account number, bank name, and account name on the wallet screen
+2. `GET /api/v1/wallets/me`
+3. `POST /api/v1/wallets/funding-account`
+4. Show the returned account number, bank name, and account name on the wallet screen
 
-The funding account endpoint creates a Monnify reserved account once per user. Later calls return the saved account.
-
-For sandbox testing, Monnify accepts this NIN:
-
-```txt
-12345678901
-```
-
-When a user transfers money to their Monnify reserved account, Monnify sends a webhook to:
+The funding account endpoint creates a Strowallet virtual account once per user.
+Later calls return the saved account. When a user transfers money to the
+Strowallet virtual account, Strowallet sends a webhook to:
 
 ```txt
-POST /api/v1/payments/monnify/webhook
+POST /api/v1/payments/strowallet/webhook
 ```
 
-The backend verifies the webhook signature and credits the internal wallet.
+The backend stores the webhook event idempotently and credits the internal
+wallet. Strowallet webhook payloads are parsed by `accountReference` or
+`accountNumber`, so configure the Strowallet webhook URL above when creating
+virtual accounts.
+
+## KYC And Bank Utilities
+
+```txt
+POST /api/v1/kyc/bvn/verify
+POST /api/v1/kyc/nin/verify
+POST /api/v1/kyc/otp/send
+POST /api/v1/kyc/subaccount
+GET /api/v1/payments/banks
+GET /api/v1/payments/banks/account-name?bankCode=057&accountNumber=2085096393
+```
+
+BVN and NIN verification use the Strowallet KYC endpoints. OTP SMS uses
+Strowallet's OTP endpoint. Bank list and account-name lookup should be used by
+the frontend before creating a withdrawal.
 
 ## Uploads
 
@@ -156,20 +166,17 @@ POST /api/v1/wallets/withdrawals
 GET /api/v1/wallets/withdrawals/:id
 ```
 
-The backend debits the internal wallet first, then calls Monnify:
+The backend debits the internal wallet first, resolves the destination account
+name through Strowallet, then calls the Strowallet bank-transfer endpoint:
 
 ```txt
-POST /api/v2/disbursements/single
+POST https://strowallet.com/api/banks/request/
 ```
 
-In sandbox, a successful Monnify response may return `PENDING_AUTHORIZATION`. That means Monnify accepted the transfer and is waiting for its authorization flow.
-
-Admins complete pending Monnify withdrawals with the OTP sent to the merchant email:
+Admins can still inspect pending withdrawals:
 
 ```txt
 GET /api/v1/admin/wallet-withdrawals/pending
-POST /api/v1/admin/wallet-withdrawals/:id/authorize
-POST /api/v1/admin/wallet-withdrawals/:id/resend-otp
 ```
 
 ## Checks

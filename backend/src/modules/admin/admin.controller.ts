@@ -317,14 +317,14 @@ export class AdminController {
   }
 
   @Post('wallet-withdrawals/:id/authorize')
-  @ApiOperation({ summary: 'Authorize a Monnify wallet withdrawal with OTP' })
+  @ApiOperation({ summary: 'Authorize a wallet withdrawal when provider requires OTP' })
   @ApiCreatedResponse({ description: 'Withdrawal authorization submitted.' })
   authorizeWithdrawal(@Param('id') id: string, @Body() dto: AuthorizeWithdrawalDto) {
     return this.walletWithdrawalsService.authorizeWithdrawal(id, dto.authorizationCode);
   }
 
   @Post('wallet-withdrawals/:id/resend-otp')
-  @ApiOperation({ summary: 'Resend Monnify withdrawal authorization OTP' })
+  @ApiOperation({ summary: 'Resend wallet withdrawal authorization OTP' })
   @ApiCreatedResponse({ description: 'Withdrawal OTP resend requested.' })
   resendWithdrawalOtp(@Param('id') id: string) {
     return this.walletWithdrawalsService.resendWithdrawalOtp(id);

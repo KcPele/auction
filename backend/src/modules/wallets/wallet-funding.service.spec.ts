@@ -1,8 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
 import { PaymentProvider } from '../../common/enums/payment-provider.enum';
 import { WalletFundingAccountStatus } from '../../common/enums/wallet-funding-account-status.enum';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
-import type { MonnifyProvider } from '../payments/providers/monnify.provider';
+import type { StrowalletProvider } from '../payments/providers/strowallet.provider';
 import { User } from '../users/entities/user.entity';
 import { WalletFundingAccount } from './entities/wallet-funding-account.entity';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
@@ -23,7 +22,7 @@ describe('WalletFundingService', () => {
     save: jest.Mock;
   };
   let usersRepository: { findOneBy: jest.Mock };
-  let monnifyProvider: { createReservedAccount: jest.Mock };
+  let strowalletProvider: { createVirtualAccount: jest.Mock };
 
   beforeEach(() => {
     dataSource = { transaction: jest.fn((callback) => callback(createManager())) };
@@ -43,17 +42,17 @@ describe('WalletFundingService', () => {
       })),
     };
     usersRepository = { findOneBy: jest.fn() };
-    monnifyProvider = { createReservedAccount: jest.fn() };
+    strowalletProvider = { createVirtualAccount: jest.fn() };
     service = new WalletFundingService(
       dataSource as never,
       walletsRepository as never,
       fundingAccountsRepository as never,
       usersRepository as never,
-      monnifyProvider as unknown as MonnifyProvider,
+      strowalletProvider as unknown as StrowalletProvider,
     );
   });
 
-  it('creates a Monnify funding account for a user with NIN', async () => {
+  it('creates a Strowallet funding account for a user', async () => {
     fundingAccountsRepository.findOneBy.mockResolvedValue(null);
     walletsRepository.findOneBy.mockResolvedValue(createWallet());
     usersRepository.findOneBy.mockResolvedValue({
@@ -61,41 +60,31 @@ describe('WalletFundingService', () => {
       email: 'ada@example.com',
       firstName: 'Ada',
       lastName: 'Lovelace',
-      nin: '12345678901',
+      phone: '08123456789',
     });
-    monnifyProvider.createReservedAccount.mockResolvedValue({
-      accountReference: 'wallet_user-id',
+    strowalletProvider.createVirtualAccount.mockResolvedValue({
+      sessionId: 'session-id',
+      bankCode: '50515',
+      bankName: 'Nombank MFB',
+      accountNumber: '6254727989',
       accountName: 'Ada Lovelace',
-      reservationReference: 'reservation-id',
-      accounts: [
-        {
-          bankCode: '50515',
-          bankName: 'Moniepoint Microfinance Bank',
-          accountNumber: '6254727989',
-          accountName: 'Ada Lovelace',
-        },
-      ],
     });
 
     await expect(service.getFundingAccount('user-id')).resolves.toEqual({
       fundingAccount: expect.objectContaining({
         accountNumber: '6254727989',
-        provider: PaymentProvider.Monnify,
+        provider: PaymentProvider.Strowallet,
       }),
       created: true,
     });
+    expect(strowalletProvider.createVirtualAccount).toHaveBeenCalledWith({
+      email: 'ada@example.com',
+      accountName: 'Ada Lovelace',
+      phone: '08123456789',
+    });
   });
 
-  it('requires NIN before creating a Monnify funding account', async () => {
-    fundingAccountsRepository.findOneBy.mockResolvedValue(null);
-    usersRepository.findOneBy.mockResolvedValue({ id: 'user-id', nin: null });
-
-    await expect(service.getFundingAccount('user-id')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
-  });
-
-  it('credits a wallet from a Monnify funding webhook', async () => {
+  it('credits a wallet from a Strowallet funding webhook', async () => {
     const wallet = createWallet({ balanceKobo: 10000 });
     const fundingAccount = { id: 'funding-account-id', walletId: wallet.id };
     const manager = createManager({ wallet, fundingAccount });
@@ -105,7 +94,7 @@ describe('WalletFundingService', () => {
       service.creditFundingAccount({
         accountReference: 'wallet_user-id',
         amountKobo: 50000,
-        reference: 'MNFY|reference',
+        reference: 'strowallet-reference',
         metadata: {},
       }),
     ).resolves.toEqual(expect.objectContaining({ alreadyProcessed: false }));
@@ -145,7 +134,7 @@ function createManager(input?: {
 
       if (entity === WalletFundingAccount) {
         return Promise.resolve({
-          provider: PaymentProvider.Monnify,
+          provider: PaymentProvider.Strowallet,
           status: WalletFundingAccountStatus.Active,
           ...input?.fundingAccount,
         });

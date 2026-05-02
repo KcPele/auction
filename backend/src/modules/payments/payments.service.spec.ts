@@ -2,8 +2,8 @@ import { BadRequestException } from '@nestjs/common';
 import { PaymentProvider } from '../../common/enums/payment-provider.enum';
 import type { WalletFundingService } from '../wallets/wallet-funding.service';
 import type { WalletWithdrawalsService } from '../wallets/wallet-withdrawals.service';
-import type { MonnifyWebhookDto } from './dto/monnify-webhook.dto';
-import type { MonnifyProvider } from './providers/monnify.provider';
+import type { StrowalletWebhookDto } from './dto/strowallet-webhook.dto';
+import type { StrowalletProvider } from './providers/strowallet.provider';
 import { PaymentsService } from './payments.service';
 
 describe('PaymentsService', () => {
@@ -18,7 +18,10 @@ describe('PaymentsService', () => {
   let walletWithdrawalsService: {
     updateWithdrawalFromProvider: jest.Mock;
   };
-  let monnifyProvider: { verifyWebhookSignature: jest.Mock };
+  let strowalletProvider: {
+    getBanks: jest.Mock;
+    getAccountName: jest.Mock;
+  };
   let service: PaymentsService;
 
   beforeEach(() => {
@@ -33,16 +36,19 @@ describe('PaymentsService', () => {
     walletWithdrawalsService = {
       updateWithdrawalFromProvider: jest.fn(),
     };
-    monnifyProvider = { verifyWebhookSignature: jest.fn().mockReturnValue(true) };
+    strowalletProvider = {
+      getBanks: jest.fn(),
+      getAccountName: jest.fn(),
+    };
     service = new PaymentsService(
       webhookEventsRepository as never,
       walletFundingService as unknown as WalletFundingService,
       walletWithdrawalsService as unknown as WalletWithdrawalsService,
-      monnifyProvider as unknown as MonnifyProvider,
+      strowalletProvider as unknown as StrowalletProvider,
     );
   });
 
-  it('credits wallet funding from successful Monnify collection webhooks', async () => {
+  it('credits wallet funding from successful Strowallet webhooks', async () => {
     const dto = createCollectionWebhook();
     webhookEventsRepository.findOneBy.mockResolvedValue(null);
     walletFundingService.creditFundingAccount.mockResolvedValue({
@@ -50,11 +56,11 @@ describe('PaymentsService', () => {
     });
 
     await expect(
-      service.handleMonnifyWebhook(dto, 'signature', JSON.stringify(dto)),
+      service.handleStrowalletWebhook(dto, JSON.stringify(dto)),
     ).resolves.toEqual({
       webhookEvent: expect.objectContaining({
-        provider: PaymentProvider.Monnify,
-        eventId: 'MNFY|reference',
+        provider: PaymentProvider.Strowallet,
+        eventId: 'session-id',
         processedAt: expect.any(Date),
       }),
       result: { alreadyProcessed: false },
@@ -63,25 +69,23 @@ describe('PaymentsService', () => {
     expect(walletFundingService.creditFundingAccount).toHaveBeenCalledWith({
       accountReference: 'wallet_user-id',
       amountKobo: 500000,
-      reference: 'MNFY|reference',
+      reference: 'session-id',
       metadata: dto,
     });
   });
 
-  it('updates withdrawals from Monnify disbursement webhooks', async () => {
-    const dto: MonnifyWebhookDto = {
-      eventType: 'SUCCESSFUL_DISBURSEMENT',
-      eventData: {
-        transactionReference: 'wallet_withdrawal_reference',
-        status: 'SUCCESS',
-      },
+  it('updates withdrawals from Strowallet transfer webhooks', async () => {
+    const dto: StrowalletWebhookDto = {
+      type: 'transfer',
+      transactionReference: 'wallet_withdrawal_reference',
+      status: 'SUCCESS',
     };
     webhookEventsRepository.findOneBy.mockResolvedValue(null);
     walletWithdrawalsService.updateWithdrawalFromProvider.mockResolvedValue({
       id: 'withdrawal-id',
     });
 
-    await service.handleMonnifyWebhook(dto, 'signature', JSON.stringify(dto));
+    await service.handleStrowalletWebhook(dto, JSON.stringify(dto));
 
     expect(
       walletWithdrawalsService.updateWithdrawalFromProvider,
@@ -92,15 +96,9 @@ describe('PaymentsService', () => {
     );
   });
 
-  it('rejects invalid Monnify signatures', async () => {
-    monnifyProvider.verifyWebhookSignature.mockReturnValue(false);
-
+  it('rejects funding webhooks without an amount', async () => {
     await expect(
-      service.handleMonnifyWebhook(
-        createCollectionWebhook(),
-        'bad-signature',
-        '{}',
-      ),
+      service.handleStrowalletWebhook({ accountReference: 'wallet_user-id' }, '{}'),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -108,9 +106,8 @@ describe('PaymentsService', () => {
     webhookEventsRepository.findOneBy.mockResolvedValue({ id: 'event-id' });
 
     await expect(
-      service.handleMonnifyWebhook(
+      service.handleStrowalletWebhook(
         createCollectionWebhook(),
-        'signature',
         '{}',
       ),
     ).resolves.toEqual({
@@ -121,15 +118,11 @@ describe('PaymentsService', () => {
   });
 });
 
-function createCollectionWebhook(): MonnifyWebhookDto {
+function createCollectionWebhook(): StrowalletWebhookDto {
   return {
-    eventType: 'SUCCESSFUL_TRANSACTION',
-    eventData: {
-      product: { reference: 'wallet_user-id' },
-      transactionReference: 'MNFY|reference',
-      paymentReference: 'payment-reference',
-      paymentStatus: 'PAID',
-      amountPaid: 5000,
-    },
+    accountReference: 'wallet_user-id',
+    sessionId: 'session-id',
+    status: 'SUCCESS',
+    amount: 5000,
   };
 }

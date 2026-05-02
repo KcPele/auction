@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MonnifyProvider } from '../payments/providers/monnify.provider';
+import { StrowalletProvider } from '../payments/providers/strowallet.provider';
 import { User } from '../users/entities/user.entity';
 import { WalletFundingAccount } from './entities/wallet-funding-account.entity';
 import { WalletHold } from './entities/wallet-hold.entity';
@@ -29,17 +28,13 @@ import { WalletsService } from './wallets.service';
     WalletsService,
     WalletFundingService,
     WalletWithdrawalsService,
-    {
-      provide: MonnifyProvider,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => new MonnifyProvider(config),
-    },
+    StrowalletProvider,
   ],
   exports: [
     WalletsService,
     WalletFundingService,
     WalletWithdrawalsService,
-    MonnifyProvider,
+    StrowalletProvider,
     TypeOrmModule,
   ],
 })
