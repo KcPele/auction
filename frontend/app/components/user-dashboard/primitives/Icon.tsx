@@ -4,6 +4,7 @@ export type IconName =
   | "home"
   | "search"
   | "gavel"
+  | "trophy"
   | "wallet"
   | "user"
   | "bell"
@@ -16,7 +17,9 @@ export type IconName =
   | "arrow-r"
   | "clock"
   | "car"
+  | "truck"
   | "phone"
+  | "package"
   | "laptop"
   | "shield"
   | "check"
@@ -70,6 +73,8 @@ export function Icon({ name, size = 22, strokeWidth = 1.6, ...rest }: IconProps)
       return <svg {...p}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>;
     case "gavel":
       return <svg {...p}><path d="m14 6 4 4M11 9l4 4M8 12l4 4M6 14l4 4M3 21h8M17 3l4 4-7 7-4-4z" /></svg>;
+    case "trophy":
+      return <svg {...p}><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4" /></svg>;
     case "wallet":
       return <svg {...p}><rect x="3" y="6" width="18" height="14" rx="2" /><path d="M16 13h2M3 10h18" /></svg>;
     case "user":
@@ -94,8 +99,12 @@ export function Icon({ name, size = 22, strokeWidth = 1.6, ...rest }: IconProps)
       return <svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
     case "car":
       return <svg {...p}><path d="M5 17V11l2-5h10l2 5v6M5 17h14M5 17v2h2v-2M17 17v2h2v-2M7 11h10" /><circle cx="8" cy="14" r="1" /><circle cx="16" cy="14" r="1" /></svg>;
+    case "truck":
+      return <svg {...p}><path d="M3 7h11v9H3z" /><path d="M14 10h4l3 3v3h-7z" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>;
     case "phone":
       return <svg {...p}><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M11 18h2" /></svg>;
+    case "package":
+      return <svg {...p}><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" /><path d="M12 12 4.5 7.8M12 12l7.5-4.2M12 12v8.5" /></svg>;
     case "laptop":
       return <svg {...p}><rect x="4" y="5" width="16" height="11" rx="1" /><path d="M2 19h20" /></svg>;
     case "shield":

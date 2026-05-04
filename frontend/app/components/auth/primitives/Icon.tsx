@@ -9,6 +9,7 @@ export type IconName =
   | "x"
   | "chevron-l"
   | "arrow-r"
+  | "key"
   | "tag"
   | "shield"
   | "image"
@@ -50,6 +51,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
   x: <path d="M6 6l12 12M18 6l-12 12" />,
   "chevron-l": <path d="m15 6-6 6 6 6" />,
   "arrow-r": <path d="M5 12h14M12 5l7 7-7 7" />,
+  key: (
+    <>
+      <circle cx="8" cy="15" r="4" />
+      <path d="M10.5 12 20 2l2 2-3 3 2 2-3 3-2-2" />
+    </>
+  ),
   tag: (
     <>
       <path d="M20 12.5 12.5 20 3 10.5V3h7.5z" />

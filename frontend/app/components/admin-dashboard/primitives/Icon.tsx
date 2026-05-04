@@ -9,6 +9,7 @@ export type AdminIconName =
   | "users"
   | "wrench"
   | "receipt"
+  | "wallet"
   | "bell"
   | "sliders"
   | "search"
@@ -96,6 +97,14 @@ export function AdminIcon({ name, size = 16, strokeWidth = 1.7, style, className
         <svg {...c}>
           <path d="M4 2v20l3-2 3 2 3-2 3 2 3-2V2z" />
           <path d="M8 7h8M8 11h8M8 15h5" />
+        </svg>
+      );
+    case "wallet":
+      return (
+        <svg {...c}>
+          <path d="M3 7a2 2 0 0 1 2-2h14v14H5a2 2 0 0 1-2-2z" />
+          <path d="M3 9h16" />
+          <path d="M15 14h2" />
         </svg>
       );
     case "bell":

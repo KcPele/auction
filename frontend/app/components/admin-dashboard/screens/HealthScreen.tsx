@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { AdminIcon } from "../primitives/Icon";
 import { SectionHeader } from "./SectionHeader";
 
 interface HealthRow {

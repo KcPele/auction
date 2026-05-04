@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useCountdown } from "../hooks/useCountdown";
 import { pad2 } from "../utils";
 
@@ -10,13 +10,7 @@ interface CountdownProps {
 }
 
 export function Countdown({ endsIn, compact = false }: CountdownProps) {
-  const [target, setTarget] = useState<number | null>(null);
-  useEffect(() => {
-    setTarget(Date.now() + endsIn);
-  }, [endsIn]);
-  if (target === null) {
-    return <span className="text-fg-dim">—</span>;
-  }
+  const [target] = useState(() => Date.now() + endsIn);
   return <CountdownActive target={target} compact={compact} />;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "../primitives/Icon";
 import { Countdown } from "../widgets/Countdown";
@@ -38,13 +38,10 @@ function chipClass(active: boolean) {
 export function BrowseScreen() {
   const params = useSearchParams();
   const initialCat = (params.get("cat") as CatFilter) || "all";
-  const [cat, setCat] = useState<CatFilter>(initialCat);
+  const [selectedCat, setSelectedCat] = useState<CatFilter | null>(null);
+  const cat = selectedCat ?? initialCat;
   const [status, setStatus] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    setCat(initialCat);
-  }, [initialCat]);
 
   const filtered = useMemo(() => {
     // Integration: replace with GET /api/v1/auctions?category=CAR|GADGET&status=LIVE|SCHEDULED&limit=20&offset=0
@@ -77,7 +74,7 @@ export function BrowseScreen() {
 
       <div className="mt-3.5 flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         {CAT_OPTS.map((c) => (
-          <button key={c.id} type="button" className={chipClass(cat === c.id)} onClick={() => setCat(c.id)}>
+          <button key={c.id} type="button" className={chipClass(cat === c.id)} onClick={() => setSelectedCat(c.id)}>
             {c.label}
           </button>
         ))}

@@ -1,6 +1,5 @@
 "use client";
 import { Icon } from "../primitives/Icon";
-import { fmtNaira } from "../utils";
 import type { DeliveryInfo, DeliveryStatus } from "../types";
 
 const MOCK_DELIVERY: DeliveryInfo = {
@@ -30,13 +29,14 @@ function stepIndex(status: DeliveryStatus) {
 
 export function DeliveryTrackingScreen({ auctionId }: { auctionId: string }) {
   // Integration: GET /api/v1/auctions/{auctionId}/delivery
-  const info = MOCK_DELIVERY;
+  const info = { ...MOCK_DELIVERY, auctionId };
   const currentIdx = stepIndex(info.status);
 
   return (
     <>
       <h1 className="m-0 font-display text-[22px] font-semibold tracking-tight">Delivery tracking</h1>
       <div className="mt-1 text-sm text-fg-muted">{info.auctionTitle}</div>
+      <div className="mt-1 font-mono text-[11px] text-fg-dim">Auction ID: {info.auctionId}</div>
 
       {info.trackingNumber && (
         <div className="mt-4 rounded-xl border border-line bg-surface p-3.5">

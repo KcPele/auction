@@ -1,5 +1,4 @@
 "use client";
-import { useMemo } from "react";
 import { Countdown } from "./Countdown";
 import { Placeholder } from "./Placeholder";
 import { Button } from "./primitives/Button";
@@ -15,11 +14,9 @@ const AVATARS = [
   { c: "#ef4a3a", l: "O" },
 ];
 
+const FEATURED_END_TARGET = Date.now() + 3 * 3600 * 1000 + 47 * 60 * 1000 + 12 * 1000;
+
 export function FeaturedCard() {
-  const endTarget = useMemo(
-    () => Date.now() + 3 * 3600 * 1000 + 47 * 60 * 1000 + 12 * 1000,
-    [],
-  );
   const { currentBid, bidCount, bumped } = useHeroBid(4_850_000);
   const holdAmount = Math.round((currentBid * 0.1) / 1000) * 1000;
 
@@ -58,7 +55,7 @@ export function FeaturedCard() {
         </div>
         <div>
           <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-fg-dim">Ends in</div>
-          <Countdown target={endTarget} size="lg" label="" />
+          <Countdown target={FEATURED_END_TARGET} size="lg" label="" />
         </div>
       </div>
 

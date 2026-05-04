@@ -38,7 +38,6 @@ export function KycFlow() {
   const [subState, setSubState] = useState("");
   const [subPin, setSubPin] = useState("");
   const [subAddress, setSubAddress] = useState("");
-  const [subCountry] = useState("NG");
   const [subBusiness, setSubBusiness] = useState("");
 
   const [stepIdx, setStepIdx] = useState(0);
@@ -48,7 +47,7 @@ export function KycFlow() {
     if (stepIdx > 0) {
       setStepIdx(stepIdx - 1);
     } else {
-      isAccount ? router.push("/dashboard/profile") : router.push("/otp?ctx=register");
+      router.push(isAccount ? "/dashboard/profile" : "/otp?ctx=register");
     }
   };
 

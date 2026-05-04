@@ -4,12 +4,13 @@ interface FieldProps {
   label: ReactNode;
   hint?: ReactNode;
   meta?: ReactNode;
+  className?: string;
   children: ReactNode;
 }
 
-export function Field({ label, hint, meta, children }: FieldProps) {
+export function Field({ label, hint, meta, className = "", children }: FieldProps) {
   return (
-    <div className="mb-[18px]">
+    <div className={`mb-[18px] ${className}`}>
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1 text-xs font-medium text-fg-muted">
         <span>{label}</span>
         {hint && <span className="font-mono text-[11px] text-fg-dim">{hint}</span>}
