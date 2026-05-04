@@ -256,15 +256,21 @@ export function DetailScreen({ id }: { id: string }) {
             <div className="mb-1 text-[9px] uppercase tracking-[0.08em] text-fg-dim">
               Your bid (min {fmtNaira(suggested)})
             </div>
-            <input
-              className="w-full rounded-xl border border-line-strong bg-surface px-3.5 py-3 font-mono text-base font-semibold text-fg outline-none focus:border-accent"
-              type="text"
-              value={fmtNaira(bidAmt)}
-              onChange={(e) => {
-                const n = Number(e.target.value.replace(/[^0-9]/g, ""));
-                setBidAmt(n || 0);
-              }}
-            />
+            <div className="flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-3.5 py-3 focus-within:border-accent">
+              <span className="select-none font-mono text-base font-semibold text-fg-muted">
+                ₦
+              </span>
+              <input
+                className="min-w-0 flex-1 bg-transparent font-mono text-base font-semibold text-fg outline-none"
+                type="text"
+                inputMode="numeric"
+                value={bidAmt ? bidAmt.toLocaleString("en-NG") : ""}
+                onChange={(e) => {
+                  const n = Number(e.target.value.replace(/[^0-9]/g, ""));
+                  setBidAmt(n || 0);
+                }}
+              />
+            </div>
           </div>
           <button
             type="button"
