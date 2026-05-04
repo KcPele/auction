@@ -16,5 +16,6 @@ import { Bid } from './entities/bid.entity';
   ],
   controllers: [BidsController],
   providers: [BidsService, BidsGateway],
+  exports: [BidsService, BidsGateway],
 })
 export class BidsModule {}
