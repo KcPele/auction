@@ -13,7 +13,9 @@ interface NinVerifyFieldProps {
   iconName?: IconName;
   /** digits required to enable verify */
   length?: number;
-  /** mock async verifier; defaults to true after 900ms */
+  /** async verifier; defaults to mock (resolves true after 900ms). 
+   *  Integration: POST /api/v1/auth/verify-nin { nin } or POST /api/v1/kyc/nin/verify { numberNin, surname, firstname, birthdate, telephoneno }
+   */
   verify?: (value: string) => Promise<boolean>;
   onVerified?: (value: string) => void;
   value: string;

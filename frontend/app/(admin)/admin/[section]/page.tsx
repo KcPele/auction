@@ -2,12 +2,15 @@ import { notFound } from "next/navigation";
 import { AccessCodesScreen } from "@/app/components/admin-dashboard/screens/AccessCodesScreen";
 import { AuctionsScreen } from "@/app/components/admin-dashboard/screens/AuctionsScreen";
 import { DisputesScreen } from "@/app/components/admin-dashboard/screens/DisputesScreen";
+import { HealthScreen } from "@/app/components/admin-dashboard/screens/HealthScreen";
 import { ListingsScreen } from "@/app/components/admin-dashboard/screens/ListingsScreen";
 import { MechanicsScreen } from "@/app/components/admin-dashboard/screens/MechanicsScreen";
 import { NotificationsScreen } from "@/app/components/admin-dashboard/screens/NotificationsScreen";
 import { PaymentsScreen } from "@/app/components/admin-dashboard/screens/PaymentsScreen";
+import { SettlementScreen } from "@/app/components/admin-dashboard/screens/SettlementScreen";
 import { SettingsScreen } from "@/app/components/admin-dashboard/screens/SettingsScreen";
 import { UsersScreen } from "@/app/components/admin-dashboard/screens/UsersScreen";
+import { WithdrawalsScreen } from "@/app/components/admin-dashboard/screens/WithdrawalsScreen";
 
 const SCREENS: Record<string, () => React.ReactElement> = {
   auctions: AuctionsScreen,
@@ -19,6 +22,9 @@ const SCREENS: Record<string, () => React.ReactElement> = {
   payments: PaymentsScreen,
   notifications: NotificationsScreen,
   settings: SettingsScreen,
+  settlements: SettlementScreen,
+  withdrawals: WithdrawalsScreen,
+  health: HealthScreen,
 };
 
 export default async function AdminSectionPage({

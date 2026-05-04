@@ -84,7 +84,10 @@ export type SectionId =
   | "users"
   | "mechanics"
   | "payments"
+  | "withdrawals"
+  | "settlements"
   | "notifications"
+  | "health"
   | "settings";
 
 export interface Counts {
@@ -92,4 +95,6 @@ export interface Counts {
   "access-codes": number;
   listings: number;
   disputes: number;
+  withdrawals: number;
+  settlements: number;
 }

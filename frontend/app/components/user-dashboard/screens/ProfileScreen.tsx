@@ -12,6 +12,7 @@ interface NotifPref {
 const NOTIF_PREFS: NotifPref[] = [
   { id: "whatsappEnabled", label: "WhatsApp alerts", sub: "+234 812 ••• 4471", icon: "wa" },
   { id: "readyToBid", label: "Bid alerts", sub: "Notify when auctions you watch go live", icon: "gavel" },
+  // Integration: PATCH /api/v1/users/me/notification-preferences { whatsappEnabled, readyToBid, emailEnabled, pushEnabled }
 ];
 
 const STATS = [
@@ -19,6 +20,7 @@ const STATS = [
   { lbl: "Auctions won", val: "6" },
   { lbl: "Win rate", val: "38%" },
 ];
+// Integration: GET /api/v1/users/me/stats → { bidsPlaced, auctionsWon, winRate, totalSpent }
 
 interface SettingItem {
   label: string;
@@ -141,7 +143,10 @@ export function ProfileScreen() {
             </div>
             <button
               type="button"
-              onClick={() => setShowEditDetails(false)}
+              onClick={() => {
+                // Integration: PATCH /api/v1/users/me { firstName, lastName, phone, nin }
+                setShowEditDetails(false);
+              }}
               className="mt-1 rounded-lg p-2.5 text-sm font-semibold text-[#1a0a00] accent-gradient-bg"
             >
               Save changes

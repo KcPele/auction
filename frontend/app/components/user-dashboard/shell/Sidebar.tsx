@@ -17,8 +17,10 @@ const MAIN: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: "home", match: (p) => p === "/dashboard" },
   { href: "/dashboard/browse", label: "Browse auctions", icon: "search" },
   { href: "/dashboard/bids", label: "My bids", icon: "gavel", badge: 2 },
+  { href: "/dashboard/won", label: "Won auctions", icon: "trophy" },
   { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
   { href: "/dashboard/listings", label: "My listings", icon: "tag" },
+  { href: "/dashboard/listing-access", label: "Listing access", icon: "key" },
 ];
 const META: NavItem[] = [
   { href: "/dashboard/notifications", label: "Notifications", icon: "bell", badge: 2 },

@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { Icon, type IconName } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
 
-type MethodId = "paystack" | "transfer" | "flutter" | "monnify";
+type MethodId = "strowallet" | "bank_transfer";
+
 interface Method {
   id: MethodId;
   title: string;
@@ -13,11 +14,10 @@ interface Method {
 }
 
 const METHODS: Method[] = [
-  { id: "paystack", title: "Paystack · Card / USSD", sub: "Instant · 1.5% fee capped at ₦2,000", icon: "zap" },
-  { id: "transfer", title: "Bank transfer", sub: "Wema Bank · 1234567890 · BidNaija Escrow", icon: "arrow-r" },
-  { id: "flutter", title: "Flutterwave", sub: "Card / Bank / Barter", icon: "refresh" },
-  { id: "monnify", title: "Monnify (Virtual Account)", sub: "Your dedicated account · Free", icon: "wallet" },
+  { id: "strowallet", title: "Strowallet · Card / USSD", sub: "Instant · 1.5% fee capped at ₦2,000", icon: "zap" },
+  { id: "bank_transfer", title: "Bank transfer", sub: "Dedicated virtual account · Free", icon: "wallet" },
 ];
+
 const QUICK = [100_000, 250_000, 500_000, 1_000_000];
 
 const PRIMARY_BTN_BG = {
@@ -25,17 +25,18 @@ const PRIMARY_BTN_BG = {
 };
 
 function feeFor(method: MethodId, amt: number) {
-  if (method === "transfer" || method === "monnify") return "Free";
+  if (method === "bank_transfer") return "Free";
   return fmtNaira(Math.min(amt * 0.015, 2_000));
 }
+
 function methodLabel(m: MethodId) {
-  return m === "paystack" ? "Paystack" : m === "flutter" ? "Flutterwave" : m === "monnify" ? "Monnify" : "bank details";
+  return m === "strowallet" ? "Strowallet" : "bank transfer";
 }
 
 export function TopUpScreen() {
   const router = useRouter();
   const [amt, setAmt] = useState(500_000);
-  const [method, setMethod] = useState<MethodId>("paystack");
+  const [method, setMethod] = useState<MethodId>("strowallet");
 
   return (
     <>
@@ -110,9 +111,10 @@ export function TopUpScreen() {
       <button
         type="button"
         onClick={() => {
-          // Integration: for monnify, POST /api/v1/wallets/funding-account to get virtual account
+          // Integration: POST /api/v1/wallets/topup/initiate { amountKobo, method, category? }
+          // Integration: for bank_transfer, POST /api/v1/wallets/funding-account to get virtual account
           alert(
-            `Top up ${fmtNaira(amt)} via ${method} — in a live build, this redirects to the gateway.`,
+            `Top up ${fmtNaira(amt)} via ${methodLabel(method)} — in a live build, this redirects to the gateway.`,
           );
           router.back();
         }}

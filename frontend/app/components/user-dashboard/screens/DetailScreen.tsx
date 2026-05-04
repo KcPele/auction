@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { Icon } from "../primitives/Icon";
 import { Countdown } from "../widgets/Countdown";
 import { AUCTIONS } from "../data";
@@ -38,6 +38,7 @@ function buildHistory(current: number, inc: number): HistoryEntry[] {
 }
 
 export function DetailScreen({ id }: { id: string }) {
+  const router = useRouter();
   // Integration: fetch from GET /api/v1/auctions/{id}
   // Integration: fetch bids from GET /api/v1/auctions/{id}/bids
   // Integration: fetch listing detail from GET /api/v1/cars/{id} or GET /api/v1/gadgets/{id}
@@ -219,6 +220,30 @@ export function DetailScreen({ id }: { id: string }) {
               Cancel auction
             </button>
           )}
+        </div>
+      )}
+
+      {/* Confirm payment + delivery tracking (for auction winner) */}
+      {!a.live && a.current > 0 && (
+        <div className="my-4 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              // Integration: POST /api/v1/auctions/{id}/confirm-payment { note? }
+              alert("Payment confirmed! The seller will be notified.");
+            }}
+            className="w-full rounded-xl border-none p-3.5 text-sm font-bold text-[#1a0a00]"
+            style={BID_BTN_BG}
+          >
+            Confirm payment
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`/dashboard/auction/${id}/delivery`)}
+            className="w-full rounded-xl border border-line bg-surface p-3.5 text-sm font-medium text-fg"
+          >
+            <Icon name="truck" size={16} className="mr-1.5 inline-block" /> Track delivery
+          </button>
         </div>
       )}
 

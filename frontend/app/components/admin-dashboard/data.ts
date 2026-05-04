@@ -209,6 +209,8 @@ export const INITIAL_COUNTS: Counts = {
   "access-codes": 12,
   listings: INITIAL_APPROVALS.length,
   disputes: 3,
+  withdrawals: 3,
+  settlements: 2,
 };
 
 export const SECTION_LABELS: Record<string, string> = {
@@ -220,6 +222,9 @@ export const SECTION_LABELS: Record<string, string> = {
   users: "Users & wallets",
   mechanics: "Mechanics",
   payments: "Payments & ledger",
+  withdrawals: "Withdrawal authorization",
+  settlements: "Settlements",
   notifications: "Notifications log",
+  health: "System health",
   settings: "Settings",
 };
