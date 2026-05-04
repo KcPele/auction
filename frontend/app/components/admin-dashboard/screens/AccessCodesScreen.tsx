@@ -83,7 +83,7 @@ export function AccessCodesScreen() {
           <button
             type="button"
             onClick={() => alert(`Create code: ${category} ${customCode || "(auto)"} ${expiresAt || "(no expiry)"}`)}
-            className="mt-4 rounded-md border border-transparent px-4 py-2 text-xs font-semibold text-[#1a0a00]"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-transparent px-4 py-2 text-xs font-semibold text-[#1a0a00]"
             style={{ background: "linear-gradient(180deg, var(--accent-2), var(--accent))" }}
           >
             <AdminIcon name="plus" size={14} /> Create code
