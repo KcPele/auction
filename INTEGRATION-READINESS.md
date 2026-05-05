@@ -1,6 +1,6 @@
 # Integration Readiness — endpoint × UI matrix
 
-This is the audit a new developer should read **first**. It maps every backend endpoint in the OpenAPI spec to the frontend surface that consumes it. If a row says "ready", the UI is in place (with simulated data) and only needs hooks wired per `pattern.md`. If a row says "backend gap", the frontend wants something the backend doesn't expose — see `requests/backend/<domain>.md`.
+This is the audit a new developer should read **first**. It maps every backend endpoint in the OpenAPI spec to the frontend surface that consumes it. If a row says "ready", the UI is in place (with simulated data) and only needs hooks wired per `pattern.md`.
 
 For wire conventions and the integration pattern itself, see [`pattern.md`](pattern.md).
 
@@ -17,11 +17,11 @@ Legend:
 
 | Endpoint | Status | Frontend surface | Notes |
 |---|---|---|---|
-| `POST /auth/sign-up/email` | ✅ | `RegisterForm.tsx` | `name` must be derived from `firstName + lastName` at submit (see `requests/frontend/auth.md`). |
+| `POST /auth/sign-up/email` | ✅ | `RegisterForm.tsx` | `name` must be derived from `firstName + lastName` at submit. |
 | `POST /auth/sign-in/email` | ✅ | `LoginForm.tsx` | Drop the email/phone tabs unless backend §6 (phone sign-in) lands. |
 | `POST /auth/sign-out` | ✅ | `ProfileScreen.tsx` (sign out button) | |
 | `GET /auth/get-session` | ✅ | `hooks/useSession.ts`, `SessionGuard.tsx` | Replace with Better Auth React client per `pattern.md`. |
-| Phone OTP / forgot-password / NIN verify | 🔧 | `OtpForm.tsx`, `ForgotForm.tsx`, `NinVerifyField.tsx` | All listed in `requests/backend/auth.md`. |
+| Phone OTP / forgot-password / NIN verify | 🔧 | `OtpForm.tsx`, `ForgotForm.tsx`, `NinVerifyField.tsx` | See "Backend gaps" section below. |
 
 ---
 
@@ -59,7 +59,7 @@ Legend:
 | `POST /wallets/funding-account` | ✅ | `TopUpScreen.tsx` (`/dashboard/wallet/topup`) | Returns Monnify funding account; UI displays the account number and bank name. |
 | `POST /wallets/withdrawals` | ✅ | `WithdrawalHistoryScreen.tsx` (`/dashboard/wallet/withdrawals`) → "New withdrawal" form | |
 | `GET /wallets/withdrawals/{id}` | ✅ | `WithdrawalHistoryScreen.tsx` row click / detail | |
-| **List user's own withdrawals** | 🔧 | Same screen — currently shows simulated array. | **Backend gap:** see `requests/backend/wallets.md`. |
+| **List user's own withdrawals** | 🔧 | Same screen — currently shows simulated array. | **Backend gap:** see "Backend gaps" section below. |
 
 ---
 
@@ -135,7 +135,7 @@ Legend:
 | `GET /admin/wallet-withdrawals/pending` | ✅ | `WithdrawalsScreen.tsx` (`/admin/withdrawals`) | |
 | `POST /admin/wallet-withdrawals/{id}/authorize` | ✅ | Same screen, OTP entry per row | |
 | `POST /admin/wallet-withdrawals/{id}/resend-otp` | ✅ | Same screen, "Resend OTP" button | |
-| **List all withdrawals (history)** | 🔧 | Same screen has tabs Pending / Authorized / Failed but only Pending is real. | **Backend gap:** see `requests/backend/wallets.md`. |
+| **List all withdrawals (history)** | 🔧 | Same screen has tabs Pending / Authorized / Failed but only Pending is real. | **Backend gap:** see "Backend gaps" section below. |
 
 ---
 
@@ -157,15 +157,43 @@ Legend:
 
 ---
 
-## Backend gaps tracked in `requests/backend/`
+## Backend gaps
 
-A summary of the open requests so they're searchable from one place:
+Open items the integrator may want to negotiate with backend before wiring the affected screens. None block UI work — every screen above already renders with simulated data.
 
-- `requests/backend/auth.md` — phone OTP, email verification, forgot-password wiring, NIN verify endpoint, referral code at signup, phone sign-in, profile fields the UI shows but the auth schema doesn't store.
-- `requests/backend/wallets.md` — list user withdrawals, list all admin withdrawals.
-- `requests/backend/security-and-hardening.md` — webhook signature verification, env-default tightening, idempotency interceptor, and other hardening tasks found in the backend audit. Three items already fixed in this pass (global throttler, global exception filter, `process.env` leak).
+### Auth
 
-If a frontend feature needs something not in the table above, add an entry in the matching `requests/backend/<domain>.md` and a row here.
+- **Phone OTP** — `OtpForm.tsx` expects send-otp / verify endpoints. Better Auth `phone-number` plugin is not enabled. Either enable it (`POST /auth/phone-number/send-otp`, `POST /auth/phone-number/verify`) or drop the `/otp` step on the frontend.
+- **Email verification** — `emailAndPassword.requireEmailVerification` is off; `sendVerificationEmail` not wired to a sender. Wire to Resend and surface `emailVerified` on `/users/me`.
+- **Password reset** — Better Auth's reset endpoints exist by default but `sendResetPassword` isn't wired. Confirm/expose `POST /auth/forget-password` + `POST /auth/reset-password` and wire the email sender.
+- **NIN verify** — `NinVerifyField.tsx` runs a 900ms mock. Add `POST /users/me/nin/verify` that calls NIMC and persists `ninVerified`.
+- **Referral code at signup (optional)** — `RegisterForm.tsx` collects an unused referral code. Either accept `referralCode?` on `SignUpEmailDto` and wire a credit on first win, or hide the field.
+- **Phone-based sign-in (optional)** — login screen has Email/Phone tabs but only email is supported. Either enable Better Auth `phone-number.signIn` or drop the tab.
+- **Profile handle** — UI shows `@adaeze.o`-style handles but no `username` exists in the schema. Drop the chip everywhere or generate a slug server-side.
+
+### Wallets
+
+- **List the current user's withdrawals** — `WithdrawalHistoryScreen.tsx` needs `GET /wallets/me/withdrawals?limit&offset&status`. Today only the single-id `GET /wallets/withdrawals/{id}` exists.
+- **List all admin withdrawals (history)** — `WithdrawalsScreen.tsx` has Pending/Authorized/Failed tabs; only Pending is real. Add `GET /admin/wallet-withdrawals?status&from&to&limit&offset`.
+- **(optional) Cancel pending withdrawal** — `POST /wallets/withdrawals/{id}/cancel` to refund a held amount before authorization.
+
+### Backend hardening
+
+Found during the backend audit. **Already fixed in commits `41670e2` / `5749b8b`:**
+
+- `ThrottlerGuard` registered globally (was configured but never enforced).
+- `GlobalHttpExceptionFilter` registered — every error returns `{ statusCode, code, message, details, path, timestamp }`.
+- `process.env.STROWALLET_*` direct read in `admin-dashboard.service.ts` replaced with `ConfigService`.
+- CORS origin parsing trims and drops empty entries.
+
+**Still open (not blocking integration, but production gates):**
+
+- **Strowallet webhook has no signature verification.** `POST /payments/strowallet/webhook` accepts any body. Add an HMAC guard once the signing scheme is confirmed with Strowallet, plus `STROWALLET_WEBHOOK_SECRET` in env validation.
+- **`BETTER_AUTH_SECRET` and Strowallet credentials have development defaults / are optional.** Make required when `NODE_ENV === 'production'`.
+- **No idempotency interceptor.** The frontend pattern sends `Idempotency-Key` on payment-like POSTs (`/wallets/withdrawals`, `/auctions/{auctionId}/bids`, `/auctions/{id}/settle-payment`); backend currently ignores it.
+- **`rawBody: true` is global** — scope to `/payments/*/webhook` once signature verification lands.
+- **`GET /health` doesn't ping DB / Redis / provider.** Use `@nestjs/terminus` for `/health/live` + `/health/ready`.
+- **Logger noise** — `FastifyAdapter({ logger: true })` prints every request; route through Nest's `LoggerService` and configure via `LOG_LEVEL`.
 
 ---
 
@@ -196,8 +224,7 @@ Before this codebase is "ready for the integrator", every box below should be ti
 **Patterns + docs**
 - [x] `pattern.md` describes the HTTP, query, mutation, auth, realtime, and forms patterns.
 - [x] `pattern.md` lists the canonical libraries and a one-shot install command.
-- [x] `requests/backend/*.md` lists every backend gap with a clear description.
-- [x] `requests/frontend/*.md` lists every UI shape change required to match the existing contracts.
+- [x] Backend gaps + UI shape changes are documented inline in the "Backend gaps" section above.
 - [x] This file (`INTEGRATION-READINESS.md`) maps every endpoint to a UI surface.
 
 **Repository hygiene**
