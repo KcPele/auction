@@ -9,6 +9,7 @@ Items found during the integration-readiness audit. Some are quick wins. Two are
 - `ThrottlerGuard` registered globally via `APP_GUARD`. Throttling is now enforced (was configured but never applied).
 - Global `GlobalHttpExceptionFilter` registered via `APP_FILTER` — all errors now return a normalized `{ statusCode, code, message, details, path, timestamp }` shape so the frontend can rely on it.
 - `process.env.STROWALLET_*` direct read in `admin-dashboard.service.ts` replaced with `ConfigService` so env validation actually applies.
+- CORS origin parsing now trims whitespace and drops empty entries (item §7 below).
 
 ---
 
@@ -84,23 +85,9 @@ Already fixed in `admin-dashboard.service.ts`. Run a quick `grep -rn "process\.e
 
 `NestFactory.create(AppModule, new FastifyAdapter(...), { rawBody: true })` captures raw bodies for every request, not just webhooks. That's a small memory tax on every request. Consider scoping it via a custom `bodyParser` pre-handler that only buffers raw on `/payments/*/webhook` paths.
 
-### 7. CORS origin parsing
+### 7. CORS origin parsing — DONE
 
-**File:** `src/main.ts`
-
-```ts
-origin: config.getOrThrow<string>('CORS_ORIGINS').split(','),
-```
-
-Origins from env aren't trimmed; `"https://a.com, https://b.com"` becomes `["https://a.com", " https://b.com"]` and the second entry never matches. Trim:
-
-```ts
-origin: config
-  .getOrThrow<string>('CORS_ORIGINS')
-  .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean),
-```
+`src/main.ts` now trims and drops empty entries when parsing `CORS_ORIGINS`.
 
 ### 8. Logger noise in production
 

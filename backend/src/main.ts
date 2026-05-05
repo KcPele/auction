@@ -21,7 +21,11 @@ async function bootstrap() {
 
   await app.register(helmet);
   await app.register(cors, {
-    origin: config.getOrThrow<string>('CORS_ORIGINS').split(','),
+    origin: config
+      .getOrThrow<string>('CORS_ORIGINS')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
     credentials: true,
   });
   await app.register(multipart, {
