@@ -39,3 +39,4 @@
 
 ## only during intergration/production(connecting backend to the frontend)
 - Read the pattern.md file and follow the pattern
+- Read the intergration-readiness.md file and follow the pattern

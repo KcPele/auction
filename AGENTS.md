@@ -36,3 +36,4 @@
 
 ## only during intergration/production
 - Read the pattern.md file and follow the pattern
+- Read the intergration-readiness.md file and follow the pattern
