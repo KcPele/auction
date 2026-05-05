@@ -1531,18 +1531,16 @@ That's the full slice. **Components have no idea where data comes from.**
 
 ## Migrating simulated screens to live data
 
-The current frontend renders dummy data inline. The plan to switch each screen over without freezing development:
+The current frontend renders dummy data inline. Plan to switch each screen over one at a time:
 
-1. **Keep the dummy data file in place.** Don't delete it on day one.
-2. For one feature at a time:
-   - Move the dummy structure to a `*.fixtures.ts` file in the feature folder.
-   - Add the `types/`, `api/`, `hooks/` files as described above.
-   - Wire the hooks behind a feature flag: `useFeatureFlag("walletLive")` returns `true` in dev, `false` in screenshots/storybook.
-   - When the flag is on, the screen uses the hook. When off, the screen uses the fixture.
-3. Once the live path is verified end-to-end, delete the fixture and the flag.
-4. Move on to the next feature.
+1. Pick a feature.
+2. Add `types/`, `api/`, `hooks/` files per the folder layout.
+3. Replace the inline dummy data in the screen with the new hook (`useWallet()`, `useNotifications()`, etc.).
+4. Verify against the running backend (loading, success, error, empty states).
+5. Delete the inline dummy data.
+6. Move on to the next feature.
 
-This avoids the all-or-nothing trap where the UI is half-broken for weeks.
+Don't try to migrate everything at once. One slice at a time keeps the UI runnable end-to-end while the work is in flight.
 
 The order to migrate (lowest risk → highest):
 
