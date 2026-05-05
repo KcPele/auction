@@ -1,8 +1,10 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuctionsModule } from './modules/auctions/auctions.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -58,6 +60,10 @@ import { buildTypeOrmConfig } from './config/typeorm.config';
     NotificationsModule,
     JobsModule,
     GatewayModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_FILTER, useClass: GlobalHttpExceptionFilter },
   ],
 })
 export class AppModule {}

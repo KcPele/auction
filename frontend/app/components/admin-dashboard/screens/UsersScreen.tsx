@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Card, CardBody, CardHead } from "../widgets/Card";
 import { SectionHeader } from "./SectionHeader";
 import { fmtNGN } from "../utils";
+import { Modal } from "../../ui/Modal";
 
 interface AdminUser {
   id: string;
@@ -27,6 +28,8 @@ const INITIAL: AdminUser[] = [
 export function UsersScreen() {
   const [items, setItems] = useState<AdminUser[]>(INITIAL);
   const [q, setQ] = useState("");
+  const [granting, setGranting] = useState<AdminUser | null>(null);
+  const [grantCategory, setGrantCategory] = useState<"CAR" | "GADGET">("CAR");
 
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -116,13 +119,22 @@ export function UsersScreen() {
                       </span>
                     </td>
                     <td className="border-b border-line px-3.5 py-3 text-right sm:px-[18px]">
-                      <button
-                        type="button"
-                        onClick={() => toggleFreeze(u.id)}
-                        className="rounded-md border border-line px-2.5 py-1 text-[11px] text-fg-muted hover:border-accent/40 hover:text-accent"
-                      >
-                        {u.status === "frozen" ? "Unfreeze" : "Freeze"}
-                      </button>
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setGranting(u)}
+                          className="rounded-md border border-line px-2.5 py-1 text-[11px] text-fg-muted hover:border-accent/40 hover:text-accent"
+                        >
+                          Grant access
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleFreeze(u.id)}
+                          className="rounded-md border border-line px-2.5 py-1 text-[11px] text-fg-muted hover:border-accent/40 hover:text-accent"
+                        >
+                          {u.status === "frozen" ? "Unfreeze" : "Freeze"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -131,6 +143,57 @@ export function UsersScreen() {
           </div>
         </CardBody>
       </Card>
+
+      <Modal
+        open={!!granting}
+        onClose={() => setGranting(null)}
+        title={granting ? `Grant listing access · @${granting.handle}` : ""}
+        widthClass="max-w-md"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setGranting(null)}
+              className="rounded-md border border-line bg-transparent px-3 py-1.5 text-xs font-medium text-fg-muted hover:bg-surface-2 hover:text-fg"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Integration: POST /api/v1/admin/listing-permissions { userId, category }
+                console.log("grant", { userId: granting?.id, category: grantCategory });
+                setGranting(null);
+              }}
+              className="rounded-md border border-green/30 bg-green/[0.08] px-3 py-1.5 text-xs font-semibold text-green hover:bg-green/15"
+            >
+              Grant access
+            </button>
+          </>
+        }
+      >
+        <p className="mb-4 text-[13px] text-fg-muted">
+          Bypass the application flow and grant listing access directly. Use this when you've
+          verified the user out-of-band.
+        </p>
+        <label className="block text-xs font-medium text-fg-muted">Category</label>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {(["CAR", "GADGET"] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setGrantCategory(c)}
+              className={`rounded-md border px-3 py-2 text-sm font-semibold ${
+                grantCategory === c
+                  ? "border-accent bg-accent/[0.08] text-accent"
+                  : "border-line bg-surface text-fg-muted hover:bg-surface-2"
+              }`}
+            >
+              {c === "CAR" ? "Car" : "Gadget"}
+            </button>
+          ))}
+        </div>
+      </Modal>
     </>
   );
 }

@@ -35,3 +35,7 @@
 - follow best practices and keep the codebase clean and DRY
 - if there are packages that do what we want just install it and make use of it so we dont reinvent the wheel
 - write a test for every endpoint and update the swagger docs
+
+
+## only during intergration/production(connecting backend to the frontend)
+- Read the pattern.md file and follow the pattern

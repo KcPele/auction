@@ -69,27 +69,38 @@ export function MyListingsScreen() {
                 {l.status}
               </span>
             </div>
-            <div className="mt-2.5 flex gap-1.5">
-              {l.status === "draft" && (
-                <>
-                  <button type="button" className="rounded-md border border-line px-2.5 py-1 text-[11px] text-fg-muted hover:bg-surface-2">Edit</button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Integration: POST /api/v1/cars/{id}/submit or POST /api/v1/gadgets/{id}/submit
-                      alert(`Submit ${l.title} for review`);
-                    }}
-                    className="rounded-md border border-accent/30 bg-accent/[0.08] px-2.5 py-1 text-[11px] font-semibold text-accent"
-                  >
-                    Submit for review
-                  </button>
-                </>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <Link
+                href={`/dashboard/listings/${l.id}?category=${l.category.toLowerCase()}`}
+                className="rounded-md border border-line px-2.5 py-1 text-[11px] text-fg-muted hover:bg-surface-2"
+              >
+                View
+              </Link>
+              {(l.status === "draft" || l.status === "rejected") && (
+                <Link
+                  href={`/dashboard/listings/${l.id}/edit?category=${l.category.toLowerCase()}`}
+                  className="rounded-md border border-line px-2.5 py-1 text-[11px] text-fg-muted hover:bg-surface-2"
+                >
+                  {l.status === "rejected" ? "Edit & resubmit" : "Edit"}
+                </Link>
               )}
-              {l.status === "rejected" && (
-                <button type="button" className="rounded-md border border-line px-2.5 py-1 text-[11px] text-fg-muted hover:bg-surface-2">Edit & resubmit</button>
+              {l.status === "draft" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Integration: POST /api/v1/cars/{id}/submit or POST /api/v1/gadgets/{id}/submit
+                    alert(`Submit ${l.title} for review`);
+                  }}
+                  className="rounded-md border border-accent/30 bg-accent/[0.08] px-2.5 py-1 text-[11px] font-semibold text-accent"
+                >
+                  Submit for review
+                </button>
               )}
               {l.status === "approved" && (
-                <Link href={`/dashboard/auction/${l.id}`} className="rounded-md border border-green/30 bg-green/[0.08] px-2.5 py-1 text-[11px] font-semibold text-green">
+                <Link
+                  href={`/dashboard/auction/${l.id}`}
+                  className="rounded-md border border-green/30 bg-green/[0.08] px-2.5 py-1 text-[11px] font-semibold text-green"
+                >
                   View live
                 </Link>
               )}

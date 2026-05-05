@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
@@ -28,6 +29,7 @@ export class AdminDashboardService {
     @InjectRepository(Notification) private readonly notificationsRepository: Repository<Notification>,
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
     @InjectRepository(NotificationDeliveryLog) private readonly deliveryLogsRepository: Repository<NotificationDeliveryLog>,
+    private readonly config: ConfigService,
   ) {}
 
   async getDashboardStats(range: string) {
@@ -162,7 +164,8 @@ export class AdminDashboardService {
     }
 
     const strowalletConfigured = Boolean(
-      process.env.STROWALLET_PUBLIC_KEY && process.env.STROWALLET_SECRET_KEY,
+      this.config.get<string>('STROWALLET_PUBLIC_KEY') &&
+        this.config.get<string>('STROWALLET_SECRET_KEY'),
     );
     services.push({
       name: 'Strowallet API',
