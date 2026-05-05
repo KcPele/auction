@@ -18,29 +18,30 @@ Both halves share the same principle: **business code depends on contracts we ow
 2. [Tech contract](#tech-contract)
 3. [Folder layout](#folder-layout)
 4. [HTTP layer](#http-layer)
-5. [Money, time, ids](#money-time-ids)
-6. [Type contracts and DTO mapping](#type-contracts-and-dto-mapping)
-7. [React Query setup](#react-query-setup)
-8. [Query keys](#query-keys)
-9. [Query hooks](#query-hooks)
-10. [Mutation hooks](#mutation-hooks)
-11. [Pagination and infinite queries](#pagination-and-infinite-queries)
-12. [Forms with React Hook Form + Zod](#forms-with-react-hook-form--zod)
-13. [Auth and session bootstrap](#auth-and-session-bootstrap)
-14. [Permissions with CASL](#permissions-with-casl)
-15. [Real-time updates](#real-time-updates)
-16. [File uploads](#file-uploads)
-17. [Error handling](#error-handling)
-18. [Loading, empty, and error states](#loading-empty-and-error-states)
-19. [Server vs client components](#server-vs-client-components)
-20. [Testing](#testing)
-21. [Definition of done per endpoint](#definition-of-done-per-endpoint)
-22. [End-to-end example: Wallet](#end-to-end-example-wallet)
-23. [Migrating simulated screens to live data](#migrating-simulated-screens-to-live-data)
-24. [Backend integration: ports and adapters](#backend-integration-ports-and-adapters)
-25. [Anti-patterns](#anti-patterns)
-26. [PR review checklist](#pr-review-checklist)
-27. [References](#references)
+5. [API proxy (Next.js BFF rewrite)](#api-proxy-nextjs-bff-rewrite)
+6. [Money, time, ids](#money-time-ids)
+7. [Type contracts and DTO mapping](#type-contracts-and-dto-mapping)
+8. [React Query setup](#react-query-setup)
+9. [Query keys](#query-keys)
+10. [Query hooks](#query-hooks)
+11. [Mutation hooks](#mutation-hooks)
+12. [Pagination and infinite queries](#pagination-and-infinite-queries)
+13. [Forms with React Hook Form + Zod](#forms-with-react-hook-form--zod)
+14. [Auth and session bootstrap](#auth-and-session-bootstrap)
+15. [Permissions with CASL](#permissions-with-casl)
+16. [Real-time updates](#real-time-updates)
+17. [File uploads](#file-uploads)
+18. [Error handling](#error-handling)
+19. [Loading, empty, and error states](#loading-empty-and-error-states)
+20. [Server vs client components](#server-vs-client-components)
+21. [Testing](#testing)
+22. [Definition of done per endpoint](#definition-of-done-per-endpoint)
+23. [End-to-end example: Wallet](#end-to-end-example-wallet)
+24. [Migrating simulated screens to live data](#migrating-simulated-screens-to-live-data)
+25. [Backend integration: ports and adapters](#backend-integration-ports-and-adapters)
+26. [Anti-patterns](#anti-patterns)
+27. [PR review checklist](#pr-review-checklist)
+28. [References](#references)
 
 ---
 
@@ -285,6 +286,83 @@ That's the entire HTTP layer. **Nothing else** in the app calls `fetch` directly
 ### Auth interceptor
 
 Centralize 401 handling at the React Query level (see [Auth and session bootstrap](#auth-and-session-bootstrap)) — not inside `apiClient`. The client only throws; the cache decides whether to redirect.
+
+---
+
+## API proxy (Next.js BFF rewrite)
+
+The frontend talks to the backend through a same-origin Next.js **rewrite**. Browsers see `/api/v1/...`; Next forwards those requests to the backend. The backend URL is never embedded in the bundle.
+
+### Why we do this
+
+- **First-party cookies.** The session cookie's domain equals the page origin, so it stays in the "first party" bucket as Safari ITP and Chrome's third-party cookie phase-out keep tightening cross-site rules.
+- **No CORS preflight per call.** Same-origin requests skip OPTIONS — visible latency win on every interactive screen.
+- **Simpler CSP.** `connect-src 'self'` covers everything; no separate API host to allow.
+- **Server Components.** RSC code can call relative `/api/v1/...` without a server-side fetch helper.
+- **One env var instead of two.** Browser bundles never see `NEXT_PUBLIC_API_BASE_URL` because the URL doesn't appear in client code.
+
+### What does **not** go through the proxy
+
+- **WebSockets** (Socket.IO) — proxying ws over Next rewrites is brittle. Use the backend's URL directly or a separate subdomain like `ws.bidnaija.com`. See [Real-time updates](#real-time-updates).
+- **Provider webhooks** (Strowallet, etc.) — those are inbound to the backend. Not a frontend concern.
+
+### `next.config.ts`
+
+```ts
+import type { NextConfig } from "next";
+
+const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:4000";
+const API_PREFIX = "/api/v1";
+
+const nextConfig: NextConfig = {
+  output: "standalone",
+  async rewrites() {
+    return [
+      {
+        source: `${API_PREFIX}/:path*`,
+        destination: `${API_ORIGIN}${API_PREFIX}/:path*`,
+      },
+    ];
+  },
+};
+
+export default nextConfig;
+```
+
+`API_ORIGIN` is a **server-only** env var (no `NEXT_PUBLIC_` prefix). Set it to the backend's internal URL in deployment (`https://api.bidnaija.com` or the in-cluster address).
+
+### `lib/api/env.ts` (revised)
+
+The proxy lets the browser use relative URLs. Server Components still need an absolute URL when they fetch directly (rewrites only run on inbound HTTP, not on server-side fetch). One helper, two contexts:
+
+```ts
+const API_PREFIX = "/api/v1";
+
+const isServer = typeof window === "undefined";
+
+const SERVER_BASE =
+  process.env.API_ORIGIN ?? "http://localhost:4000";   // server-only, never NEXT_PUBLIC
+
+export const apiUrl = (path: string) => {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return isServer ? `${SERVER_BASE}${API_PREFIX}${p}` : `${API_PREFIX}${p}`;
+};
+```
+
+The `apiClient` from [HTTP layer](#http-layer) keeps working unchanged — it just produces a relative URL in the browser and an absolute one on the server.
+
+### Backend changes
+
+- Set `CORS_ORIGINS` to the **frontend** origin (e.g. `https://app.bidnaija.com`). The proxy hops are server-to-server so they don't need CORS, but Better Auth still validates `trustedOrigins` against the request's `Origin` header.
+- Keep `credentials: true` in the Fastify CORS plugin (already done) — needed for browser → backend fallbacks (e.g. webhooks, direct backend dashboards).
+
+### Why "hide the backend URL" is not the real reason
+
+It's a side effect, not security. Anyone can read the network tab and see the proxy hop. The wins above are concrete; the "hiding" framing is mostly cosmetic. If a teammate asks "is this for security?", the answer is **no, it's for cookies + latency + CSP simplicity**.
+
+### Optional: server-side caching at the proxy
+
+Once the proxy is in place, you can add ISR-like caching for read-only endpoints by writing route handlers (`app/api/.../route.ts`) instead of pure rewrites. Useful for `GET /auctions` on a high-traffic landing page. Not required for MVP.
 
 ---
 
