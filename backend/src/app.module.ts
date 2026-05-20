@@ -17,6 +17,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { KycModule } from './modules/kyc/kyc.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { PublicModule } from './modules/public/public.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { UsersModule } from './modules/users/users.module';
 import { WalletsModule } from './modules/wallets/wallets.module';
@@ -60,6 +61,7 @@ import { buildTypeOrmConfig } from './config/typeorm.config';
     NotificationsModule,
     JobsModule,
     GatewayModule,
+    PublicModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

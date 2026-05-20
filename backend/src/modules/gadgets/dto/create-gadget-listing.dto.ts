@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
+  ArrayMaxSize,
   IsArray,
   IsDateString,
   IsInt,
@@ -8,24 +9,29 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
 export class CreateGadgetListingDto {
   @ApiProperty({ example: 'Phone' })
   @IsString()
+  @MaxLength(100)
   type!: string;
 
   @ApiProperty({ example: 'Apple' })
   @IsString()
+  @MaxLength(100)
   brand!: string;
 
   @ApiProperty({ example: 'iPhone 14 Pro' })
   @IsString()
+  @MaxLength(100)
   model!: string;
 
   @ApiProperty({ example: 'Space Black' })
   @IsString()
+  @MaxLength(50)
   colour!: string;
 
   @ApiPropertyOptional({ example: 88 })
@@ -50,11 +56,13 @@ export class CreateGadgetListingDto {
 
   @ApiProperty({ example: 'https://cdn.example.com/receipt.pdf' })
   @IsString()
+  @MaxLength(500)
   proofDocumentUrl!: string;
 
   @ApiProperty({ type: [String], example: ['https://cdn.example.com/a.jpg'] })
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(10)
   @IsString({ each: true })
   photoUrls!: string[];
 
@@ -89,4 +97,3 @@ export class CreateGadgetListingDto {
   @Min(1)
   durationMinutes!: number;
 }
-

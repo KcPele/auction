@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
+import { Toaster } from "sonner";
+import { QueryProvider } from "./lib/query/provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -35,7 +37,12 @@ export default function RootLayout({
       data-theme="dark"
       className={`${inter.variable} ${fraunces.variable} ${jetbrains.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <QueryProvider>
+          {children}
+          <Toaster position="top-right" theme="dark" richColors closeButton />
+        </QueryProvider>
+      </body>
     </html>
   );
 }

@@ -1,6 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useMe } from "@/app/components/auth/hooks/use-me";
+import { useUnreadCount } from "@/app/components/notifications/hooks/use-notifications";
+import { useGreeting } from "@/app/lib/format/use-greeting";
 import { Icon } from "../primitives/Icon";
 
 const BACK_TITLES: Array<[string, string]> = [
@@ -25,6 +28,12 @@ export function MobileHeader() {
   const router = useRouter();
   const path = usePathname() || "/dashboard";
   const backTitle = backInfo(path);
+  const { data: me } = useMe();
+  const { data: unread = 0 } = useUnreadCount();
+  const greeting = useGreeting();
+  const initials = me
+    ? `${me.firstName[0] ?? ""}${me.lastName[0] ?? ""}`.toUpperCase()
+    : "";
 
   if (path === "/dashboard/notifications") {
     return (
@@ -63,16 +72,20 @@ export function MobileHeader() {
             "linear-gradient(135deg, var(--accent), var(--accent-deep))",
         }}
       >
-        AO
+        {initials || "·"}
       </div>
       <div className="flex-1">
-        <div className="text-xs text-fg-dim">Good afternoon</div>
-        <div className="text-[15px] font-semibold">Adaeze</div>
+        <div className="text-xs text-fg-dim">{greeting}</div>
+        <div className="text-[15px] font-semibold">{me?.firstName ?? "—"}</div>
       </div>
       <div className="ml-auto flex gap-1.5">
         <Link href="/dashboard/notifications" className={ICON_BTN_CLASS}>
           <Icon name="bell" size={18} />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-bg bg-red" />
+          {unread > 0 && (
+            <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-bg bg-red px-1 font-mono text-[9px] font-bold text-fg">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
         </Link>
         <button className={ICON_BTN_CLASS} type="button">
           <Icon name="help" size={18} />

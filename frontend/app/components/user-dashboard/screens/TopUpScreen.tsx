@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useInitiateTopup } from "@/app/components/wallet/hooks/use-wallet";
+import { ApiError } from "@/app/lib/api/error";
+import type { FundingAccount } from "@/app/components/wallet/types/wallet.types";
 import { Icon, type IconName } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
 
@@ -14,8 +17,18 @@ interface Method {
 }
 
 const METHODS: Method[] = [
-  { id: "strowallet", title: "Strowallet · Card / USSD", sub: "Instant · 1.5% fee capped at ₦2,000", icon: "zap" },
-  { id: "bank_transfer", title: "Bank transfer", sub: "Dedicated virtual account · Free", icon: "wallet" },
+  {
+    id: "strowallet",
+    title: "Strowallet · Card / USSD",
+    sub: "Instant · provider fees may apply",
+    icon: "zap",
+  },
+  {
+    id: "bank_transfer",
+    title: "Bank transfer",
+    sub: "Dedicated virtual account · Free",
+    icon: "wallet",
+  },
 ];
 
 const QUICK = [100_000, 250_000, 500_000, 1_000_000];
@@ -29,18 +42,36 @@ function feeFor(method: MethodId, amt: number) {
   return fmtNaira(Math.min(amt * 0.015, 2_000));
 }
 
-function methodLabel(m: MethodId) {
-  return m === "strowallet" ? "Strowallet" : "bank transfer";
-}
-
 export function TopUpScreen() {
-  const router = useRouter();
   const [amt, setAmt] = useState(500_000);
   const [method, setMethod] = useState<MethodId>("strowallet");
+  const [account, setAccount] = useState<FundingAccount | null>(null);
+
+  const initiate = useInitiateTopup();
+
+  const onContinue = async () => {
+    try {
+      const res = await initiate.mutateAsync({
+        amountNaira: amt,
+        method,
+      });
+      setAccount(res);
+      toast.success("Funding account ready");
+    } catch (err) {
+      if (err instanceof ApiError) toast.error(err.message);
+      else toast.error("Could not start top-up");
+    }
+  };
+
+  if (account) {
+    return <FundingDetails account={account} amount={amt} />;
+  }
 
   return (
     <>
-      <div className="mt-2 text-xs uppercase tracking-[0.1em] text-fg-dim">Amount</div>
+      <div className="mt-2 text-xs uppercase tracking-[0.1em] text-fg-dim">
+        Amount
+      </div>
       <div className="mt-1 font-display text-[46px] font-semibold tracking-tight tabular-nums">
         <span className="text-[26px] text-fg-dim">₦</span>
         {amt.toLocaleString("en-NG")}
@@ -53,7 +84,9 @@ export function TopUpScreen() {
             type="button"
             onClick={() => setAmt(q)}
             className={`cursor-pointer rounded-lg border bg-surface px-1 py-3 text-center font-mono text-[12px] font-semibold ${
-              amt === q ? "border-accent bg-accent/[0.1] text-accent-light" : "border-line text-fg"
+              amt === q
+                ? "border-accent bg-accent/[0.1] text-accent-light"
+                : "border-line text-fg"
             }`}
           >
             {q >= 1_000_000 ? `${q / 1_000_000}M` : `${q / 1_000}k`}
@@ -61,7 +94,9 @@ export function TopUpScreen() {
         ))}
       </div>
 
-      <div className="my-3 mt-5 text-[15px] font-semibold tracking-tight">Payment method</div>
+      <div className="my-3 mt-5 text-[15px] font-semibold tracking-tight">
+        Payment method
+      </div>
       <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
         {METHODS.map((m) => {
           const active = method === m.id;
@@ -74,7 +109,9 @@ export function TopUpScreen() {
             >
               <div
                 className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${
-                  active ? "bg-accent/[0.12] text-accent" : "bg-white/[0.04] text-fg-muted"
+                  active
+                    ? "bg-accent/[0.12] text-accent"
+                    : "bg-white/[0.04] text-fg-muted"
                 }`}
               >
                 <Icon name={m.icon} size={16} />
@@ -110,19 +147,102 @@ export function TopUpScreen() {
 
       <button
         type="button"
-        onClick={() => {
-          // Integration: POST /api/v1/wallets/topup/initiate { amountKobo, method, category? }
-          // Integration: for bank_transfer, POST /api/v1/wallets/funding-account to get virtual account
-          alert(
-            `Top up ${fmtNaira(amt)} via ${methodLabel(method)} — in a live build, this redirects to the gateway.`,
-          );
-          router.back();
-        }}
-        className="mt-4 w-full cursor-pointer rounded-xl border-none p-4 text-sm font-bold text-[#1a0a00]"
+        disabled={initiate.isPending}
+        onClick={onContinue}
+        className="mt-4 w-full cursor-pointer rounded-xl border-none p-4 text-sm font-bold text-[#1a0a00] disabled:opacity-60"
         style={PRIMARY_BTN_BG}
       >
-        Continue to {methodLabel(method)}
+        {initiate.isPending ? "Preparing…" : "Continue"}
       </button>
     </>
+  );
+}
+
+function FundingDetails({
+  account,
+  amount,
+}: {
+  account: FundingAccount;
+  amount: number;
+}) {
+  const copy = (val: string) =>
+    navigator.clipboard
+      .writeText(val)
+      .then(() => toast.success("Copied"))
+      .catch(() => toast.error("Could not copy"));
+
+  return (
+    <>
+      <div className="mt-2 text-xs uppercase tracking-[0.1em] text-fg-dim">
+        Send exactly
+      </div>
+      <div className="mt-1 font-display text-[42px] font-semibold tracking-tight tabular-nums">
+        <span className="text-[24px] text-fg-dim">₦</span>
+        {amount.toLocaleString("en-NG")}
+      </div>
+
+      <div className="mt-4 rounded-xl border border-line bg-surface p-4">
+        <Row label="Bank" value={account.bankName} onCopy={() => copy(account.bankName)} />
+        <Row
+          label="Account number"
+          value={account.accountNumber}
+          mono
+          onCopy={() => copy(account.accountNumber)}
+        />
+        <Row
+          label="Account name"
+          value={account.accountName}
+          onCopy={() => copy(account.accountName)}
+        />
+        <Row
+          label="Reference"
+          value={account.reference}
+          mono
+          onCopy={() => copy(account.reference)}
+        />
+      </div>
+
+      <div className="mt-3 rounded-xl border border-accent/15 bg-accent/[0.04] p-3.5">
+        <div className="flex items-start gap-2.5">
+          <div className="mt-0.5 text-accent">
+            <Icon name="lock" size={18} />
+          </div>
+          <div className="text-xs leading-[1.5] text-fg-muted">
+            Transfer from a bank account in your name. Your wallet credits within
+            seconds of confirmation.
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Row({
+  label,
+  value,
+  mono,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between border-b border-line py-2.5 last:border-b-0">
+      <div>
+        <div className="text-[11px] text-fg-dim">{label}</div>
+        <div className={`mt-0.5 text-sm ${mono ? "font-mono tabular-nums" : ""}`}>
+          {value}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onCopy}
+        className="rounded-md border border-line bg-surface-2 p-2 text-fg-muted hover:text-fg"
+      >
+        <Icon name="copy" size={14} />
+      </button>
+    </div>
   );
 }

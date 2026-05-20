@@ -1,34 +1,20 @@
 "use client";
-import { useState } from "react";
+import { useSystemHealth } from "@/app/components/admin/hooks/use-admin-dashboard";
 import { SectionHeader } from "./SectionHeader";
 
-interface HealthRow {
-  name: string;
-  val: string;
-  status: "ok" | "warn" | "error";
-  note: string;
-}
-
-const MOCK_HEALTH: HealthRow[] = [
-  { name: "Strowallet webhook", val: "180ms", status: "ok", note: "Payment processing healthy." },
-  { name: "WhatsApp Business API", val: "98% deliv", status: "ok", note: "Delivery rate healthy across both car and gadget campaigns." },
-  { name: "Resend (email)", val: "99.4% deliv", status: "ok", note: "All transactional email queues clear." },
-  { name: "Redis · bid queue", val: "14 jobs", status: "ok", note: "BullMQ processing normally. No stuck jobs." },
-  { name: "PostgreSQL primary", val: "12ms p95", status: "ok", note: "Connection pool 24/100. No long-running queries." },
-  { name: "Socket.IO gateway", val: "1,284 peers", status: "ok", note: "Live bid broadcast operating normally." },
-];
-
-function statusDot(status: HealthRow["status"]) {
-  const colors = { ok: "bg-green", warn: "bg-amber", error: "bg-red" };
-  return <span className={`inline-block h-2 w-2 rounded-full ${colors[status]}`} />;
-}
+const DOT: Record<string, string> = {
+  ok: "bg-green",
+  warn: "bg-amber",
+  err: "bg-red",
+};
 
 export function HealthScreen() {
-  // Integration: GET /api/v1/admin/health
-  const [rows] = useState<HealthRow[]>(MOCK_HEALTH);
+  const { data, isLoading, isError, refetch } = useSystemHealth();
+  const services = data ?? [];
 
-  const okCount = rows.filter((r) => r.status === "ok").length;
-  const warnCount = rows.filter((r) => r.status === "warn").length;
+  const ok = services.filter((s) => s.status === "ok").length;
+  const warn = services.filter((s) => s.status === "warn").length;
+  const err = services.filter((s) => s.status === "err").length;
 
   return (
     <>
@@ -38,34 +24,65 @@ export function HealthScreen() {
       />
 
       <div className="mt-4 grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-line bg-surface p-4 text-center">
-          <div className="font-mono text-[24px] font-bold text-green">{okCount}</div>
-          <div className="text-[10px] uppercase tracking-[0.1em] text-fg-dim">Healthy</div>
-        </div>
-        <div className="rounded-xl border border-line bg-surface p-4 text-center">
-          <div className="font-mono text-[24px] font-bold text-amber">{warnCount}</div>
-          <div className="text-[10px] uppercase tracking-[0.1em] text-fg-dim">Warnings</div>
-        </div>
-        <div className="rounded-xl border border-line bg-surface p-4 text-center">
-          <div className="font-mono text-[24px] font-bold text-fg">{rows.length}</div>
-          <div className="text-[10px] uppercase tracking-[0.1em] text-fg-dim">Total checks</div>
-        </div>
+        <Stat value={ok} label="Healthy" color="text-green" />
+        <Stat value={warn} label="Warnings" color="text-amber" />
+        <Stat value={err || services.length} label={err ? "Down" : "Total"} color={err ? "text-red" : "text-fg"} />
       </div>
 
-      <div className="mt-4 flex flex-col gap-2">
-        {rows.map((r) => (
-          <div key={r.name} className="rounded-[14px] border border-line bg-surface p-3.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {statusDot(r.status)}
-                <span className="text-[13px] font-medium">{r.name}</span>
+      {isLoading ? (
+        <div className="mt-8 text-center text-sm text-fg-dim">Loading…</div>
+      ) : isError ? (
+        <div className="mt-8 text-center">
+          <p className="text-sm text-fg-dim">Could not load.</p>
+          <button onClick={() => refetch()} className="mt-2 text-xs text-accent">
+            Retry
+          </button>
+        </div>
+      ) : services.length === 0 ? (
+        <div className="mt-8 text-center text-sm text-fg-dim">
+          No services reported.
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-col gap-2">
+          {services.map((r) => (
+            <div
+              key={r.name}
+              className="rounded-[14px] border border-line bg-surface p-3.5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-block h-2 w-2 rounded-full ${DOT[r.status] ?? DOT.warn}`}
+                  />
+                  <span className="text-[13px] font-medium">{r.name}</span>
+                </div>
+                <span className="font-mono text-xs text-fg-muted">
+                  {r.latency !== undefined ? `${r.latency}ms` : r.status}
+                </span>
               </div>
-              <span className="font-mono text-xs text-fg-muted">{r.val}</span>
             </div>
-            <div className="mt-1 text-[11px] text-fg-dim pl-4">{r.note}</div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </>
+  );
+}
+
+function Stat({
+  value,
+  label,
+  color,
+}: {
+  value: number;
+  label: string;
+  color: string;
+}) {
+  return (
+    <div className="rounded-xl border border-line bg-surface p-4 text-center">
+      <div className={`font-mono text-[24px] font-bold ${color}`}>{value}</div>
+      <div className="text-[10px] uppercase tracking-[0.1em] text-fg-dim">
+        {label}
+      </div>
+    </div>
   );
 }

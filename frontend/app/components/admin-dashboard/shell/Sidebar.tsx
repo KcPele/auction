@@ -1,16 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMe } from "@/app/components/auth/hooks/use-me";
 import { AdminIcon, type AdminIconName } from "../primitives/Icon";
-import { INITIAL_COUNTS } from "../data";
-import type { Counts } from "../types";
 
 interface NavItem {
   id: string;
   label: string;
   icon: AdminIconName;
-  countKey?: keyof Counts;
-  urgent?: boolean;
   href: string;
 }
 interface NavGroup {
@@ -23,15 +20,15 @@ const NAV: NavGroup[] = [
     group: "OVERVIEW",
     items: [
       { id: "dashboard", label: "Dashboard", icon: "grid", href: "/admin" },
-      { id: "auctions", label: "Live auctions", icon: "radio", countKey: "auctions", href: "/admin/auctions" },
+      { id: "auctions", label: "Live auctions", icon: "radio", href: "/admin/auctions" },
     ],
   },
   {
     group: "MODERATION",
     items: [
-      { id: "access-codes", label: "Access code requests", icon: "key", countKey: "access-codes", href: "/admin/access-codes" },
-      { id: "listings", label: "Listing approvals", icon: "check", countKey: "listings", urgent: true, href: "/admin/listings" },
-      { id: "disputes", label: "Disputes", icon: "alert", countKey: "disputes", urgent: true, href: "/admin/disputes" },
+      { id: "access-codes", label: "Access code requests", icon: "key", href: "/admin/access-codes" },
+      { id: "listings", label: "Listing approvals", icon: "check", href: "/admin/listings" },
+      { id: "disputes", label: "Disputes", icon: "alert", href: "/admin/disputes" },
     ],
   },
   {
@@ -60,6 +57,11 @@ interface Props {
 
 export function Sidebar({ onNavigate }: Props) {
   const pathname = usePathname();
+  const { data: me } = useMe();
+  const initials = me
+    ? `${me.firstName[0] ?? ""}${me.lastName[0] ?? ""}`.toUpperCase()
+    : "AD";
+
   return (
     <aside className="z-[60] flex h-full flex-col overflow-hidden border-r border-line bg-bg-1">
       <div className="flex items-center justify-between border-b border-line px-[18px] py-4">
@@ -96,7 +98,6 @@ export function Sidebar({ onNavigate }: Props) {
               {section.group}
             </div>
             {section.items.map((it) => {
-              const count = it.countKey ? INITIAL_COUNTS[it.countKey] : null;
               const active = it.href === "/admin" ? pathname === "/admin" : pathname.startsWith(it.href);
               return (
                 <Link
@@ -113,15 +114,6 @@ export function Sidebar({ onNavigate }: Props) {
                     <AdminIcon name={it.icon} size={16} />
                   </span>
                   <span className="truncate">{it.label}</span>
-                  {count != null && count > 0 && (
-                    <span
-                      className={`ml-auto rounded-full px-[7px] py-px font-mono text-[11px] font-semibold ${
-                        it.urgent ? "bg-red/10 text-red" : "bg-accent/10 text-accent"
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  )}
                 </Link>
               );
             })}
@@ -136,11 +128,13 @@ export function Sidebar({ onNavigate }: Props) {
             background: "linear-gradient(135deg, var(--accent), var(--accent-deep))",
           }}
         >
-          AO
+          {initials}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold">Adaeze O.</div>
-          <div className="text-[11px] text-fg-dim">Senior admin · Lagos</div>
+          <div className="truncate text-[13px] font-semibold">
+            {me?.fullName || "Admin"}
+          </div>
+          <div className="text-[11px] text-fg-dim">Administrator</div>
         </div>
       </div>
     </aside>

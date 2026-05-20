@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useMe } from "@/app/components/auth/hooks/use-me";
+import { useUnreadCount } from "@/app/components/notifications/hooks/use-notifications";
 import { Icon } from "../primitives/Icon";
 
 const TITLE_MAP: Record<string, string> = {
@@ -28,6 +30,11 @@ export function TopBar() {
   const router = useRouter();
   const path = usePathname() || "/dashboard";
   const canBack = BACK_PREFIXES.some((p) => path.startsWith(p));
+  const { data: me } = useMe();
+  const { data: unread = 0 } = useUnreadCount();
+  const initials = me
+    ? `${me.firstName[0] ?? ""}${me.lastName[0] ?? ""}`.toUpperCase()
+    : "";
   return (
     <div className="sticky top-0 z-10 flex items-center gap-4 border-b border-line bg-[rgba(11,10,8,0.85)] px-8 py-4 backdrop-blur-md">
       {canBack && (
@@ -51,7 +58,11 @@ export function TopBar() {
       <div className="ml-auto flex items-center gap-2">
         <Link href="/dashboard/notifications" className={ICON_BTN_CLASS}>
           <Icon name="bell" size={18} />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-bg bg-red" />
+          {unread > 0 && (
+            <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-bg bg-red px-1 font-mono text-[9px] font-bold text-fg">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
         </Link>
         <Link
           href="/dashboard/profile"
@@ -64,9 +75,9 @@ export function TopBar() {
                 "linear-gradient(135deg, var(--accent), var(--accent-deep))",
             }}
           >
-            AO
+            {initials || "·"}
           </span>
-          <span className="text-[13px] font-medium">Adaeze</span>
+          <span className="text-[13px] font-medium">{me?.firstName ?? "—"}</span>
           <Icon name="chevron" size={14} style={{ color: "var(--fg-dim)" }} />
         </Link>
       </div>

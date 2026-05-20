@@ -1,7 +1,12 @@
 "use client";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAdminAuctions } from "@/app/components/admin/hooks/use-admin-dashboard";
+import { useAdminDisputes } from "@/app/components/admin/hooks/use-admin-extras";
+import { usePendingWithdrawals } from "@/app/components/admin/hooks/use-admin-withdrawals";
+import { usePendingApplications, usePendingListings } from "@/app/components/admin/hooks/use-admin-listings";
 import { AdminIcon } from "../primitives/Icon";
-import { INITIAL_COUNTS, SECTION_LABELS } from "../data";
+import { SECTION_LABELS } from "../data";
 
 interface Props {
   onBurgerClick: () => void;
@@ -17,6 +22,19 @@ export function TopBar({ onBurgerClick }: Props) {
   const pathname = usePathname();
   const sectionId = deriveSectionId(pathname);
   const crumb = SECTION_LABELS[sectionId] ?? "Dashboard";
+
+  // Aggregate "needs attention" badge: open disputes + pending withdrawals +
+  // pending applications + pending listings.
+  const disputes = useAdminDisputes({ status: "OPEN" });
+  const withdrawals = usePendingWithdrawals();
+  const applications = usePendingApplications();
+  const listings = usePendingListings();
+  const liveAuctions = useAdminAuctions({ status: "LIVE", limit: 1 });
+  const alertCount =
+    (disputes.data?.total ?? 0) +
+    (withdrawals.data?.length ?? 0) +
+    (applications.data?.length ?? 0) +
+    (listings.data?.length ?? 0);
 
   return (
     <header
@@ -50,26 +68,27 @@ export function TopBar({ onBurgerClick }: Props) {
       <div className="ml-auto flex items-center gap-2">
         <div className="hidden items-center gap-1.5 rounded-md border border-line px-2.5 py-1.5 text-xs text-fg-muted md:inline-flex">
           <span className="h-1.5 w-1.5 rounded-full bg-green animate-pulse-green" />
-          <span>All systems · {INITIAL_COUNTS.auctions} live</span>
+          <span>All systems · {liveAuctions.data?.total ?? 0} live</span>
         </div>
-        <button
-          type="button"
+        <Link
+          href="/admin/disputes"
           className="inline-flex items-center gap-1.5 rounded-md border border-line bg-transparent px-2 py-1.5 text-xs text-fg-muted hover:border-line-strong hover:bg-surface hover:text-fg sm:px-2.5"
         >
           <AdminIcon name="bell" size={13} strokeWidth={2} />
           <span className="hidden sm:inline">Alerts</span>
-          <span className="font-bold text-red">{INITIAL_COUNTS.disputes + 2}</span>
-        </button>
-        <button
-          type="button"
+          {alertCount > 0 && (
+            <span className="font-bold text-red">{alertCount}</span>
+          )}
+        </Link>
+        <Link
+          href="/admin/access-codes"
           className="inline-flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1.5 text-xs font-semibold text-[#1a0a00] hover:shadow-lg hover:shadow-accent/30 sm:px-2.5"
           style={{ background: "linear-gradient(180deg, var(--accent-2), var(--accent))" }}
-          onClick={() => alert("Issue access code modal — coming soon")}
         >
           <AdminIcon name="plus" size={13} strokeWidth={2.5} />
           <span className="hidden sm:inline">Issue access code</span>
           <span className="sm:hidden">Code</span>
-        </button>
+        </Link>
       </div>
     </header>
   );

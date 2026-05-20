@@ -1,6 +1,21 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { toast } from "sonner";
+import {
+  useCarListing,
+  useGadgetListing,
+  useSubmitListing,
+  useUpdateCar,
+  useUpdateGadget,
+} from "@/app/components/listings/hooks/use-listings";
+import type {
+  CarListing,
+  GadgetListing,
+  UpdateCarInput,
+  UpdateGadgetInput,
+} from "@/app/components/listings/types/listing.types";
+import { ApiError } from "@/app/lib/api/error";
 import { Icon } from "../primitives/Icon";
 
 type Category = "car" | "gadget";
@@ -13,62 +28,96 @@ const inputClass =
   "w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent placeholder:text-fg-dim";
 const labelClass = "mb-1 block text-xs font-medium text-fg-muted";
 
-interface Props {
-  id: string;
-}
-
-export function EditListingScreen({ id }: Props) {
+export function EditListingScreen({ id }: { id: string }) {
   const router = useRouter();
   const params = useSearchParams();
   const category = (params.get("category") ?? "car") as Category;
 
-  // Integration: hydrate from GET /api/v1/cars/{id} or GET /api/v1/gadgets/{id}
-  const [form, setForm] = useState(() =>
-    category === "car"
-      ? {
-          make: "Toyota",
-          model: "Camry",
-          year: "2018",
-          colour: "Black",
-          reg: "ABC-123-LA",
-          mileage: "68000",
-          condition: "Good",
-          faults: "AC needs servicing.",
-          basePriceNaira: 8_500_000,
-          holdPercent: 10,
-          minimumBidIncrementNaira: 50_000,
-          startTime: "",
-          durationMinutes: 120,
-        }
-      : {
-          type: "Phone",
-          brand: "Apple",
-          model: "iPhone 15 Pro",
-          colour: "Natural Titanium",
-          batteryHealthPercent: 92,
-          specs: "256GB · A17 Pro",
-          usage: "Personal · 6 months",
-          defects: "Hairline scratch on side.",
-          proofDocumentUrl: "https://cdn.example.com/receipt.pdf",
-          basePriceNaira: 950_000,
-          holdPercent: 10,
-          minimumBidIncrementNaira: 10_000,
-          startTime: "",
-          durationMinutes: 60,
-        },
-  );
+  const car = useCarListing(category === "car" ? id : undefined);
+  const gadget = useGadgetListing(category === "gadget" ? id : undefined);
+  const updateCar = useUpdateCar(id);
+  const updateGadget = useUpdateGadget(id);
+  const submit = useSubmitListing();
 
-  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
-    setForm((s) => ({ ...s, [k]: v }));
+  const query = category === "car" ? car : gadget;
+  const listing = (category === "car" ? car.data : gadget.data) ?? null;
 
-  const save = (submit: boolean) => {
-    // Integration:
-    //   PATCH /api/v1/cars/{id}   or   PATCH /api/v1/gadgets/{id}
-    // Convert *Naira fields to *Kobo before sending.
-    // If submit=true, also POST /api/v1/cars/{id}/submit or /api/v1/gadgets/{id}/submit afterwards.
-    console.log("save", { id, category, submit, form });
-    router.push("/dashboard/listings");
+  const [form, setForm] = useState<EditFormState | null>(null);
+  useEffect(() => {
+    if (!listing) return;
+    const frame = window.requestAnimationFrame(() => setForm(toFormState(listing)));
+    return () => window.cancelAnimationFrame(frame);
+  }, [listing]);
+
+  if (query.isLoading || !form) {
+    return <div className="py-10 text-center text-sm text-fg-dim">Loading…</div>;
+  }
+  if (query.isError || !listing) {
+    return (
+      <div className="py-10 text-center text-sm text-fg-dim">
+        Could not load listing.
+      </div>
+    );
+  }
+
+  const set = <K extends keyof EditFormState>(k: K, v: EditFormState[K]) =>
+    setForm((s) => (s ? { ...s, [k]: v } : s));
+
+  const buildPatchCar = (): UpdateCarInput => ({
+    make: form.make,
+    model: form.model,
+    year: Number(form.year),
+    colour: form.colour,
+    registrationNumber: form.reg,
+    mileage: Number(form.mileage),
+    condition: form.condition,
+    knownFaults: form.faults || undefined,
+    basePriceNaira: form.basePriceNaira,
+    holdPercent: form.holdPercent,
+    minimumBidIncrementNaira: form.minimumBidIncrementNaira,
+    startTime: form.startTime ? new Date(form.startTime).toISOString() : undefined,
+    durationMinutes: form.durationMinutes,
+  });
+
+  const buildPatchGadget = (): UpdateGadgetInput => ({
+    type: form.type,
+    brand: form.brand,
+    model: form.model,
+    colour: form.colour,
+    batteryHealthPercent: form.batteryHealthPercent,
+    specs: form.specs ? parseSpecs(form.specs) : undefined,
+    usageHistory: form.usage,
+    defects: form.defects || undefined,
+    proofDocumentUrl: form.proofDocumentUrl,
+    basePriceNaira: form.basePriceNaira,
+    holdPercent: form.holdPercent,
+    minimumBidIncrementNaira: form.minimumBidIncrementNaira,
+    startTime: form.startTime ? new Date(form.startTime).toISOString() : undefined,
+    durationMinutes: form.durationMinutes,
+  });
+
+  const onSave = async (resubmit: boolean) => {
+    try {
+      if (category === "car") {
+        await updateCar.mutateAsync(buildPatchCar());
+      } else {
+        await updateGadget.mutateAsync(buildPatchGadget());
+      }
+      if (resubmit) {
+        await submit.mutateAsync({ id, category: category === "car" ? "cars" : "gadgets" });
+        toast.success("Listing resubmitted");
+      } else {
+        toast.success("Draft saved");
+      }
+      router.push("/dashboard/listings");
+    } catch (err) {
+      if (err instanceof ApiError) toast.error(err.message);
+      else toast.error("Could not save");
+    }
   };
+
+  const isPending =
+    updateCar.isPending || updateGadget.isPending || submit.isPending;
 
   return (
     <>
@@ -81,49 +130,44 @@ export function EditListingScreen({ id }: Props) {
           <Icon name="chevron-l" size={14} /> Back
         </button>
       </div>
-      <h1 className="m-0 font-display text-[26px] font-semibold tracking-tight">Edit listing</h1>
+      <h1 className="m-0 font-display text-[26px] font-semibold tracking-tight">
+        Edit listing
+      </h1>
       <p className="mt-1 text-sm text-fg-muted">
-        {category === "car" ? "Car" : "Gadget"} · ID {id}
+        {category === "car" ? "Car" : "Gadget"}
       </p>
 
       {category === "car" ? (
-        <CarFields form={form as never} set={set as never} />
+        <CarFields form={form} set={set} />
       ) : (
-        <GadgetFields form={form as never} set={set as never} />
+        <GadgetFields form={form} set={set} />
       )}
-
-      <PricingFields form={form as never} set={set as never} />
+      <PricingFields form={form} set={set} />
 
       <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button
           type="button"
-          onClick={() => save(false)}
-          className="rounded-xl border border-line bg-surface px-5 py-3 text-sm font-medium text-fg hover:bg-surface-2"
+          disabled={isPending}
+          onClick={() => onSave(false)}
+          className="rounded-xl border border-line bg-surface px-5 py-3 text-sm font-medium text-fg hover:bg-surface-2 disabled:opacity-60"
         >
-          Save draft
+          {updateCar.isPending || updateGadget.isPending ? "Saving…" : "Save draft"}
         </button>
         <button
           type="button"
-          onClick={() => save(true)}
-          className="rounded-xl px-5 py-3 text-sm font-bold text-[#1a0a00]"
+          disabled={isPending}
+          onClick={() => onSave(true)}
+          className="rounded-xl px-5 py-3 text-sm font-bold text-[#1a0a00] disabled:opacity-60"
           style={PRIMARY_BTN_BG}
         >
-          Save & resubmit
+          {submit.isPending ? "Submitting…" : "Save & resubmit"}
         </button>
       </div>
     </>
   );
 }
 
-interface FieldGroupProps<T> {
-  form: T;
-  set: <K extends keyof T>(k: K, v: T[K]) => void;
-}
-
-function CarFields({
-  form,
-  set,
-}: FieldGroupProps<{
+interface EditFormState {
   make: string;
   model: string;
   year: string;
@@ -132,7 +176,92 @@ function CarFields({
   mileage: string;
   condition: string;
   faults: string;
-}>) {
+  type: string;
+  brand: string;
+  batteryHealthPercent: number;
+  specs: string;
+  usage: string;
+  defects: string;
+  proofDocumentUrl: string;
+  basePriceNaira: number;
+  holdPercent: number;
+  minimumBidIncrementNaira: number;
+  startTime: string;
+  durationMinutes: number;
+}
+
+function toFormState(l: CarListing | GadgetListing): EditFormState {
+  const base = {
+    basePriceNaira: l.basePrice,
+    holdPercent: l.holdPercent,
+    minimumBidIncrementNaira: l.minimumBidIncrement,
+    startTime: toLocalInput(l.startTime),
+    durationMinutes: l.durationMinutes,
+  };
+  if (l.category === "cars") {
+    return {
+      make: l.make,
+      model: l.model,
+      year: String(l.year),
+      colour: l.colour,
+      reg: l.registrationNumber,
+      mileage: String(l.mileage),
+      condition: l.condition,
+      faults: l.knownFaults ?? "",
+      type: "",
+      brand: "",
+      batteryHealthPercent: 0,
+      specs: "",
+      usage: "",
+      defects: "",
+      proofDocumentUrl: "",
+      ...base,
+    };
+  }
+  return {
+    make: "",
+    model: l.model,
+    year: "",
+    colour: l.colour,
+    reg: "",
+    mileage: "",
+    condition: "",
+    faults: "",
+    type: l.type,
+    brand: l.brand,
+    batteryHealthPercent: l.batteryHealthPercent ?? 0,
+    specs: l.specs
+      ? Object.entries(l.specs)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(", ")
+      : "",
+    usage: l.usageHistory,
+    defects: l.defects ?? "",
+    proofDocumentUrl: l.proofDocumentUrl,
+    ...base,
+  };
+}
+
+function toLocalInput(d: Date): string {
+  const tz = d.getTimezoneOffset() * 60_000;
+  return new Date(d.getTime() - tz).toISOString().slice(0, 16);
+}
+
+function parseSpecs(s: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const pair of s.split(",")) {
+    const [k, v] = pair.split(":").map((x) => x.trim());
+    if (k && v) out[k] = v;
+  }
+  return out;
+}
+
+interface FG<T> {
+  form: EditFormState;
+  set: <K extends keyof T>(k: K, v: T[K]) => void;
+}
+
+function CarFields({ form, set }: FG<EditFormState>) {
   return (
     <div className="mt-5 grid gap-3 sm:grid-cols-2">
       <Text label="Make" value={form.make} onChange={(v) => set("make", v)} />
@@ -155,32 +284,23 @@ function CarFields({
   );
 }
 
-function GadgetFields({
-  form,
-  set,
-}: FieldGroupProps<{
-  type: string;
-  brand: string;
-  model: string;
-  colour: string;
-  batteryHealthPercent: number;
-  specs: string;
-  usage: string;
-  defects: string;
-  proofDocumentUrl: string;
-}>) {
+function GadgetFields({ form, set }: FG<EditFormState>) {
   return (
     <div className="mt-5 grid gap-3 sm:grid-cols-2">
       <Text label="Type" value={form.type} onChange={(v) => set("type", v)} />
       <Text label="Brand" value={form.brand} onChange={(v) => set("brand", v)} />
       <Text label="Model" value={form.model} onChange={(v) => set("model", v)} />
       <Text label="Colour" value={form.colour} onChange={(v) => set("colour", v)} />
-      <Number
+      <Num
         label="Battery health (%)"
         value={form.batteryHealthPercent}
         onChange={(v) => set("batteryHealthPercent", v)}
       />
-      <Text label="Specs (short summary)" value={form.specs} onChange={(v) => set("specs", v)} />
+      <Text
+        label="Specs (key:value, key:value)"
+        value={form.specs}
+        onChange={(v) => set("specs", v)}
+      />
       <div className="sm:col-span-2">
         <label className={labelClass}>Usage history</label>
         <textarea
@@ -208,36 +328,27 @@ function GadgetFields({
   );
 }
 
-function PricingFields({
-  form,
-  set,
-}: FieldGroupProps<{
-  basePriceNaira: number;
-  holdPercent: number;
-  minimumBidIncrementNaira: number;
-  startTime: string;
-  durationMinutes: number;
-}>) {
+function PricingFields({ form, set }: FG<EditFormState>) {
   return (
     <div className="mt-6">
       <h2 className="text-[15px] font-semibold tracking-tight">Pricing</h2>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Number
+        <Num
           label="Base price (₦)"
           value={form.basePriceNaira}
           onChange={(v) => set("basePriceNaira", v)}
         />
-        <Number
+        <Num
           label="Bid hold (%)"
           value={form.holdPercent}
           onChange={(v) => set("holdPercent", v)}
         />
-        <Number
+        <Num
           label="Minimum bid increment (₦)"
           value={form.minimumBidIncrementNaira}
           onChange={(v) => set("minimumBidIncrementNaira", v)}
         />
-        <Number
+        <Num
           label="Duration (minutes)"
           value={form.durationMinutes}
           onChange={(v) => set("durationMinutes", v)}
@@ -278,7 +389,7 @@ function Text({
   );
 }
 
-function Number({
+function Num({
   label,
   value,
   onChange,

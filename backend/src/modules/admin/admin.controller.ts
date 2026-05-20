@@ -45,6 +45,7 @@ import { UpdatePaymentAccountDto } from './dto/update-payment-account.dto';
 import { UpdatePlatformFeeDto } from './dto/update-platform-fee.dto';
 import { UpdatePlatformToggleDto } from './dto/update-platform-toggle.dto';
 import { WalletWithdrawalsService } from '../wallets/wallet-withdrawals.service';
+import { ListWithdrawalsQueryDto } from '../wallets/dto/list-withdrawals-query.dto';
 import { AuctionSettlementService } from '../auctions/auction-settlement.service';
 
 @ApiTags('admin')
@@ -167,6 +168,13 @@ export class AdminController {
   @ApiOkResponse({ description: 'Notification logs returned.' })
   listNotificationLogs(@Query() query: ListNotificationLogsQueryDto) {
     return this.dashboardService.listNotificationLogs(query);
+  }
+
+  @Get('in-app-notifications')
+  @ApiOperation({ summary: 'Recent in-app notifications' })
+  @ApiOkResponse({ description: 'In-app notifications returned.' })
+  listInAppNotifications() {
+    return this.dashboardService.listInAppNotifications();
   }
 
   @Get('settings/escrow')
@@ -314,6 +322,13 @@ export class AdminController {
   @ApiOkResponse({ description: 'Pending withdrawals returned.' })
   listPendingWithdrawals() {
     return this.walletWithdrawalsService.listPendingWithdrawals();
+  }
+
+  @Get('wallet-withdrawals')
+  @ApiOperation({ summary: 'List all wallet withdrawals across users' })
+  @ApiOkResponse({ description: 'Withdrawals returned.' })
+  listAllWithdrawals(@Query() query: ListWithdrawalsQueryDto) {
+    return this.walletWithdrawalsService.listAllWithdrawals(query);
   }
 
   @Post('wallet-withdrawals/:id/authorize')

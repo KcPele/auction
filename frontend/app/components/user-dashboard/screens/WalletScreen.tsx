@@ -1,14 +1,20 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Icon, type IconName } from "../primitives/Icon";
-import { WalletHero } from "../widgets/WalletHero";
+import { useLedger } from "@/app/components/wallet/hooks/use-wallet";
+import {
+  BUCKET_FOR,
+  ICON_BG,
+  ICON_FOR,
+  type ActivityBucket,
+} from "@/app/components/wallet/utils/ledger-display";
+import { timeAgo } from "@/app/components/notifications/utils/relative-time";
+import { Icon } from "../primitives/Icon";
 import { Chips, type ChipOption } from "../widgets/Chips";
-import { ACTIVITY } from "../data";
+import { WalletHero } from "../widgets/WalletHero";
 import { fmtNaira } from "../utils";
-import type { ActivityType } from "../types";
 
-type Filter = "all" | ActivityType;
+type Filter = "all" | ActivityBucket;
 const FILTERS: ChipOption<Filter>[] = [
   { id: "all", label: "All activity" },
   { id: "top", label: "Top-ups" },
@@ -17,36 +23,25 @@ const FILTERS: ChipOption<Filter>[] = [
   { id: "pay", label: "Settled" },
 ];
 
-const ICON_FOR: Record<ActivityType, IconName> = {
-  top: "arrow-down",
-  hold: "lock",
-  release: "refresh",
-  pay: "check",
-};
-
-const ICON_BG: Record<ActivityType, string> = {
-  top: "bg-green/[0.12] text-green",
-  hold: "bg-accent/[0.12] text-accent",
-  release: "bg-[rgba(107,176,255,0.12)] text-[var(--blue)]",
-  pay: "bg-red/[0.12] text-red",
-};
-
 const PRIMARY_BTN_BG = {
   background: "linear-gradient(180deg, var(--accent-light), var(--accent))",
 };
 
 export function WalletScreen() {
-  // Integration: fetch balance from GET /api/v1/wallets/me
-  // Integration: fetch activity from GET /api/v1/wallets/me/ledger?limit=20&offset=0
   const [filter, setFilter] = useState<Filter>("all");
-  const filtered = useMemo(
-    () => (filter === "all" ? ACTIVITY : ACTIVITY.filter((x) => x.type === filter)),
-    [filter],
-  );
+  const { data, isLoading, isError, refetch } = useLedger({ limit: 50 });
+
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    if (filter === "all") return data;
+    return data.filter((e) => BUCKET_FOR[e.type] === filter);
+  }, [data, filter]);
 
   return (
     <>
-      <h1 className="m-0 font-display text-[26px] font-semibold tracking-tight">Wallet</h1>
+      <h1 className="m-0 font-display text-[26px] font-semibold tracking-tight">
+        Wallet
+      </h1>
 
       <WalletHero />
 
@@ -58,7 +53,7 @@ export function WalletScreen() {
           <div>
             <div className="mb-0.5 text-[13px] font-semibold">How holds work</div>
             <div className="text-xs leading-[1.5] text-fg-muted">
-              Every bid places a 10% hold on your wallet. Lose the auction — hold released
+              Every bid places a hold on your wallet. Lose the auction — hold released
               instantly. Win — hold applies to the balance.
             </div>
           </div>
@@ -70,32 +65,55 @@ export function WalletScreen() {
       </div>
 
       <div className="mt-3">
-        {filtered.map((l) => (
-          <div
-            key={l.id}
-            className="grid grid-cols-[32px_1fr_auto] items-center gap-3 border-b border-line py-3 last:border-b-0"
-          >
-            <div
-              className={`flex h-8 w-8 items-center justify-center rounded-full font-mono text-[13px] font-bold ${ICON_BG[l.type]}`}
+        {isLoading && !data ? (
+          <LedgerSkeleton />
+        ) : isError ? (
+          <div className="py-10 text-center text-sm text-fg-dim">
+            Could not load activity.{" "}
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="text-accent hover:text-accent-2"
             >
-              <Icon name={ICON_FOR[l.type]} size={14} strokeWidth={2} />
-            </div>
-            <div>
-              <div className="text-[13px] font-medium">{l.title}</div>
-              <div className="mt-0.5 text-[11px] text-fg-dim">
-                {l.sub} · {l.time}
-              </div>
-            </div>
-            <div
-              className={`text-right font-mono text-sm font-semibold tabular-nums ${
-                l.amt > 0 ? "text-green" : "text-red"
-              }`}
-            >
-              {l.amt > 0 ? "+" : ""}
-              {fmtNaira(l.amt)}
-            </div>
+              Retry
+            </button>
           </div>
-        ))}
+        ) : filtered.length === 0 ? (
+          <div className="py-10 text-center text-sm text-fg-dim">
+            No activity yet.
+          </div>
+        ) : (
+          filtered.map((l) => {
+            const bucket = BUCKET_FOR[l.type];
+            return (
+              <div
+                key={l.id}
+                className="grid grid-cols-[32px_1fr_auto] items-center gap-3 border-b border-line py-3 last:border-b-0"
+              >
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full font-mono text-[13px] font-bold ${ICON_BG[bucket]}`}
+                >
+                  <Icon name={ICON_FOR[bucket]} size={14} strokeWidth={2} />
+                </div>
+                <div>
+                  <div className="text-[13px] font-medium">{l.description}</div>
+                  <div className="mt-0.5 text-[11px] text-fg-dim">
+                    {l.reference ? `${l.reference} · ` : ""}
+                    {timeAgo(l.createdAt)}
+                  </div>
+                </div>
+                <div
+                  className={`text-right font-mono text-sm font-semibold tabular-nums ${
+                    l.amount > 0 ? "text-green" : "text-red"
+                  }`}
+                >
+                  {l.amount > 0 ? "+" : ""}
+                  {fmtNaira(l.amount)}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       <Link
@@ -112,6 +130,26 @@ export function WalletScreen() {
       >
         Withdrawal history
       </Link>
+    </>
+  );
+}
+
+function LedgerSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="grid grid-cols-[32px_1fr_auto] items-center gap-3 border-b border-line py-3"
+        >
+          <div className="h-8 w-8 animate-pulse rounded-full bg-surface-2" />
+          <div className="space-y-2">
+            <div className="h-3 w-1/2 animate-pulse rounded bg-surface-2" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-surface-2" />
+          </div>
+          <div className="h-3 w-16 animate-pulse rounded bg-surface-2" />
+        </div>
+      ))}
     </>
   );
 }

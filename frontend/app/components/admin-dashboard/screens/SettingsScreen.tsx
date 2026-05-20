@@ -1,60 +1,35 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+  useBiddingSetting,
+  useEscrowSetting,
+  usePaymentAccount,
+  usePlatformFees,
+  usePlatformToggles,
+  useUpdateBiddingSetting,
+  useUpdateEscrowSetting,
+  useUpdatePaymentAccount,
+  useUpdatePlatformFee,
+  useUpdatePlatformToggles,
+} from "@/app/components/admin/hooks/use-admin-settings";
+import { ApiError } from "@/app/lib/api/error";
 import { Card, CardBody, CardHead } from "../widgets/Card";
-import { SectionHeader } from "./SectionHeader";
 import { NumberInput } from "../../ui/NumberInput";
+import { SectionHeader } from "./SectionHeader";
 
-// --- Platform fees per category (backend: /admin/settings/platform-fees) ---
-interface CategoryFees {
-  sellerFeeBps: number;
-  buyerFeeBps: number;
-}
-
-interface FeesState {
-  CAR: CategoryFees;
-  GADGET: CategoryFees;
-}
-
-// --- Bidding (backend: /admin/settings/bidding) ---
-interface BiddingState {
-  bidRequirementPercent: number;
-}
-
-// --- Payment account (backend: /admin/settings/payment-account) ---
-interface PaymentAccount {
-  bankName: string;
-  accountNumber: string;
-  accountName: string;
-}
-
-// --- Holds & escrow (backend: /admin/settings/escrow) ---
-interface EscrowState {
-  holdMin: number;
-  holdMax: number;
-  paymentWindowHrs: number;
-  autoExtendMin: number;
-}
-
-const DEFAULT_FEES: FeesState = {
-  CAR: { sellerFeeBps: 300, buyerFeeBps: 0 },
-  GADGET: { sellerFeeBps: 500, buyerFeeBps: 250 },
+const PRIMARY_BTN = {
+  background: "linear-gradient(180deg, var(--accent-2), var(--accent))",
 };
 
-const DEFAULT_BIDDING: BiddingState = {
-  bidRequirementPercent: 10,
+const wrap = (err: unknown, fallback: string) => {
+  if (err instanceof ApiError) toast.error(err.message);
+  else toast.error(fallback);
 };
 
-const DEFAULT_PAYMENT: PaymentAccount = {
-  bankName: "Providus Bank",
-  accountNumber: "3635734512",
-  accountName: "KcPele Auctions",
-};
-
-const DEFAULT_ESCROW: EscrowState = {
-  holdMin: 10,
-  holdMax: 20,
-  paymentWindowHrs: 24,
-  autoExtendMin: 2,
+const syncAfterPaint = (fn: () => void) => {
+  const frame = window.requestAnimationFrame(fn);
+  return () => window.cancelAnimationFrame(frame);
 };
 
 function NumInputField({
@@ -120,222 +95,393 @@ function Toggle({
   );
 }
 
-function bpsToPercent(bps: number): number {
-  return bps / 100;
-}
-
-function percentToBps(pct: number): number {
-  return Math.round(pct * 100);
-}
-
 export function SettingsScreen() {
-  const [fees, setFees] = useState<FeesState>(DEFAULT_FEES);
-  const [bidding, setBidding] = useState<BiddingState>(DEFAULT_BIDDING);
-  const [payment, setPayment] = useState<PaymentAccount>(DEFAULT_PAYMENT);
-  const [escrow, setEscrow] = useState<EscrowState>(DEFAULT_ESCROW);
-  const [emailEnabled, setEmailEnabled] = useState(true);
-  const [waEnabled, setWaEnabled] = useState(true);
-  const [pauseNewListings, setPauseNewListings] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-
-  const updateFee = (cat: "CAR" | "GADGET", field: keyof CategoryFees, bps: number) =>
-    setFees((p) => ({ ...p, [cat]: { ...p[cat], [field]: bps } }));
-
-  const save = () => {
-    // API calls for integration:
-    // PATCH /admin/settings/platform-fees (per category)
-    // PATCH /admin/settings/bidding
-    // PATCH /admin/settings/payment-account
-    // PATCH /admin/settings/escrow
-    // PATCH /admin/settings/toggles
-    setSavedAt(new Date().toLocaleTimeString());
-  };
-
   return (
     <>
       <SectionHeader
         title="Platform settings"
-        sub="Fee structure per category, bidding qualification, payment account, and platform toggles."
-        action={
-          <div className="flex items-center gap-3">
-            {savedAt && <span className="text-[11px] text-green">Saved · {savedAt}</span>}
-            <button
-              type="button"
-              onClick={save}
-              className="rounded-md border border-transparent px-3 py-1.5 text-xs font-semibold text-[#1a0a00]"
-              style={{ background: "linear-gradient(180deg, var(--accent-2), var(--accent))" }}
-            >
-              Save changes
-            </button>
-          </div>
-        }
+        sub="Fee structure per category, bidding qualification, payment account, escrow, and platform toggles."
       />
-
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Car fees */}
-        <Card>
-          <CardHead title="Car fees" />
-          <CardBody>
-            <div className="grid grid-cols-2 gap-4">
-              <NumInputField
-                label="Seller fee"
-                sub={`${bpsToPercent(fees.CAR.sellerFeeBps)}%`}
-                value={bpsToPercent(fees.CAR.sellerFeeBps)}
-                onChange={(v) => updateFee("CAR", "sellerFeeBps", percentToBps(v))}
-                suffix="%"
-                step={0.1}
-              />
-              <NumInputField
-                label="Buyer fee"
-                sub={`${bpsToPercent(fees.CAR.buyerFeeBps)}%`}
-                value={bpsToPercent(fees.CAR.buyerFeeBps)}
-                onChange={(v) => updateFee("CAR", "buyerFeeBps", percentToBps(v))}
-                suffix="%"
-                step={0.1}
-              />
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Gadget fees */}
-        <Card>
-          <CardHead title="Gadget fees" />
-          <CardBody>
-            <div className="grid grid-cols-2 gap-4">
-              <NumInputField
-                label="Seller fee"
-                sub={`${bpsToPercent(fees.GADGET.sellerFeeBps)}%`}
-                value={bpsToPercent(fees.GADGET.sellerFeeBps)}
-                onChange={(v) => updateFee("GADGET", "sellerFeeBps", percentToBps(v))}
-                suffix="%"
-                step={0.1}
-              />
-              <NumInputField
-                label="Buyer fee"
-                sub={`${bpsToPercent(fees.GADGET.buyerFeeBps)}%`}
-                value={bpsToPercent(fees.GADGET.buyerFeeBps)}
-                onChange={(v) => updateFee("GADGET", "buyerFeeBps", percentToBps(v))}
-                suffix="%"
-                step={0.1}
-              />
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Bidding qualification */}
-        <Card>
-          <CardHead title="Bidding" />
-          <CardBody>
-            <NumInputField
-              label="Bid requirement"
-              sub="Minimum wallet % of base price to place a bid"
-              value={bidding.bidRequirementPercent}
-              onChange={(v) => setBidding({ bidRequirementPercent: v })}
-              suffix="%"
-            />
-          </CardBody>
-        </Card>
-
-        {/* Payment account */}
-        <Card>
-          <CardHead title="Payment account" />
-          <CardBody>
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-fg-muted">Bank name</label>
-                <input
-                  type="text"
-                  value={payment.bankName}
-                  onChange={(e) => setPayment((p) => ({ ...p, bankName: e.target.value }))}
-                  className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-fg-muted">Account number</label>
-                <input
-                  type="text"
-                  value={payment.accountNumber}
-                  onChange={(e) => setPayment((p) => ({ ...p, accountNumber: e.target.value }))}
-                  className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-fg-muted">Account name</label>
-                <input
-                  type="text"
-                  value={payment.accountName}
-                  onChange={(e) => setPayment((p) => ({ ...p, accountName: e.target.value }))}
-                  className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
-                />
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Holds & escrow */}
-        <Card className="lg:col-span-2">
-          <CardHead title="Holds & escrow" />
-          <CardBody>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <NumInputField
-                label="Min hold"
-                sub="On low-value bids"
-                value={escrow.holdMin}
-                onChange={(v) => setEscrow((p) => ({ ...p, holdMin: v }))}
-                suffix="%"
-              />
-              <NumInputField
-                label="Max hold"
-                sub="On high-value bids"
-                value={escrow.holdMax}
-                onChange={(v) => setEscrow((p) => ({ ...p, holdMax: v }))}
-                suffix="%"
-              />
-              <NumInputField
-                label="Payment window"
-                sub="After auction win"
-                value={escrow.paymentWindowHrs}
-                onChange={(v) => setEscrow((p) => ({ ...p, paymentWindowHrs: v }))}
-                suffix="hours"
-              />
-              <NumInputField
-                label="Auto-extend"
-                sub="On last-minute bid"
-                value={escrow.autoExtendMin}
-                onChange={(v) => setEscrow((p) => ({ ...p, autoExtendMin: v }))}
-                suffix="min"
-              />
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Platform toggles */}
-        <Card className="lg:col-span-2">
-          <CardHead title="Platform toggles" />
-          <CardBody>
-            <Toggle
-              label="Email notifications"
-              sub="Resend integration"
-              on={emailEnabled}
-              onChange={setEmailEnabled}
-            />
-            <div className="border-t border-line" />
-            <Toggle
-              label="WhatsApp notifications"
-              sub="WhatsApp Business API"
-              on={waEnabled}
-              onChange={setWaEnabled}
-            />
-            <div className="border-t border-line" />
-            <Toggle
-              label="Pause new listings"
-              sub="Block new submissions while issues are investigated"
-              on={pauseNewListings}
-              onChange={setPauseNewListings}
-            />
-          </CardBody>
-        </Card>
+        <FeesCard category="cars" label="Car fees" />
+        <FeesCard category="gadgets" label="Gadget fees" />
+        <BiddingCard />
+        <PaymentAccountCard />
+        <EscrowCard />
+        <TogglesCard />
       </div>
     </>
+  );
+}
+
+// ---------- Fees ----------
+
+function FeesCard({
+  category,
+  label,
+}: {
+  category: "cars" | "gadgets";
+  label: string;
+}) {
+  const fees = usePlatformFees();
+  const update = useUpdatePlatformFee();
+
+  const [sellerPct, setSellerPct] = useState(0);
+  const [buyerPct, setBuyerPct] = useState(0);
+
+  const wireCat = category === "cars" ? "CAR" : "GADGET";
+  const fee = fees.data?.find((f) => f.category === wireCat);
+
+  useEffect(() => {
+    if (!fee) return;
+    return syncAfterPaint(() => {
+      setSellerPct(fee.sellerFeeBps / 100);
+      setBuyerPct(fee.buyerFeeBps / 100);
+    });
+  }, [fee]);
+
+  const save = async () => {
+    try {
+      await update.mutateAsync({
+        category,
+        sellerFeePct: sellerPct,
+        buyerFeePct: buyerPct,
+      });
+      toast.success(`${label} updated`);
+    } catch (err) {
+      wrap(err, `Could not update ${label.toLowerCase()}`);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHead
+        title={label}
+        action={
+          <button
+            type="button"
+            disabled={update.isPending}
+            onClick={save}
+            className="rounded-md px-3 py-1 text-xs font-semibold text-[#1a0a00] disabled:opacity-60"
+            style={PRIMARY_BTN}
+          >
+            {update.isPending ? "Saving…" : "Save"}
+          </button>
+        }
+      />
+      <CardBody>
+        <div className="grid grid-cols-2 gap-4">
+          <NumInputField
+            label="Seller fee"
+            value={sellerPct}
+            onChange={setSellerPct}
+            suffix="%"
+            step={0.1}
+          />
+          <NumInputField
+            label="Buyer fee"
+            value={buyerPct}
+            onChange={setBuyerPct}
+            suffix="%"
+            step={0.1}
+          />
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+// ---------- Bidding ----------
+
+function BiddingCard() {
+  const bidding = useBiddingSetting();
+  const update = useUpdateBiddingSetting();
+  const [pct, setPct] = useState(10);
+
+  useEffect(() => {
+    if (!bidding.data) return;
+    return syncAfterPaint(() => setPct(bidding.data.bidRequirementPercent));
+  }, [bidding.data]);
+
+  const save = async () => {
+    try {
+      await update.mutateAsync({ bidRequirementPercent: pct });
+      toast.success("Bidding updated");
+    } catch (err) {
+      wrap(err, "Could not update bidding");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHead
+        title="Bidding"
+        action={
+          <button
+            type="button"
+            disabled={update.isPending}
+            onClick={save}
+            className="rounded-md px-3 py-1 text-xs font-semibold text-[#1a0a00] disabled:opacity-60"
+            style={PRIMARY_BTN}
+          >
+            {update.isPending ? "Saving…" : "Save"}
+          </button>
+        }
+      />
+      <CardBody>
+        <NumInputField
+          label="Bid requirement"
+          sub="Minimum wallet % of base price to place a bid"
+          value={pct}
+          onChange={setPct}
+          suffix="%"
+        />
+      </CardBody>
+    </Card>
+  );
+}
+
+// ---------- Payment account ----------
+
+function PaymentAccountCard() {
+  const account = usePaymentAccount();
+  const update = useUpdatePaymentAccount();
+
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountName, setAccountName] = useState("");
+
+  useEffect(() => {
+    const data = account.data;
+    if (!data) return;
+    return syncAfterPaint(() => {
+      setBankName(data.bankName);
+      setAccountNumber(data.accountNumber);
+      setAccountName(data.accountName);
+    });
+  }, [account.data]);
+
+  const save = async () => {
+    try {
+      await update.mutateAsync({ bankName, accountNumber, accountName });
+      toast.success("Payment account updated");
+    } catch (err) {
+      wrap(err, "Could not update payment account");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHead
+        title="Payment account"
+        action={
+          <button
+            type="button"
+            disabled={update.isPending}
+            onClick={save}
+            className="rounded-md px-3 py-1 text-xs font-semibold text-[#1a0a00] disabled:opacity-60"
+            style={PRIMARY_BTN}
+          >
+            {update.isPending ? "Saving…" : "Save"}
+          </button>
+        }
+      />
+      <CardBody>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
+              Bank name
+            </label>
+            <input
+              type="text"
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
+              Account number
+            </label>
+            <input
+              type="text"
+              value={accountNumber}
+              onChange={(e) =>
+                setAccountNumber(e.target.value.replace(/\D/g, ""))
+              }
+              className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
+              Account name
+            </label>
+            <input
+              type="text"
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+            />
+          </div>
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+// ---------- Escrow ----------
+
+function EscrowCard() {
+  const escrow = useEscrowSetting();
+  const update = useUpdateEscrowSetting();
+
+  const [holdMin, setHoldMin] = useState(10);
+  const [holdMax, setHoldMax] = useState(20);
+  const [paymentWindowHrs, setPaymentWindowHrs] = useState(24);
+  const [autoExtend, setAutoExtend] = useState(0);
+
+  useEffect(() => {
+    if (!escrow.data) return;
+    return syncAfterPaint(() => {
+      setHoldMin(escrow.data.minHoldBps / 100);
+      setHoldMax(escrow.data.maxHoldBps / 100);
+      setPaymentWindowHrs(escrow.data.paymentWindowHours);
+      setAutoExtend(escrow.data.autoExtendMinutes);
+    });
+  }, [escrow.data]);
+
+  const save = async () => {
+    try {
+      await update.mutateAsync({
+        minHoldBps: Math.round(holdMin * 100),
+        maxHoldBps: Math.round(holdMax * 100),
+        paymentWindowHours: paymentWindowHrs,
+        autoExtendMinutes: autoExtend,
+      });
+      toast.success("Escrow updated");
+    } catch (err) {
+      wrap(err, "Could not update escrow");
+    }
+  };
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHead
+        title="Holds & escrow"
+        action={
+          <button
+            type="button"
+            disabled={update.isPending}
+            onClick={save}
+            className="rounded-md px-3 py-1 text-xs font-semibold text-[#1a0a00] disabled:opacity-60"
+            style={PRIMARY_BTN}
+          >
+            {update.isPending ? "Saving…" : "Save"}
+          </button>
+        }
+      />
+      <CardBody>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <NumInputField
+            label="Min hold"
+            sub="On low-value bids"
+            value={holdMin}
+            onChange={setHoldMin}
+            suffix="%"
+            step={0.1}
+          />
+          <NumInputField
+            label="Max hold"
+            sub="On high-value bids"
+            value={holdMax}
+            onChange={setHoldMax}
+            suffix="%"
+            step={0.1}
+          />
+          <NumInputField
+            label="Payment window"
+            sub="After auction win"
+            value={paymentWindowHrs}
+            onChange={setPaymentWindowHrs}
+            suffix="hours"
+          />
+          <NumInputField
+            label="Auto-extend"
+            sub="On last-minute bid"
+            value={autoExtend}
+            onChange={setAutoExtend}
+            suffix="min"
+          />
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+// ---------- Toggles ----------
+
+function TogglesCard() {
+  const toggles = usePlatformToggles();
+  const update = useUpdatePlatformToggles();
+
+  const [email, setEmail] = useState(true);
+  const [wa, setWa] = useState(true);
+  const [pause, setPause] = useState(false);
+
+  useEffect(() => {
+    if (!toggles.data) return;
+    return syncAfterPaint(() => {
+      setEmail(toggles.data.emailNotifications);
+      setWa(toggles.data.whatsappNotifications);
+      setPause(toggles.data.pauseNewListings);
+    });
+  }, [toggles.data]);
+
+  const set = async (
+    key: "emailNotifications" | "whatsappNotifications" | "pauseNewListings",
+    value: boolean,
+  ) => {
+    try {
+      await update.mutateAsync({ [key]: value });
+    } catch (err) {
+      wrap(err, "Could not update toggles");
+    }
+  };
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHead title="Platform toggles" />
+      <CardBody>
+        <Toggle
+          label="Email notifications"
+          sub="Send transactional emails"
+          on={email}
+          onChange={(v) => {
+            setEmail(v);
+            set("emailNotifications", v);
+          }}
+        />
+        <div className="border-t border-line" />
+        <Toggle
+          label="WhatsApp notifications"
+          sub="WhatsApp Business API"
+          on={wa}
+          onChange={(v) => {
+            setWa(v);
+            set("whatsappNotifications", v);
+          }}
+        />
+        <div className="border-t border-line" />
+        <Toggle
+          label="Pause new listings"
+          sub="Block new submissions while issues are investigated"
+          on={pause}
+          onChange={(v) => {
+            setPause(v);
+            set("pauseNewListings", v);
+          }}
+        />
+      </CardBody>
+    </Card>
   );
 }

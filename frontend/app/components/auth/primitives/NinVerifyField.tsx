@@ -13,9 +13,7 @@ interface NinVerifyFieldProps {
   iconName?: IconName;
   /** digits required to enable verify */
   length?: number;
-  /** async verifier; defaults to mock (resolves true after 900ms). 
-   *  Integration: POST /api/v1/auth/verify-nin { nin } or POST /api/v1/kyc/nin/verify { numberNin, surname, firstname, birthdate, telephoneno }
-   */
+  /** Async verifier. Pass a real verifier from screens that support NIN checks. */
   verify?: (value: string) => Promise<boolean>;
   onVerified?: (value: string) => void;
   value: string;
@@ -38,11 +36,12 @@ export function NinVerifyField({
 
   const ready = value.length === length;
   const verified = status === "verified";
+  const canVerify = ready && Boolean(verify);
 
   const handleVerify = async () => {
-    if (!ready || verified) return;
+    if (!canVerify || verified || !verify) return;
     setStatus("checking");
-    const ok = verify ? await verify(value) : await mockVerify();
+    const ok = await verify(value);
     if (ok) {
       setStatus("verified");
       onVerified?.(value);
@@ -84,11 +83,11 @@ export function NinVerifyField({
           <button
             type="button"
             onClick={handleVerify}
-            disabled={!ready || verified || status === "checking"}
+            disabled={!canVerify || verified || status === "checking"}
             className={`mr-1 inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${
               verified
                 ? "bg-green/15 text-green"
-                : ready
+                : canVerify
                   ? "bg-accent text-[#1a0a00] hover:bg-accent-light"
                   : "cursor-not-allowed bg-surface-2 text-fg-dim"
             }`}
@@ -107,8 +106,4 @@ export function NinVerifyField({
       />
     </Field>
   );
-}
-
-function mockVerify(): Promise<boolean> {
-  return new Promise((resolve) => setTimeout(() => resolve(true), 900));
 }

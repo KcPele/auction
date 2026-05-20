@@ -153,6 +153,47 @@ export class AdminDashboardService {
     return { items: await this.deliveryLogsRepository.find({ where, order: { createdAt: 'DESC' }, take: 20 }) };
   }
 
+  async listInAppNotifications() {
+    const notifications = await this.notificationsRepository.find({
+      order: { createdAt: 'DESC' },
+      take: 30,
+    });
+    const recipientIds = [
+      ...new Set(
+        notifications
+          .map((notification) => notification.recipientId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const users = recipientIds.length
+      ? await this.usersRepository.find({
+          where: { id: In(recipientIds) },
+          select: ['id', 'firstName', 'lastName', 'email'],
+        })
+      : [];
+    const userMap = new Map(users.map((user) => [user.id, user]));
+
+    return {
+      items: notifications.map((notification) => {
+        const recipient = notification.recipientId
+          ? userMap.get(notification.recipientId)
+          : null;
+        return {
+          id: notification.id,
+          audience: notification.audience,
+          recipientId: notification.recipientId,
+          recipient: recipient
+            ? `${recipient.firstName} ${recipient.lastName}`.trim() || recipient.email
+            : 'All admins',
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          createdAt: notification.createdAt,
+        };
+      }),
+    };
+  }
+
   async getSystemHealth() {
     const services: { name: string; status: string; latency?: number }[] = [];
     const pgStart = Date.now();

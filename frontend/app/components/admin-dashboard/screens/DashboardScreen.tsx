@@ -1,12 +1,21 @@
 "use client";
 import { useState } from "react";
+import {
+  useDashboardStats,
+  useAdminLedger,
+  useAdminAuctions,
+} from "@/app/components/admin/hooks/use-admin-dashboard";
+import {
+  usePendingApplications,
+  usePendingListings,
+} from "@/app/components/admin/hooks/use-admin-listings";
+import { useMe } from "@/app/components/auth/hooks/use-me";
 import { KPICard } from "../widgets/KPICard";
 import { LiveFeed } from "../widgets/LiveFeed";
 import { LiveAuctions } from "../widgets/LiveAuctions";
 import { Queue } from "../widgets/Queue";
 import { Health } from "../widgets/Health";
 import { Ledger } from "../widgets/Ledger";
-import { KPI_DATA, INITIAL_COUNTS, INITIAL_LEDGER } from "../data";
 import { downloadCSV, fmtNGNShort } from "../utils";
 import type { Range } from "../types";
 
@@ -17,26 +26,49 @@ const RANGE_LABEL: Record<Range, string> = {
   "30d": "Last 30 days",
 };
 
+const dateFmt = new Intl.DateTimeFormat("en-NG", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
 export function DashboardScreen() {
   const [range, setRange] = useState<Range>("24h");
   const [menuOpen, setMenuOpen] = useState(false);
-  const k = KPI_DATA[range];
 
-  // Integration: replace INITIAL_COUNTS with counts from:
-  // GET /admin/listing-access-applications/pending
-  // GET /admin/listings/pending
-  // GET /admin/wallet-withdrawals/pending
+  const { data: me } = useMe();
+  const { data: stats } = useDashboardStats(range);
+  const ledger = useAdminLedger({ limit: 50 });
+  const liveAuctions = useAdminAuctions({ status: "LIVE", limit: 1 });
+  const pendingListings = usePendingListings();
+  const pendingApps = usePendingApplications();
+
+  const liveCount = liveAuctions.data?.total ?? 0;
+  const pendingListingCount = pendingListings.data?.length ?? 0;
+  const pendingAppCount = pendingApps.data?.length ?? 0;
 
   const exportReport = () => {
+    const items = ledger.data?.items ?? [];
     downloadCSV(`bidnaija-dashboard-${range}-${Date.now()}.csv`, [
-      ["Metric", "Value", "Delta"],
-      ["GMV", k.gmv.value, (k.gmv.delta ?? 0) + "%"],
-      ["Auctions settled", k.settled.value, "+" + (k.settled.delta ?? 0)],
-      ["Wallet holds", k.holds.value, (k.holds.count ?? 0) + " bids"],
-      ["Payment success", k.success.value + "%", (k.success.delta ?? 0) + "%"],
+      ["Metric", "Value"],
+      ["Range", range],
+      ["GMV", stats?.gmv ?? 0],
+      ["Auctions settled", stats?.auctionsSettled ?? 0],
+      ["Wallet holds", stats?.walletHolds ?? 0],
+      ["Active bids", stats?.activeBids ?? 0],
+      ["Payment success rate", `${stats?.paymentSuccessRate ?? 0}%`],
       [],
-      ["Time", "Entry ID", "User", "Action", "Reference", "Direction", "Amount (NGN)"],
-      ...INITIAL_LEDGER.map((l) => [l.time, l.id, "@" + l.user, l.action, l.ref, l.dir, l.amt]),
+      ["Time", "Entry ID", "User", "Action", "Reference", "Direction", "Amount"],
+      ...items.map((l) => [
+        l.ts.toISOString(),
+        l.id,
+        l.handle,
+        l.action,
+        l.ref ?? "",
+        l.direction,
+        l.amount,
+      ]),
     ]);
   };
 
@@ -45,11 +77,12 @@ export function DashboardScreen() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:gap-6">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl md:text-[32px]">
-            Good afternoon, Adaeze.
+            {me ? `Hi, ${me.firstName}.` : "Admin dashboard."}
           </h1>
           <div className="mt-1 text-[13px] text-fg-muted">
-            Friday · 24 April 2026 · 15:47 WAT · {INITIAL_COUNTS.auctions} auctions running ·{" "}
-            {INITIAL_COUNTS.listings} listings awaiting review
+            {dateFmt.format(new Date())} · {liveCount} auction
+            {liveCount === 1 ? "" : "s"} running · {pendingListingCount}{" "}
+            listings + {pendingAppCount} applications awaiting review
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -94,34 +127,38 @@ export function DashboardScreen() {
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KPICard
           label={`GMV · ${range}`}
-          value={fmtNGNShort(k.gmv.value)}
-          delta={`${(k.gmv.delta ?? 0) > 0 ? "+" : ""}${k.gmv.delta}% vs prev`}
-          deltaDir={(k.gmv.delta ?? 0) >= 0 ? "up" : "down"}
-          spark={k.gmv.spark}
+          value={stats ? fmtNGNShort(stats.gmv) : "—"}
+          delta="settled total"
+          deltaDir="flat"
+          spark={[]}
           sparkColor="var(--accent)"
         />
         <KPICard
           label={`Auctions settled · ${range}`}
-          value={k.settled.value.toLocaleString()}
-          delta={`+${k.settled.delta} vs prev`}
-          deltaDir="up"
-          spark={k.settled.spark}
+          value={stats ? stats.auctionsSettled.toLocaleString() : "—"}
+          delta="closed payouts"
+          deltaDir="flat"
+          spark={[]}
           sparkColor="var(--green)"
         />
         <KPICard
           label="Wallet holds · active"
-          value={fmtNGNShort(k.holds.value)}
-          delta={`across ${k.holds.count} bids`}
+          value={stats ? fmtNGNShort(stats.walletHolds) : "—"}
+          delta={
+            stats
+              ? `across ${stats.activeBids} bid${stats.activeBids === 1 ? "" : "s"}`
+              : "—"
+          }
           deltaDir="flat"
-          spark={k.holds.spark}
+          spark={[]}
           sparkColor="var(--accent-2)"
         />
         <KPICard
           label={`Payment success · ${range}`}
-          value={`${k.success.value}%`}
-          delta={`${(k.success.delta ?? 0) > 0 ? "+" : ""}${k.success.delta}% vs prev`}
-          deltaDir={(k.success.delta ?? 0) >= 0 ? "up" : "down"}
-          spark={k.success.spark}
+          value={stats ? `${stats.paymentSuccessRate}%` : "—"}
+          delta="confirmed vs failed"
+          deltaDir="flat"
+          spark={[]}
           sparkColor="#6bb0ff"
         />
       </div>

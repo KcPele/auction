@@ -9,6 +9,9 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
+import { mkdir } from 'fs/promises';
+import { join } from 'path';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -33,6 +36,13 @@ async function bootstrap() {
       files: 10,
       fileSize: 50 * 1024 * 1024,
     },
+  });
+  const uploadsDir = join(process.cwd(), '.uploads');
+  await mkdir(uploadsDir, { recursive: true });
+  await app.register(fastifyStatic, {
+    root: uploadsDir,
+    prefix: '/uploads/',
+    decorateReply: false,
   });
 
   app.setGlobalPrefix(config.getOrThrow<string>('APP_GLOBAL_PREFIX'));

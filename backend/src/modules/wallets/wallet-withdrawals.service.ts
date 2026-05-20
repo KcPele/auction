@@ -112,6 +112,24 @@ export class WalletWithdrawalsService {
     return { withdrawals: withdrawals.map(presentWithdrawal) };
   }
 
+  /**
+   * Admin: list all wallet withdrawals across users with optional status filter
+   * for the Pending / Authorized / Failed tabs in the admin dashboard.
+   */
+  async listAllWithdrawals(query: ListWithdrawalsQueryDto) {
+    const where: Record<string, unknown> = {};
+    if (query.status) where.status = query.status;
+
+    const [items, total] = await this.withdrawalsRepository.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      take: query.limit,
+      skip: query.offset,
+    });
+
+    return { items: items.map(presentWithdrawal), total };
+  }
+
   async authorizeWithdrawal(withdrawalId: string, authorizationCode: string) {
     await this.findAuthorizableWithdrawal(withdrawalId);
     throw new BadRequestException(

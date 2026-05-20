@@ -9,6 +9,7 @@ type OpeninaryUploadResponse = {
     path: string;
     size: number;
     url: string;
+    prewarmedUrls?: string[];
   }>;
   message?: string;
   error?: string;
@@ -25,28 +26,34 @@ export class OpeninaryProvider {
       provider: 'openinary',
       providerPublicId: result.path,
       url: this.toAbsoluteUrl(result.url),
-      sizeBytes: result.size,
+      sizeBytes: result.size ?? file.buffer.length,
     };
   }
 
   private async uploadFile(file: ValidatedUploadFile, folder: string) {
     const form = new FormData();
     const filename = this.safeFilename(file.originalName);
-    const path = `${this.safePath(folder)}/${filename}`;
 
     form.append(
       'files',
       new Blob([this.toArrayBuffer(file.buffer)], { type: file.mimeType }),
       filename,
     );
-    form.append('names', path);
+    form.append('folder', this.safePath(folder));
 
-    const response = await fetch(`${this.baseUrl}/upload`, {
+    if (file.mimeType.startsWith('image/')) {
+      form.append(
+        'transformations',
+        JSON.stringify(['w_800,f_webp,q_85', 'w_400,c_fill,f_avif,q_80']),
+      );
+    }
+
+    const response = await fetch(this.uploadUrl, {
       method: 'POST',
-      headers: { authorization: `Bearer ${this.apiKey}` },
+      headers: { Authorization: `Bearer ${this.apiKey}` },
       body: form,
     });
-    const data = (await response.json()) as OpeninaryUploadResponse;
+    const data = await this.parseUploadResponse(response);
 
     if (!response.ok || !data.success || !data.files[0]) {
       throw new ServiceUnavailableException(
@@ -67,6 +74,22 @@ export class OpeninaryProvider {
     }
 
     return url.replace(/\/$/, '');
+  }
+
+  private get uploadUrl() {
+    return `${this.baseUrl}/api/upload`;
+  }
+
+  private async parseUploadResponse(response: Response) {
+    const text = await response.text();
+
+    try {
+      return JSON.parse(text) as OpeninaryUploadResponse;
+    } catch {
+      throw new ServiceUnavailableException(
+        `Openinary upload returned a non-JSON response (${response.status}). Check OPENINARY_URL and API key configuration.`,
+      );
+    }
   }
 
   private get apiKey() {

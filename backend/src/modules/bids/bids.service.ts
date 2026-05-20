@@ -65,7 +65,13 @@ export class BidsService {
       );
 
       if (becomesTopBid) {
-        await this.replaceTopBid(manager, auction, currentTopBid, bid);
+        await this.replaceTopBid(
+          manager,
+          auction,
+          currentTopBid,
+          bid,
+          requiredBalanceKobo,
+        );
       }
 
       return {
@@ -177,11 +183,34 @@ export class BidsService {
     auction: Auction,
     previousTopBid: Bid | null,
     bid: Bid,
+    holdAmountKobo: number,
   ) {
     if (previousTopBid) {
       previousTopBid.status = BidStatus.Outbid;
       await manager.save(previousTopBid);
+      if (previousTopBid.walletHoldId) {
+        await this.walletsService.releaseBidHold(manager, {
+          holdId: previousTopBid.walletHoldId,
+          reference: `BID-${previousTopBid.id}`,
+          metadata: {
+            auctionId: auction.id,
+            bidId: previousTopBid.id,
+            reason: 'outbid',
+          },
+        });
+      }
     }
+
+    const { hold } = await this.walletsService.createBidHold(manager, {
+      userId: bid.bidderId,
+      auctionId: auction.id,
+      amountKobo: holdAmountKobo,
+      reference: `BID-${bid.id}`,
+      metadata: { auctionId: auction.id, bidId: bid.id },
+    });
+    bid.walletHoldId = hold.id;
+    await manager.save(bid);
+    await this.walletsService.attachBidToHold(manager, hold.id, bid.id);
 
     auction.currentWinningBidId = bid.id;
     await manager.save(auction);

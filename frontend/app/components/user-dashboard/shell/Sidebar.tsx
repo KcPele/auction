@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useWallet } from "@/app/components/wallet/hooks/use-wallet";
 import { Icon, type IconName } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
-import { WALLET_BALANCE } from "../data";
 
 interface NavItem {
   href: string;
@@ -16,14 +16,14 @@ interface NavItem {
 const MAIN: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: "home", match: (p) => p === "/dashboard" },
   { href: "/dashboard/browse", label: "Browse auctions", icon: "search" },
-  { href: "/dashboard/bids", label: "My bids", icon: "gavel", badge: 2 },
+  { href: "/dashboard/bids", label: "My bids", icon: "gavel" },
   { href: "/dashboard/won", label: "Won auctions", icon: "trophy" },
   { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
   { href: "/dashboard/listings", label: "My listings", icon: "tag" },
   { href: "/dashboard/listing-access", label: "Listing access", icon: "key" },
 ];
 const META: NavItem[] = [
-  { href: "/dashboard/notifications", label: "Notifications", icon: "bell", badge: 2 },
+  { href: "/dashboard/notifications", label: "Notifications", icon: "bell" },
   { href: "/dashboard/watchlist", label: "Watchlist", icon: "heart" },
   { href: "/dashboard/profile", label: "Profile & settings", icon: "user" },
 ];
@@ -63,6 +63,8 @@ function NavList({ items, path }: { items: NavItem[]; path: string }) {
 
 export function Sidebar() {
   const path = usePathname() || "/dashboard";
+  const { data: wallet } = useWallet();
+
   return (
     <aside className="sticky top-0 flex h-screen flex-col gap-1 border-r border-line bg-bg-1 px-3.5 py-[22px]">
       <div className="flex items-center px-3 pb-[22px] pt-2">
@@ -83,7 +85,7 @@ export function Sidebar() {
           Available to bid
         </div>
         <div className="mt-0.5 font-mono text-lg font-bold">
-          {fmtNaira(WALLET_BALANCE + 1_018_200)}
+          {wallet ? fmtNaira(wallet.available) : "—"}
         </div>
         <Link
           href="/dashboard/wallet/topup"

@@ -1050,35 +1050,58 @@ Components that gate on permission **never** check role strings directly. Always
 
 Auctions are realtime. Bids land via Socket.IO. The frontend pattern:
 
-1. One shared socket per session, opened after sign-in.
-2. Each feature subscribes to events it cares about and writes the payload into the React Query cache.
+1. One shared socket **per namespace** per session, lazily created on first use.
+2. Each feature subscribes to its events and writes payloads into the React Query cache via `setQueryData`.
 3. Components read from the cache — they don't see the socket.
 
+### Wire conventions (must match backend)
+
+The backend exposes two Socket.IO namespaces with cookie-based auth (Better Auth session is read from the handshake headers — no manual token plumbing on the client):
+
+| Namespace | Server file | Joinable rooms | Events emitted |
+|---|---|---|---|
+| `/auctions` | `bids/bids.gateway.ts` | `auction:{id}` (join via `auction.join`), `user:{userId}` | `auction.ready`, `auction.joined`, `auction.left`, `auction.error`, `bid.placed`, `auction.topBidChanged`, `auction.statusChanged`, `auction.closed`, `bid.outbid` (user room only) |
+| `/notifications` | `notifications/notifications.gateway.ts` | `user:{userId}`, `admin` | `notification.ready`, `notification.created`, `notification.error` |
+
+Auth: cookie-based. Open the socket directly against the backend origin so the browser sends `better-auth.session_token` on the WS handshake.
+
+### Why the socket bypasses the Next.js rewrite
+
+The HTTP rewrite from [API proxy](#api-proxy-nextjs-bff-rewrite) is for short-lived JSON. WebSockets are long-lived and Next's rewrite layer buffers, breaks sticky sessions on multi-instance deploys, and silently drops the upgrade in some hosting setups. Connect the socket to the backend origin (or a dedicated `ws.` subdomain) using `NEXT_PUBLIC_WS_URL`. Keep CORS open for that origin in `BackendModule` (`cors: { origin: true, credentials: true }` is already set on both gateways).
+
 ### `lib/realtime/socket.ts`
+
+One shared socket per namespace. Lazy + cached so multiple hooks share the connection.
 
 ```ts
 "use client";
 import { io, type Socket } from "socket.io-client";
-import { API_BASE } from "../api/env";
 
-let socket: Socket | null = null;
+const WS_URL =
+  (typeof window !== "undefined" &&
+    (process.env.NEXT_PUBLIC_WS_URL ?? "")) ||
+  "http://localhost:4000";
 
-export function getSocket(): Socket {
-  if (typeof window === "undefined") throw new Error("socket on server");
-  if (!socket) {
-    socket = io(API_BASE, {
-      withCredentials: true,
-      transports: ["websocket"],
-      autoConnect: false,
-    });
+const sockets = new Map<string, Socket>();
+
+function getSocket(namespace: string): Socket {
+  if (typeof window === "undefined") {
+    throw new Error("getSocket must be called in the browser");
   }
+  const existing = sockets.get(namespace);
+  if (existing) return existing;
+
+  const socket = io(`${WS_URL}/${namespace}`, {
+    withCredentials: true,         // Better Auth cookie on handshake
+    transports: ["websocket"],
+    autoConnect: false,            // hooks call .connect() when they need it
+  });
+  sockets.set(namespace, socket);
   return socket;
 }
 
-export function connectSocketIfSignedIn() {
-  const s = getSocket();
-  if (!s.connected) s.connect();
-}
+export const auctionsSocket = (): Socket => getSocket("auctions");
+export const notificationsSocket = (): Socket => getSocket("notifications");
 ```
 
 ### Subscribe + cache write
@@ -1088,27 +1111,48 @@ export function connectSocketIfSignedIn() {
 "use client";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getSocket } from "@/app/lib/realtime/socket";
+import { auctionsSocket } from "@/app/lib/realtime/socket";
+import { koboToNaira } from "@/app/lib/format/money";
 import { auctionKeys } from "./auction-keys";
-import type { Auction, BidEventDto } from "../types/auction.types";
+import type { Bid } from "../types/auction.types";
 
-export function useAuctionBidsStream(auctionId: string) {
+export function useAuctionBidsStream(auctionId: string | undefined) {
   const qc = useQueryClient();
-  useEffect(() => {
-    const s = getSocket();
-    s.connect();
-    s.emit("auction:join", { auctionId });
 
-    const onBid = (e: BidEventDto) => {
-      qc.setQueryData<Auction>(auctionKeys.detail(auctionId), (cur) =>
-        cur ? { ...cur, currentBid: e.amountKobo / 100, bidders: e.bidders } : cur,
-      );
+  useEffect(() => {
+    if (!auctionId) return;
+    const socket = auctionsSocket();
+    if (!socket.connected) socket.connect();
+    socket.emit("auction.join", { auctionId });
+
+    const onBidPlaced = (e: {
+      bid: { id: string; bidderId: string; amountKobo: number; createdAt: string; status: Bid["status"] };
+      isTopBid: boolean;
+    }) => {
+      const newBid: Bid = {
+        id: e.bid.id,
+        userId: e.bid.bidderId,
+        handle: "@anonymous", // refetch reconciles with server-masked handle
+        amount: koboToNaira(e.bid.amountKobo),
+        placedAt: new Date(e.bid.createdAt),
+        isLeading: e.isTopBid,
+        status: e.bid.status,
+      };
+      qc.setQueryData<Bid[]>(auctionKeys.bids(auctionId), (prev) => {
+        if (!prev) return [newBid];
+        if (prev.some((b) => b.id === newBid.id)) return prev;
+        const next = e.isTopBid
+          ? prev.map((b) => ({ ...b, isLeading: false }))
+          : prev;
+        return [newBid, ...next];
+      });
     };
-    s.on("auction:bid", onBid);
+
+    socket.on("bid.placed", onBidPlaced);
 
     return () => {
-      s.emit("auction:leave", { auctionId });
-      s.off("auction:bid", onBid);
+      socket.emit("auction.leave", { auctionId });
+      socket.off("bid.placed", onBidPlaced);
     };
   }, [auctionId, qc]);
 }
@@ -1118,25 +1162,22 @@ Use it once in the screen:
 
 ```tsx
 useAuctionBidsStream(id);
-const { data: auction } = useAuctionDetail(id);
+const { data: bids } = useAuctionBids(id);
 ```
 
-The component continues to read from `useAuctionDetail`. The socket is just another writer to the same cache slot.
+The component continues to read from `useAuctionBids`. The socket is just another writer to the same cache slot.
 
-### Fallback
+### Rules
 
-If sockets aren't wired yet, `setInterval` + `qc.invalidateQueries` is acceptable:
+- **Never** subscribe inside a component render — always inside `useEffect`. The hook owns the lifecycle.
+- **No `refetchInterval` AND a stream on the same key.** Pick one. The stream is canonical; polling is the fallback.
+- **Idempotent cache writes.** Server may resend an event on reconnect. Skip if the bid id is already in the list.
+- **Leave the room on unmount.** Otherwise you accumulate listeners and the user keeps getting events for auctions they're not viewing.
+- **Use the user room (`user:{id}`)** for personal events (`bid.outbid`, `notification.created`). The server joins it automatically on connection.
 
-```ts
-useEffect(() => {
-  const t = setInterval(() => {
-    qc.invalidateQueries({ queryKey: auctionKeys.detail(id) });
-  }, 5_000);
-  return () => clearInterval(t);
-}, [id, qc]);
-```
+### Fallback (only if a backend gateway is missing)
 
-But mark it `// TODO(realtime)` and replace with the socket pattern when available.
+If a particular event isn't on the gateway yet, `refetchInterval` is acceptable as a stopgap — but it must be marked `// TODO(realtime)` and replaced once the event lands. Don't ship polling on data that already has a socket event.
 
 ---
 

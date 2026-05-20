@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
+  ArrayMaxSize,
   IsArray,
   IsDateString,
   IsInt,
@@ -8,16 +9,19 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
 export class CreateCarListingDto {
   @ApiProperty({ example: 'Toyota' })
   @IsString()
+  @MaxLength(100)
   make!: string;
 
   @ApiProperty({ example: 'Camry' })
   @IsString()
+  @MaxLength(100)
   model!: string;
 
   @ApiProperty({ example: 2018 })
@@ -27,10 +31,12 @@ export class CreateCarListingDto {
 
   @ApiProperty({ example: 'Black' })
   @IsString()
+  @MaxLength(50)
   colour!: string;
 
   @ApiProperty({ example: 'ABC-123-LA' })
   @IsString()
+  @MaxLength(50)
   registrationNumber!: string;
 
   @ApiProperty({ example: 68000 })
@@ -40,6 +46,7 @@ export class CreateCarListingDto {
 
   @ApiProperty({ example: 'Good' })
   @IsString()
+  @MaxLength(100)
   condition!: string;
 
   @ApiPropertyOptional({ example: 'AC needs servicing.' })
@@ -55,6 +62,7 @@ export class CreateCarListingDto {
   @ApiProperty({ type: [String], example: ['https://cdn.example.com/car.jpg'] })
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(10)
   @IsString({ each: true })
   photoUrls!: string[];
 
@@ -83,4 +91,3 @@ export class CreateCarListingDto {
   @Min(1)
   durationMinutes!: number;
 }
-

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BrandMark } from "../landing/BrandMark";
-import { AuthPreview } from "./AuthPreview";
 import { Icon } from "./primitives/Icon";
 
 export type BrandVariant = "bid" | "register" | "verify";
@@ -23,13 +22,13 @@ const COPY: Record<BrandVariant, Copy> = {
     sub: "Verified inventory. 10% holds instead of frozen capital. Release the second you're outbid — win, and escrow pays the seller only when the item is in your hands.",
   },
   register: {
-    eyebrow: "Join 12,400 bidders",
+    eyebrow: "Create account",
     headline: (
       <>
-        Create an account, bid in <em className="italic font-medium accent-gradient-text">60 seconds</em>.
+        Create an account and start your <em className="italic font-medium accent-gradient-text">auction profile</em>.
       </>
     ),
-    sub: "BVN-verified accounts bid faster, get Ready-to-Bid codes, and settle in escrow. Your information is encrypted, and we never share it with sellers.",
+    sub: "Verify your identity, fund your wallet, and bid through escrow-backed auctions. Your information is encrypted, and we never share it with sellers.",
   },
   verify: {
     eyebrow: "KYC · last step",
@@ -80,14 +79,9 @@ export function AuthBrandPanel({ variant = "bid" }: AuthBrandPanelProps) {
           {copy.headline}
         </h1>
         <p className="max-w-[420px] text-[15px] leading-[1.55] text-fg-muted">{copy.sub}</p>
-
-        <AuthPreview />
       </div>
 
       <div className="relative z-[2] mt-10 flex gap-7 text-xs text-fg-dim">
-        <a href="#" className="hover:text-fg">Terms</a>
-        <a href="#" className="hover:text-fg">Privacy</a>
-        <a href="#" className="hover:text-fg">Seller applications</a>
         <span className="ml-auto">© 2026 BidNaija Ltd · RC 7284102</span>
       </div>
     </div>

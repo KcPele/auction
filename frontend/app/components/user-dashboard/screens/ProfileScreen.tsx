@@ -1,7 +1,17 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { useMe, useSignOut } from "@/app/components/auth/hooks/use-me";
+import {
+  useStats,
+  useUpdateNotificationPreferences,
+  useUpdateProfile,
+  useWatchlist,
+} from "@/app/components/users/hooks/use-users";
+import { ApiError } from "@/app/lib/api/error";
 import { Icon, type IconName } from "../primitives/Icon";
+import { fmtNaira } from "../utils";
 
 interface NotifPref {
   id: "whatsappEnabled" | "readyToBid";
@@ -10,17 +20,9 @@ interface NotifPref {
   icon: IconName;
 }
 const NOTIF_PREFS: NotifPref[] = [
-  { id: "whatsappEnabled", label: "WhatsApp alerts", sub: "+234 812 ••• 4471", icon: "wa" },
+  { id: "whatsappEnabled", label: "WhatsApp alerts", sub: "Trade notifications via WhatsApp", icon: "wa" },
   { id: "readyToBid", label: "Bid alerts", sub: "Notify when auctions you watch go live", icon: "gavel" },
-  // Integration: PATCH /api/v1/users/me/notification-preferences { whatsappEnabled, readyToBid, emailEnabled, pushEnabled }
 ];
-
-const STATS = [
-  { lbl: "Bids placed", val: "47" },
-  { lbl: "Auctions won", val: "6" },
-  { lbl: "Win rate", val: "38%" },
-];
-// Integration: GET /api/v1/users/me/stats → { bidsPlaced, auctionsWon, winRate, totalSpent }
 
 interface SettingItem {
   label: string;
@@ -42,6 +44,10 @@ const PRIMARY_BTN_BG = {
   background: "linear-gradient(180deg, var(--accent-light), var(--accent))",
 };
 
+function listingCategoryLabel(category: "CAR" | "GADGET") {
+  return category === "CAR" ? "Cars" : "Gadgets";
+}
+
 export function ProfileScreen() {
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({
     whatsappEnabled: true,
@@ -49,27 +55,93 @@ export function ProfileScreen() {
     pushEnabled: false,
     readyToBid: true,
   });
-  const togglePref = (id: string) =>
-    setNotifPrefs((s) => ({ ...s, [id]: !s[id] }));
+  const togglePref = async (id: string) => {
+    const prev = notifPrefs;
+    const next = { ...prev, [id]: !prev[id] };
+    setNotifPrefs(next); // optimistic
+    try {
+      await updatePrefs.mutateAsync(next);
+    } catch (err) {
+      setNotifPrefs(prev); // rollback
+      if (err instanceof ApiError) toast.error(err.message);
+      else toast.error("Could not update preferences");
+    }
+  };
+
+  const { data: me } = useMe();
+  const { data: stats } = useStats();
+  const { data: watchlist = [] } = useWatchlist();
+  const signOut = useSignOut();
+  const updateProfile = useUpdateProfile();
+  const updatePrefs = useUpdateNotificationPreferences();
 
   const [showEditDetails, setShowEditDetails] = useState(false);
-  const [firstName, setFirstName] = useState("Adaeze");
-  const [lastName, setLastName] = useState("Okafor");
-  const [phone, setPhone] = useState("+234 812 345 6789");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
   const [nin, setNin] = useState("");
+
+  // Hydrate the edit form + notification preferences once /users/me lands.
+  useEffect(() => {
+    if (!me) return;
+    const frame = window.requestAnimationFrame(() => {
+      setFirstName(me.firstName);
+      setLastName(me.lastName);
+      setPhone(me.phone ?? "");
+      setNin(me.nin ?? "");
+      setNotifPrefs({
+        whatsappEnabled: me.notificationPreferences.whatsappEnabled,
+        emailEnabled: me.notificationPreferences.emailEnabled,
+        pushEnabled: me.notificationPreferences.pushEnabled,
+        readyToBid: me.notificationPreferences.readyToBid,
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [me]);
+
+  const onSaveProfile = async () => {
+    try {
+      await updateProfile.mutateAsync({
+        firstName,
+        lastName,
+        phone,
+        ...(nin ? { nin } : {}),
+      });
+      toast.success("Profile updated");
+      setShowEditDetails(false);
+    } catch (err) {
+      if (err instanceof ApiError) toast.error(err.message);
+      else toast.error("Could not update profile");
+    }
+  };
+
+  const listingCategories =
+    me?.listingPermissions.map((permission) => listingCategoryLabel(permission.category)) ?? [];
+  const hasListingAccess = listingCategories.length > 0;
+  const verificationStatus = me?.ninVerified ? "NIN on file" : "NIN not verified";
+  const watchlistCount = watchlist.length;
 
   const SETTINGS: SettingItem[] = [
     { label: "Personal details", sub: "Name, phone, NIN", icon: "user", action: () => setShowEditDetails(true) },
-    { label: "Saved payment methods", sub: "2 cards · 1 bank", icon: "wallet" },
     {
       label: "KYC & verification",
-      sub: "Verify NIN",
+      sub: verificationStatus,
       icon: "shield",
       href: "/kyc?ctx=account",
     },
-    { label: "Watchlist", sub: "12 auctions", icon: "heart", href: "/dashboard/watchlist" },
-    { label: "Help & support", sub: "FAQ · WhatsApp: +234 700 BIDNJA", icon: "help" },
-    { label: "Terms & privacy", sub: "Last updated Mar 2026", icon: "lock" },
+    {
+      label: "Watchlist",
+      sub: `${watchlistCount} ${watchlistCount === 1 ? "auction" : "auctions"}`,
+      icon: "heart",
+      href: "/dashboard/watchlist",
+    },
+    {
+      label: "Listing access",
+      sub: hasListingAccess ? listingCategories.join(", ") : "No active listing access",
+      icon: "key",
+      href: "/dashboard/listing-access",
+    },
+    { label: "Redeem access code", sub: "Use a code issued to your account", icon: "tag", href: "/dashboard/redeem" },
   ];
 
   return (
@@ -79,14 +151,25 @@ export function ProfileScreen() {
           className="mb-3 flex h-20 w-20 items-center justify-center rounded-full text-[28px] font-bold text-[#0a0806]"
           style={AVATAR_BG}
         >
-          {firstName[0]}{lastName[0]}
+          {(firstName[0] ?? "").toUpperCase()}{(lastName[0] ?? "").toUpperCase()}
         </div>
-        <div className="font-display text-[22px] font-semibold tracking-tight">{firstName} {lastName}</div>
-        <div className="text-[13px] text-fg-muted">@{firstName.toLowerCase()}.{lastName.toLowerCase().charAt(0)} · Member since Mar 2025</div>
+        <div className="font-display text-[22px] font-semibold tracking-tight">
+          {me ? `${firstName} ${lastName}`.trim() : "—"}
+        </div>
+        <div className="text-[13px] text-fg-muted">
+          {me?.email ?? ""}{me ? " · " : ""}Member
+        </div>
         <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full border border-accent/25 bg-accent/[0.08] px-2.5 py-1 text-[11px] font-semibold text-accent">
-            <Icon name="key" size={10} strokeWidth={2.2} /> Ready-to-Bid
-          </span>
+          {me?.ninVerified && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-green/25 bg-green/[0.08] px-2.5 py-1 text-[11px] font-semibold text-green">
+              <Icon name="shield" size={10} strokeWidth={2.2} /> NIN on file
+            </span>
+          )}
+          {hasListingAccess && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-accent/25 bg-accent/[0.08] px-2.5 py-1 text-[11px] font-semibold text-accent">
+              <Icon name="key" size={10} strokeWidth={2.2} /> {listingCategories.join(", ")}
+            </span>
+          )}
         </div>
       </div>
 
@@ -143,13 +226,11 @@ export function ProfileScreen() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                // Integration: PATCH /api/v1/users/me { firstName, lastName, phone, nin }
-                setShowEditDetails(false);
-              }}
-              className="mt-1 rounded-lg p-2.5 text-sm font-semibold text-[#1a0a00] accent-gradient-bg"
+              disabled={updateProfile.isPending}
+              onClick={onSaveProfile}
+              className="mt-1 rounded-lg p-2.5 text-sm font-semibold text-[#1a0a00] accent-gradient-bg disabled:opacity-60"
             >
-              Save changes
+              {updateProfile.isPending ? "Saving…" : "Save changes"}
             </button>
           </div>
         </div>
@@ -160,34 +241,40 @@ export function ProfileScreen() {
         style={HERO_BG}
       >
         <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-fg-dim">
-          <Icon name="key" size={11} /> Access code · Premium
+          <Icon name="key" size={11} /> Listing access
         </div>
-        <div className="my-2.5 mb-1 font-mono text-[30px] font-bold tracking-[0.15em] text-accent-light">
-          BN-47K9-XQ2M
+        <div className="my-2.5 mb-1 font-display text-[28px] font-semibold tracking-tight text-accent-light">
+          {hasListingAccess ? listingCategories.join(" · ") : "No active access"}
         </div>
         <div className="text-xs text-fg-muted">
-          Active until <strong className="text-fg">30 Apr 2026</strong> · 3 of 8 auctions unlocked this month
+          {hasListingAccess
+            ? "You can create listings in your approved categories."
+            : "Apply for listing access or redeem a code issued to your account."}
         </div>
         <div className="relative z-10 mt-3.5 flex gap-2">
-          <button
-            type="button"
+          <Link
+            href="/dashboard/listing-access"
             className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-none px-2.5 py-2.5 text-[13px] font-semibold text-[#1a0a00]"
             style={PRIMARY_BTN_BG}
           >
-            <Icon name="copy" size={14} /> Copy code
-          </button>
-          <button
-            type="button"
+            <Icon name="key" size={14} /> Apply
+          </Link>
+          <Link
+            href="/dashboard/redeem"
             className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-white/[0.04] px-2.5 py-2.5 text-[13px] font-semibold text-fg"
           >
-            <Icon name="refresh" size={14} /> Renew
-          </button>
+            <Icon name="tag" size={14} /> Redeem
+          </Link>
         </div>
       </div>
 
       <div className="my-3 mt-5 text-[15px] font-semibold tracking-tight">Your bidding</div>
       <div className="grid grid-cols-3 gap-2">
-        {STATS.map((s) => (
+        {[
+          { lbl: "Bids placed", val: stats ? String(stats.totalBids) : "—" },
+          { lbl: "Auctions won", val: stats ? String(stats.auctionsWon) : "—" },
+          { lbl: "Win rate", val: stats ? `${stats.winRate}%` : "—" },
+        ].map((s) => (
           <div key={s.lbl} className="rounded-lg border border-line bg-surface p-3 text-center">
             <div className="font-display text-[22px] font-semibold tracking-tight text-accent-light">
               {s.val}
@@ -196,6 +283,11 @@ export function ProfileScreen() {
           </div>
         ))}
       </div>
+      {stats && (
+        <div className="mt-1.5 text-center text-[11px] text-fg-dim">
+          Total bid value: {fmtNaira(stats.totalSpent)}
+        </div>
+      )}
 
       <div className="my-3 mt-5 text-[15px] font-semibold tracking-tight">Notification preferences</div>
       <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
@@ -258,13 +350,15 @@ export function ProfileScreen() {
 
       <button
         type="button"
-        className="mt-4 w-full cursor-pointer rounded-xl border border-red/20 bg-transparent p-3.5 text-[13px] font-medium text-red"
+        disabled={signOut.isPending}
+        onClick={() => signOut.mutate()}
+        className="mt-4 w-full cursor-pointer rounded-xl border border-red/20 bg-transparent p-3.5 text-[13px] font-medium text-red disabled:opacity-50"
       >
-        Sign out
+        {signOut.isPending ? "Signing out…" : "Sign out"}
       </button>
 
       <div className="py-5 text-center text-[11px] text-fg-dim">
-        BidNaija v1.4.2 · Lagos, Nigeria
+        Lagos, Nigeria
       </div>
     </>
   );

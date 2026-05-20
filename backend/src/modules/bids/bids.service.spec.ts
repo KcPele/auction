@@ -13,6 +13,9 @@ describe('BidsService', () => {
   let dataSource: { transaction: jest.Mock };
   let walletsService: {
     assertBidQualification: jest.Mock;
+    createBidHold: jest.Mock;
+    attachBidToHold: jest.Mock;
+    releaseBidHold: jest.Mock;
   };
   let bidsGateway: {
     emitBidPlaced: jest.Mock;
@@ -27,6 +30,13 @@ describe('BidsService', () => {
     walletsService = {
       assertBidQualification: jest.fn().mockResolvedValue({
         wallet: { id: 'wallet-id', balanceKobo: 25000000 },
+      }),
+      createBidHold: jest.fn().mockResolvedValue({
+        hold: { id: 'hold-id', amountKobo: 25000000 },
+      }),
+      attachBidToHold: jest.fn().mockResolvedValue(undefined),
+      releaseBidHold: jest.fn().mockResolvedValue({
+        released: true,
       }),
     };
     bidsGateway = {
@@ -57,6 +67,7 @@ describe('BidsService', () => {
         id: 'bid-id',
         status: BidStatus.Winning,
         amountKobo: 250000000,
+        walletHoldId: 'hold-id',
       }),
       bidRequirement: { percent: 10, requiredBalanceKobo: 25000000 },
       auction: expect.objectContaining({ currentWinningBidId: 'bid-id' }),
@@ -68,6 +79,19 @@ describe('BidsService', () => {
         userId: 'bidder-id',
         requiredBalanceKobo: 25000000,
       }),
+    );
+    expect(walletsService.createBidHold).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({
+        userId: 'bidder-id',
+        auctionId: auction.id,
+        amountKobo: 25000000,
+      }),
+    );
+    expect(walletsService.attachBidToHold).toHaveBeenCalledWith(
+      manager,
+      'hold-id',
+      'bid-id',
     );
     expect(bidsGateway.emitBidPlaced).toHaveBeenCalledWith({
       auctionId: auction.id,
@@ -143,6 +167,10 @@ describe('BidsService', () => {
     await service.placeBid('bidder-id', auction.id, { amountKobo: 255000000 });
 
     expect(previousTopBid.status).toBe(BidStatus.Outbid);
+    expect(walletsService.releaseBidHold).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({ holdId: 'previous-hold-id' }),
+    );
     expect(auction.currentWinningBidId).toBe('bid-id');
     expect(bidsGateway.emitOutbid).toHaveBeenCalledWith({
       userId: previousTopBid.bidderId,
