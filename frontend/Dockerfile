@@ -13,11 +13,13 @@ RUN pnpm install --frozen-lockfile --ignore-scripts && \
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# API_ORIGIN is read by next.config.ts at build time to configure the /api/v1/*
-# rewrite proxy destination. Pass via --build-arg or the platform's build-time
-# variables (e.g. Coolify "Build-time Variables" section).
+# Build-time variables — Next.js bakes these into the output at compile time.
+# API_ORIGIN   → next.config.ts rewrite proxy destination (server-only)
+# NEXT_PUBLIC_WS_URL → inlined into the browser bundle for WebSocket connections
 ARG API_ORIGIN=http://localhost:4000
+ARG NEXT_PUBLIC_WS_URL=http://localhost:4000
 ENV API_ORIGIN=${API_ORIGIN}
+ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 RUN pnpm build
 
 FROM node:22-alpine AS runner
