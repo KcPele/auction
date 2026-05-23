@@ -59,7 +59,7 @@ export function SupportScreen() {
   useAdminSupportListStream();
   useSupportStream(activeId, true);
 
-  const list = conversations.data ?? [];
+  const list = useMemo(() => conversations.data ?? [], [conversations.data]);
   const active = useMemo(
     () => list.find((c) => c.id === activeId) ?? null,
     [list, activeId],

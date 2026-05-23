@@ -1,10 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   useSupportSettings,
   useUpdateSupportSettings,
 } from "@/app/components/support/hooks/use-support";
+import type { SupportSettings } from "@/app/components/support/types/support.types";
 
 /**
  * Admin-only card on the Settings page for picking the OpenRouter model and
@@ -13,21 +14,33 @@ import {
  */
 export function SupportAiCard() {
   const settings = useSupportSettings();
-  const update = useUpdateSupportSettings();
-  const [model, setModel] = useState("");
-  const [temperature, setTemperature] = useState("0.2");
-  const [maxOutputTokens, setMaxOutputTokens] = useState("800");
-  const [enabled, setEnabled] = useState(true);
-  const [prompt, setPrompt] = useState("");
+  if (!settings.data) {
+    return (
+      <section className="rounded-xl border border-line bg-surface p-4">
+        <h3 className="m-0 text-sm font-semibold text-fg">Support AI</h3>
+        <p className="mt-1 text-[11px] text-fg-dim">Loading…</p>
+      </section>
+    );
+  }
+  // Re-mount the form whenever the server-side `updatedAt` changes so the
+  // form state is seeded from the latest settings without setState-in-effect.
+  return (
+    <SupportAiCardForm
+      key={settings.data.updatedAt}
+      initial={settings.data}
+    />
+  );
+}
 
-  useEffect(() => {
-    if (!settings.data) return;
-    setModel(settings.data.model);
-    setTemperature(String(settings.data.temperature));
-    setMaxOutputTokens(String(settings.data.maxOutputTokens));
-    setEnabled(settings.data.enabled);
-    setPrompt(settings.data.systemPromptOverride ?? "");
-  }, [settings.data]);
+function SupportAiCardForm({ initial }: { initial: SupportSettings }) {
+  const update = useUpdateSupportSettings();
+  const [model, setModel] = useState(initial.model);
+  const [temperature, setTemperature] = useState(String(initial.temperature));
+  const [maxOutputTokens, setMaxOutputTokens] = useState(
+    String(initial.maxOutputTokens),
+  );
+  const [enabled, setEnabled] = useState(initial.enabled);
+  const [prompt, setPrompt] = useState(initial.systemPromptOverride ?? "");
 
   const onSave = async () => {
     try {

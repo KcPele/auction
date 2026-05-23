@@ -272,7 +272,22 @@ export function useSupportStream(conversationId: string | null, isAdmin = false)
         supportKeys.messages(conversationId),
         (prev) => {
           const list = prev ?? [];
+          // Already in the list (mutation already merged it) — skip.
           if (list.some((m) => m.id === msg.id)) return list;
+          // Replace a matching optimistic placeholder (same role + content)
+          // so the user doesn't briefly see their own bubble twice while
+          // the POST round-trip is still in flight.
+          const optimisticIdx = list.findIndex(
+            (m) =>
+              m.id.startsWith("optimistic:") &&
+              m.role === msg.role &&
+              m.content === msg.content,
+          );
+          if (optimisticIdx !== -1) {
+            const copy = [...list];
+            copy[optimisticIdx] = msg;
+            return copy;
+          }
           return [...list, msg];
         },
       );

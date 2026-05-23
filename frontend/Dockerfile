@@ -5,6 +5,10 @@ RUN corepack enable
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
+# pnpm v11+ refuses to run post-install build scripts (sharp, oxide, unrs)
+# unless they're listed under pnpm.onlyBuiltDependencies in package.json AND
+# strict-dep-builds is off. Without this combo CI exits with ERR_PNPM_IGNORED_BUILDS.
+ENV PNPM_CONFIG_STRICT_DEP_BUILDS=false
 RUN pnpm install --frozen-lockfile
 
 FROM base AS builder

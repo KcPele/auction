@@ -44,7 +44,7 @@ export function SupportChatScreen() {
   const markRead = useMarkRead();
   useSupportStream(activeId);
 
-  const list = conversations.data ?? [];
+  const list = useMemo(() => conversations.data ?? [], [conversations.data]);
   const active = useMemo(
     () => list.find((c) => c.id === activeId) ?? null,
     [list, activeId],
@@ -97,7 +97,7 @@ export function SupportChatScreen() {
   const badge = active ? stateBadge(active.state) : null;
 
   return (
-    <div className="grid h-[calc(100vh-7rem)] grid-cols-1 gap-4 md:grid-cols-[260px_1fr]">
+    <div className="grid h-[calc(100dvh-11rem)] grid-cols-1 gap-4 md:grid-cols-[260px_1fr]">
       {/* Conversation list */}
       <aside className="hidden flex-col rounded-xl border border-line bg-surface md:flex">
         <div className="flex items-center justify-between border-b border-line px-3 py-2">
@@ -121,9 +121,8 @@ export function SupportChatScreen() {
                 key={c.id}
                 type="button"
                 onClick={() => router.replace(`/dashboard/support?c=${c.id}`)}
-                className={`block w-full border-b border-line/60 px-3 py-2 text-left ${
-                  isActive ? "bg-bg" : "hover:bg-bg/60"
-                }`}
+                className={`block w-full border-b border-line/60 px-3 py-2 text-left ${isActive ? "bg-bg" : "hover:bg-bg/60"
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="truncate text-sm text-fg">
@@ -156,10 +155,10 @@ export function SupportChatScreen() {
             <div className="text-sm font-semibold text-fg">
               {active?.subject || "BidNaija Support"}
             </div>
-            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-fg-dim">
+            <div className="mt-0.5 flex items-center gap-2 text-[11px]  text-fg-dim">
               {badge && (
                 <span
-                  className={`inline-block rounded-full border px-2 py-0.5 text-[9px] font-semibold ${badge.cls}`}
+                  className={`inline-block rounded-full border whitespace-nowrap px-2 py-0.5 text-[9px] font-semibold ${badge.cls}`}
                 >
                   {badge.text}
                 </span>
@@ -201,10 +200,10 @@ export function SupportChatScreen() {
           onSend={onSend}
           placeholder={
             active?.state === "WAITING_ADMIN"
-              ? "Waiting for a human to join…"
+              ? "Waiting for a human…"
               : active?.state === "ADMIN_ACTIVE"
-                ? "You're chatting with a human now…"
-                : "Ask anything — say \"talk to a human\" anytime to hand off"
+                ? "Reply to the agent…"
+                : "Type a message…"
           }
         />
       </section>
