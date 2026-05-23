@@ -19,10 +19,15 @@ export function Composer({ onSend, disabled, placeholder }: Props) {
   const send = async () => {
     const trimmed = text.trim();
     if (!trimmed || busy || disabled) return;
+    // Clear immediately so the field empties as soon as the user sends,
+    // not after the full API round-trip completes.
+    setText("");
     setBusy(true);
     try {
       await onSend(trimmed);
-      setText("");
+    } catch {
+      // Restore text on failure so the user doesn't lose their message.
+      setText(trimmed);
     } finally {
       setBusy(false);
     }
