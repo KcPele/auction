@@ -82,15 +82,19 @@
 }
 
 @keyframes supportTypingBlink {
-  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
-  40%          { opacity: 1;    transform: translateY(-2px); }
+  0%, 80%, 100% { opacity: 0.3;  transform: translateY(0); }
+  40%           { opacity: 1;    transform: translateY(-4px); }
 }
 
 /* Utility class for the support-chat typing indicator. Using a dedicated
  * class (instead of inline `animation: ...`) lets the per-dot animation-delay
  * inline style stick — the `animation` shorthand would otherwise reset it. */
 .support-typing-dot {
-  animation: supportTypingBlink 1.2s infinite ease-in-out;
+  animation-name: supportTypingBlink;
+  animation-duration: 1.2s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  /* animation-delay is set per-dot via inline style */
 }
 
 @layer base {
