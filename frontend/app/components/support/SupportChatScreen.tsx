@@ -59,7 +59,7 @@ export function SupportChatScreen() {
   // Auto-create the first conversation if the user has none yet.
   useEffect(() => {
     if (!activeId && conversations.isSuccess && list.length === 0) {
-      void createConv.mutateAsync().then((c) => {
+      void createConv.mutateAsync(undefined).then((c) => {
         router.replace(`/dashboard/support?c=${c.id}`);
       });
     }
@@ -90,7 +90,7 @@ export function SupportChatScreen() {
   };
 
   const onNew = async () => {
-    const conv = await createConv.mutateAsync();
+    const conv = await createConv.mutateAsync(undefined);
     router.push(`/dashboard/support?c=${conv.id}`);
   };
 

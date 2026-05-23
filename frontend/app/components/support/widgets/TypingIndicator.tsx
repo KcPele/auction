@@ -29,11 +29,8 @@ export function TypingIndicator({ label = "BidNaija AI" }: Props) {
 function Dot({ delay }: { delay: string }) {
   return (
     <span
-      className="inline-block h-1.5 w-1.5 rounded-full bg-fg-muted"
-      style={{
-        animation: "supportTypingBlink 1.2s infinite ease-in-out",
-        animationDelay: delay,
-      }}
+      className="support-typing-dot inline-block h-1.5 w-1.5 rounded-full bg-fg-muted"
+      style={{ animationDelay: delay }}
     />
   );
 }
