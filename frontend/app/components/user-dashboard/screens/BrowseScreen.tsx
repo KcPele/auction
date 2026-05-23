@@ -9,7 +9,9 @@ import type {
 } from "@/app/components/auctions/types/auction.types";
 import { Icon } from "../primitives/Icon";
 import { Countdown } from "../widgets/Countdown";
+import { FilterPanel, type BrowseFilters } from "../widgets/FilterPanel";
 import { fmtNaira } from "../utils";
+import { nairaToKobo } from "@/app/lib/format/money";
 
 type CatFilter = "all" | AuctionCategory;
 type StatusFilter = "all" | "live" | "soon";

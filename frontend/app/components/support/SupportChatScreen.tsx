@@ -3,16 +3,15 @@ import { useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ApiError } from "@/app/lib/api/error";
-import { Icon } from "../user-dashboard/primitives/Icon";
 import { Composer } from "./widgets/Composer";
 import { MessageBubble } from "./widgets/MessageBubble";
+import { TypingIndicator } from "./widgets/TypingIndicator";
 import {
   useConversationMessages,
   useCreateConversation,
   useMarkRead,
   useMyConversations,
   usePostMessage,
-  useRequestHandoff,
   useSupportStream,
 } from "./hooks/use-support";
 import type { SupportState } from "./types/support.types";
@@ -42,7 +41,6 @@ export function SupportChatScreen() {
   const messagesQuery = useConversationMessages(activeId);
   const createConv = useCreateConversation();
   const postMsg = usePostMessage(activeId ?? "");
-  const handoff = useRequestHandoff(activeId ?? "");
   const markRead = useMarkRead();
   useSupportStream(activeId);
 
@@ -88,16 +86,6 @@ export function SupportChatScreen() {
       await postMsg.mutateAsync(content);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not send message");
-    }
-  };
-
-  const onHandoff = async () => {
-    if (!activeId) return;
-    try {
-      await handoff.mutateAsync(undefined);
-      toast.success("A human will join shortly");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not request a handoff");
     }
   };
 
@@ -181,20 +169,6 @@ export function SupportChatScreen() {
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void onHandoff()}
-            disabled={
-              !active ||
-              active.state === "ADMIN_ACTIVE" ||
-              active.state === "WAITING_ADMIN" ||
-              active.state === "RESOLVED"
-            }
-            className="hidden items-center gap-1.5 rounded-md border border-line px-2.5 py-1.5 text-xs text-fg-muted hover:text-fg disabled:opacity-40 sm:inline-flex"
-          >
-            <Icon name="user" size={12} strokeWidth={2} />
-            Talk to a human
-          </button>
         </header>
 
         <div
@@ -208,9 +182,17 @@ export function SupportChatScreen() {
               Ask the assistant anything about your BidNaija account.
             </div>
           ) : (
-            messagesQuery.data?.map((m) => (
-              <MessageBubble key={m.id} message={m} />
-            ))
+            <>
+              {messagesQuery.data?.map((m) => (
+                <MessageBubble key={m.id} message={m} />
+              ))}
+              {/* Typing dots: shown while the API call is in-flight AND the
+                  conversation is in AI mode. Admin replies arrive via WS so
+                  we don't have a "pending" flag for them here. */}
+              {postMsg.isPending && active?.state === "AI_ACTIVE" && (
+                <TypingIndicator label="BidNaija AI" />
+              )}
+            </>
           )}
         </div>
 
@@ -220,7 +202,9 @@ export function SupportChatScreen() {
           placeholder={
             active?.state === "WAITING_ADMIN"
               ? "Waiting for a human to join…"
-              : "Type your question — markdown supported"
+              : active?.state === "ADMIN_ACTIVE"
+                ? "You're chatting with a human now…"
+                : "Ask anything — say \"talk to a human\" anytime to hand off"
           }
         />
       </section>

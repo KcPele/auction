@@ -416,7 +416,7 @@ export class SupportService {
       s = await this.settingsRepo.save(
         this.settingsRepo.create({
           id: 'default',
-          model: 'openai/gpt-4o-mini',
+          model: 'xiaomi/mimo-v2-flash',
           temperature: '0.2',
           maxOutputTokens: 800,
           enabled: true,

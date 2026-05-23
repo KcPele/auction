@@ -289,6 +289,22 @@ export function ProfileScreen() {
         </div>
       )}
 
+      <Link
+        href="/dashboard/support"
+        className="mt-5 flex items-center gap-3 rounded-[14px] border border-accent/30 bg-accent/[0.08] px-4 py-3.5 text-left text-sm transition-colors hover:bg-accent/[0.12]"
+      >
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
+          <Icon name="help" size={18} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold text-fg">Contact support</div>
+          <div className="text-[11px] text-fg-dim">
+            Chat with the BidNaija assistant — ask to talk to a human anytime.
+          </div>
+        </div>
+        <Icon name="chevron" size={16} className="text-fg-dim" />
+      </Link>
+
       <div className="my-3 mt-5 text-[15px] font-semibold tracking-tight">Notification preferences</div>
       <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
         {NOTIF_PREFS.map((r) => (

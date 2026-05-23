@@ -81,7 +81,7 @@ export class CreateSupportTables1779400000000 implements MigrationInterface {
     // Seed a default row so the admin settings screen always renders.
     await queryRunner.query(`
       INSERT INTO "support_ai_settings" ("id", "model", "temperature", "maxOutputTokens", "enabled")
-      VALUES ('default', 'openai/gpt-4o-mini', 0.2, 800, true)
+      VALUES ('default', 'xiaomi/mimo-v2-flash', 0.2, 800, true)
       ON CONFLICT ("id") DO NOTHING
     `);
   }

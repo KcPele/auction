@@ -51,7 +51,7 @@ export function SupportAiCard() {
           <h3 className="m-0 text-sm font-semibold text-fg">Support AI</h3>
           <p className="m-0 mt-0.5 text-[11px] text-fg-dim">
             Powered by OpenRouter — paste any model slug
-            (e.g. <code>openai/gpt-4o-mini</code>).
+            (e.g. <code>xiaomi/mimo-v2-flash</code>).
           </p>
         </div>
         <button
@@ -70,7 +70,7 @@ export function SupportAiCard() {
           <input
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            placeholder="openai/gpt-4o-mini"
+            placeholder="xiaomi/mimo-v2-flash"
             className="w-full rounded-md border border-line bg-bg px-2.5 py-1.5 text-sm text-fg outline-none focus:border-accent"
           />
         </label>

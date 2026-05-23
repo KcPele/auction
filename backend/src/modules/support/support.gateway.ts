@@ -97,6 +97,7 @@ export class SupportGateway
   // ------------------------- emit helpers ---------------------------------
 
   emitMessage(conversationId: string, message: unknown) {
+    if (!this.server) return;
     this.server
       .to(conversationRoom(conversationId))
       .emit('support.message', { conversationId, message });
@@ -107,6 +108,7 @@ export class SupportGateway
   }
 
   emitStateChanged(conv: SupportConversation) {
+    if (!this.server) return;
     const payload = {
       conversationId: conv.id,
       state: conv.state,
@@ -122,7 +124,9 @@ export class SupportGateway
 
   /** Returns true if any admin socket is currently in the conversation room. */
   adminInRoom(conversationId: string): boolean {
-    const room = this.server.sockets.adapter.rooms.get(conversationRoom(conversationId));
+    const room = this.server?.sockets?.adapter?.rooms?.get(
+      conversationRoom(conversationId),
+    );
     if (!room) return false;
     for (const id of room) {
       const socket = this.server.sockets.sockets.get(id) as AuthedSocket | undefined;
@@ -139,7 +143,9 @@ export class SupportGateway
 
   /** Returns true if the user has the conversation open right now. */
   userInRoom(userId: string, conversationId: string): boolean {
-    const room = this.server.sockets.adapter.rooms.get(conversationRoom(conversationId));
+    const room = this.server?.sockets?.adapter?.rooms?.get(
+      conversationRoom(conversationId),
+    );
     if (!room) return false;
     for (const id of room) {
       const socket = this.server.sockets.sockets.get(id) as AuthedSocket | undefined;

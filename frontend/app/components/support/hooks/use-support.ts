@@ -74,16 +74,45 @@ export function usePostMessage(conversationId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (content: string) => postMessage(conversationId, content),
-    onSuccess: (resp) => {
+    // Optimistically paint the user's bubble the instant they hit Send so the
+    // chat feels live. We tag it with an `optimistic:` id and remove it again
+    // in onSuccess (replaced by the real message returned by the API).
+    onMutate: async (content: string) => {
+      await qc.cancelQueries({ queryKey: supportKeys.messages(conversationId) });
+      const previous =
+        qc.getQueryData<SupportMessage[]>(supportKeys.messages(conversationId)) ?? [];
+      const optimistic: SupportMessage = {
+        id: `optimistic:${Date.now()}`,
+        conversationId,
+        role: "USER",
+        authorId: null,
+        content,
+        toolCalls: null,
+        model: null,
+        createdAt: new Date(),
+      };
+      qc.setQueryData<SupportMessage[]>(
+        supportKeys.messages(conversationId),
+        [...previous, optimistic],
+      );
+      return { previous, optimisticId: optimistic.id };
+    },
+    onError: (_err, _content, ctx) => {
+      if (ctx?.previous) {
+        qc.setQueryData(supportKeys.messages(conversationId), ctx.previous);
+      }
+    },
+    onSuccess: (resp, _content, ctx) => {
       qc.setQueryData<SupportMessage[]>(
         supportKeys.messages(conversationId),
         (prev) => {
-          const merged = prev ? [...prev] : [];
-          const has = (id: string) => merged.some((m) => m.id === id);
-          if (!has(resp.userMessage.id)) merged.push(resp.userMessage);
+          // Drop the optimistic placeholder.
+          const stripped = (prev ?? []).filter((m) => m.id !== ctx?.optimisticId);
+          const has = (id: string) => stripped.some((m) => m.id === id);
+          if (!has(resp.userMessage.id)) stripped.push(resp.userMessage);
           if (resp.aiMessage && !has(resp.aiMessage.id))
-            merged.push(resp.aiMessage);
-          return merged;
+            stripped.push(resp.aiMessage);
+          return stripped;
         },
       );
       qc.invalidateQueries({ queryKey: supportKeys.myConversations() });
@@ -127,11 +156,35 @@ export function useAdminPostMessage(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (content: string) => adminPostMessage(id, content),
-    onSuccess: (msg) => {
+    onMutate: async (content: string) => {
+      await qc.cancelQueries({ queryKey: supportKeys.messages(id) });
+      const previous =
+        qc.getQueryData<SupportMessage[]>(supportKeys.messages(id)) ?? [];
+      const optimistic: SupportMessage = {
+        id: `optimistic:${Date.now()}`,
+        conversationId: id,
+        role: "ADMIN",
+        authorId: null,
+        content,
+        toolCalls: null,
+        model: null,
+        createdAt: new Date(),
+      };
+      qc.setQueryData<SupportMessage[]>(supportKeys.messages(id), [
+        ...previous,
+        optimistic,
+      ]);
+      return { previous, optimisticId: optimistic.id };
+    },
+    onError: (_err, _content, ctx) => {
+      if (ctx?.previous)
+        qc.setQueryData(supportKeys.messages(id), ctx.previous);
+    },
+    onSuccess: (msg, _content, ctx) => {
       qc.setQueryData<SupportMessage[]>(supportKeys.messages(id), (prev) => {
-        const list = prev ?? [];
-        if (list.some((m) => m.id === msg.id)) return list;
-        return [...list, msg];
+        const stripped = (prev ?? []).filter((m) => m.id !== ctx?.optimisticId);
+        if (stripped.some((m) => m.id === msg.id)) return stripped;
+        return [...stripped, msg];
       });
       qc.invalidateQueries({ queryKey: supportKeys.adminList() });
     },

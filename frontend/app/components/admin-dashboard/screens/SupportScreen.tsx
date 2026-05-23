@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/app/lib/api/error";
 import { MessageBubble } from "@/app/components/support/widgets/MessageBubble";
 import { Composer } from "@/app/components/support/widgets/Composer";
+import { TypingIndicator } from "@/app/components/support/widgets/TypingIndicator";
 import {
   useAdminAssign,
   useAdminConversations,
@@ -216,9 +217,14 @@ export function SupportScreen() {
                     Loading…
                   </div>
                 ) : (
-                  messages.data?.map((m) => (
-                    <MessageBubble key={m.id} message={m} asAdmin />
-                  ))
+                  <>
+                    {messages.data?.map((m) => (
+                      <MessageBubble key={m.id} message={m} asAdmin />
+                    ))}
+                    {postMsg.isPending && (
+                      <TypingIndicator label="Support agent" />
+                    )}
+                  </>
                 )}
               </div>
 
