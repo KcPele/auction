@@ -31,7 +31,8 @@ const labelClass = "mb-1 block text-xs font-medium text-fg-muted";
 export function EditListingScreen({ id }: { id: string }) {
   const router = useRouter();
   const params = useSearchParams();
-  const category = (params.get("category") ?? "car") as Category;
+  const rawCategory = (params.get("category") ?? "car").toLowerCase();
+  const category: Category = rawCategory.startsWith("gadget") ? "gadget" : "car";
 
   const car = useCarListing(category === "car" ? id : undefined);
   const gadget = useGadgetListing(category === "gadget" ? id : undefined);

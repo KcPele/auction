@@ -39,7 +39,7 @@ export function Wallet() {
             <span className="text-[30px] text-fg-dim">₦</span>
             {TOTAL.toLocaleString("en-NG")}
           </div>
-          <div className="relative mb-7 text-[13px] text-fg-muted">4 active holds · Last top-up 2h ago via OPay</div>
+          <div className="relative mb-7 text-[13px] text-fg-muted">4 active holds · Last top-up 2h ago via Strowallet</div>
 
           <div className="relative grid grid-cols-2 gap-4 rounded-md border border-line bg-black/35 p-5">
             <div>

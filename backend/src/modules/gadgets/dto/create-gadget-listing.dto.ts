@@ -66,9 +66,13 @@ export class CreateGadgetListingDto {
   @IsString({ each: true })
   photoUrls!: string[];
 
-  @ApiPropertyOptional({ type: [String] })
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Up to 3 video URLs.',
+  })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(3)
   @IsString({ each: true })
   videoUrls?: string[];
 

@@ -2,7 +2,7 @@ import { Section } from "./Section";
 
 const CHECKS = [
   { title: "Your hold counts toward the total", desc: "If your hold was ₦485,000 and your winning bid is ₦4.85M, you pay ₦4,365,000. Not a naira more." },
-  { title: "OPay webhook confirms and settles", desc: "Signature-verified server-side. The moment payment clears, the seller is notified and delivery is arranged." },
+  { title: "Strowallet webhook confirms and settles", desc: "Signature-verified server-side. The moment payment clears, the seller is notified and delivery is arranged." },
   { title: "Auto-reminders at 12h, 4h, and 1h", desc: "Email and WhatsApp nudges so you don't accidentally lose your hold. We'd rather you finish the payment." },
 ];
 
@@ -36,7 +36,7 @@ export function Payments() {
             You pay it. <em className="italic accent-gradient-text">In a day.</em>
           </h2>
           <p className="text-[17px] leading-[1.55] text-fg-muted">
-            The second an auction closes, a 24-hour timer starts. Finish the payment via OPay and your win is settled. Miss it? The hold is forfeited and the item falls to the second-highest bidder — or we re-list it.
+            The second an auction closes, a 24-hour timer starts. Finish the payment via Strowallet and your win is settled. Miss it? The hold is forfeited and the item falls to the second-highest bidder — or we re-list it.
           </p>
           <div className="mt-6 flex flex-col gap-4">
             {CHECKS.map((c) => (

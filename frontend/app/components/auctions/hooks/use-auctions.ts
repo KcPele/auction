@@ -18,6 +18,10 @@ export function useAuctions(params: {
   search?: string;
   limit?: number;
   offset?: number;
+  minPriceKobo?: number;
+  maxPriceKobo?: number;
+  minYear?: number;
+  maxYear?: number;
 } = {}) {
   return useQuery({
     queryKey: auctionKeys.list(params),

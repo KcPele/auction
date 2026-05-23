@@ -52,8 +52,8 @@ const ITEMS: TrustItem[] = [
         <path d="M3 10h18M7 15h3" strokeLinecap="round" />
       </>,
     ),
-    title: "OPay-settled payments",
-    desc: "Every movement of money rides on OPay rails — widely accepted, fast. All webhooks signature-verified server-side.",
+    title: "Strowallet-settled payments",
+    desc: "Every movement of money rides on Strowallet rails — widely accepted, fast. All webhooks signature-verified server-side.",
   },
   {
     icon: ICON(<path d="M4 7h16M4 12h16M4 17h10" strokeLinecap="round" />),

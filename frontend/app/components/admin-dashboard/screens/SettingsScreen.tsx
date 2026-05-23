@@ -13,6 +13,7 @@ import {
   useUpdatePlatformFee,
   useUpdatePlatformToggles,
 } from "@/app/components/admin/hooks/use-admin-settings";
+import { SupportAiCard } from "../widgets/SupportAiCard";
 import { ApiError } from "@/app/lib/api/error";
 import { Card, CardBody, CardHead } from "../widgets/Card";
 import { NumberInput } from "../../ui/NumberInput";
@@ -109,6 +110,7 @@ export function SettingsScreen() {
         <PaymentAccountCard />
         <EscrowCard />
         <TogglesCard />
+        <SupportAiCard />
       </div>
     </>
   );

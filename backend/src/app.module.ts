@@ -1,10 +1,13 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
+import { EmailModule } from './common/email/email.service';
+import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+import { RedisModule } from './common/redis/redis.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuctionsModule } from './modules/auctions/auctions.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -18,6 +21,7 @@ import { KycModule } from './modules/kyc/kyc.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PublicModule } from './modules/public/public.module';
+import { SupportModule } from './modules/support/support.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { UsersModule } from './modules/users/users.module';
 import { WalletsModule } from './modules/wallets/wallets.module';
@@ -46,6 +50,8 @@ import { buildTypeOrmConfig } from './config/typeorm.config';
         limit: 120,
       },
     ]),
+    RedisModule,
+    EmailModule,
     HealthModule,
     AuthModule,
     UsersModule,
@@ -62,10 +68,12 @@ import { buildTypeOrmConfig } from './config/typeorm.config';
     JobsModule,
     GatewayModule,
     PublicModule,
+    SupportModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: GlobalHttpExceptionFilter },
+    { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
   ],
 })
 export class AppModule {}

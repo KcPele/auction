@@ -10,6 +10,7 @@ export const SECTION_LABELS: Record<string, string> = {
   withdrawals: "Withdrawal authorization",
   settlements: "Settlements",
   notifications: "Notifications log",
+  support: "Support",
   health: "System health",
   settings: "Settings",
 };

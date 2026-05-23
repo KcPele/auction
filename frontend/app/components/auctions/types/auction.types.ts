@@ -55,6 +55,7 @@ export type CarListingDto = {
   knownFaults: string | null;
   mechanicId: string | null;
   photoUrls: string[];
+  videoUrls: string[];
   basePriceKobo: number;
   status: string;
   reviewedById: string | null;

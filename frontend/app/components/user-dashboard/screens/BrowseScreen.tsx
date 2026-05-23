@@ -45,6 +45,8 @@ export function BrowseScreen() {
   const cat = selectedCat ?? initialCat;
   const [status, setStatus] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<BrowseFilters>({});
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useAuctions({
     category: cat === "all" ? undefined : cat,
@@ -52,7 +54,19 @@ export function BrowseScreen() {
       status === "live" ? "LIVE" : status === "soon" ? "SCHEDULED" : undefined,
     search: query || undefined,
     limit: 40,
+    minPriceKobo:
+      filters.minPrice != null ? nairaToKobo(filters.minPrice) : undefined,
+    maxPriceKobo:
+      filters.maxPrice != null ? nairaToKobo(filters.maxPrice) : undefined,
+    minYear: filters.minYear,
+    maxYear: filters.maxYear,
   });
+
+  const filterCount =
+    (filters.minPrice != null ? 1 : 0) +
+    (filters.maxPrice != null ? 1 : 0) +
+    (filters.minYear != null ? 1 : 0) +
+    (filters.maxYear != null ? 1 : 0);
 
   const auctions = useMemo(() => data ?? [], [data]);
 
@@ -62,20 +76,38 @@ export function BrowseScreen() {
         Browse
       </h1>
 
-      <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3.5 py-2.5">
-        <Icon name="search" size={18} className="text-fg-muted" />
-        <input
-          placeholder="Search Camry, iPhone, Lexus…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 border-none bg-transparent text-sm text-fg outline-none"
+      <div className="relative mt-3">
+        <div className="flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3.5 py-2.5">
+          <Icon name="search" size={18} className="text-fg-muted" />
+          <input
+            placeholder="Search Camry, iPhone, Lexus…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 border-none bg-transparent text-sm text-fg outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => setFilterOpen((v) => !v)}
+            className={`relative cursor-pointer border-none bg-transparent ${
+              filterCount > 0 ? "text-accent" : "text-fg-muted"
+            }`}
+            aria-label="Open filters"
+          >
+            <Icon name="sliders" size={18} />
+            {filterCount > 0 && (
+              <span className="absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-[#0a0806]">
+                {filterCount}
+              </span>
+            )}
+          </button>
+        </div>
+        <FilterPanel
+          open={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          value={filters}
+          onChange={setFilters}
+          showYearFields={cat !== "gadgets"}
         />
-        <button
-          type="button"
-          className="cursor-pointer border-none bg-transparent text-fg-muted"
-        >
-          <Icon name="sliders" size={18} />
-        </button>
       </div>
 
       <div className="mt-3.5 flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">

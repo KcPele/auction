@@ -25,6 +25,7 @@ const MAIN: NavItem[] = [
 const META: NavItem[] = [
   { href: "/dashboard/notifications", label: "Notifications", icon: "bell" },
   { href: "/dashboard/watchlist", label: "Watchlist", icon: "heart" },
+  { href: "/dashboard/support", label: "Contact support", icon: "help" },
   { href: "/dashboard/profile", label: "Profile & settings", icon: "user" },
 ];
 

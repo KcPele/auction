@@ -17,7 +17,8 @@ export type AdminIconName =
   | "close"
   | "menu"
   | "car"
-  | "phone";
+  | "phone"
+  | "help";
 
 interface Props {
   name: AdminIconName;
@@ -164,6 +165,14 @@ export function AdminIcon({ name, size = 16, strokeWidth = 1.7, style, className
       return (
         <svg {...c}>
           <rect x="6" y="3" width="12" height="18" rx="2" />
+        </svg>
+      );
+    case "help":
+      return (
+        <svg {...c}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.5 9a2.5 2.5 0 1 1 4.5 1.5c-1 .8-2 1.3-2 2.5" />
+          <line x1="12" y1="17" x2="12" y2="17.01" />
         </svg>
       );
     default:

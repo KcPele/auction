@@ -20,6 +20,46 @@ export class ListAuctionsQueryDto {
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({
+    description: 'Minimum base price in kobo (inclusive)',
+    example: 1_000_000,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  minPriceKobo?: number;
+
+  @ApiPropertyOptional({
+    description: 'Maximum base price in kobo (inclusive)',
+    example: 5_000_000_000,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  maxPriceKobo?: number;
+
+  @ApiPropertyOptional({
+    description: 'Minimum car year (cars only)',
+    example: 2015,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1900)
+  minYear?: number;
+
+  @ApiPropertyOptional({
+    description: 'Maximum car year (cars only)',
+    example: 2024,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1900)
+  maxYear?: number;
+
   @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)

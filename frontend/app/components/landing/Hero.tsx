@@ -1,17 +1,28 @@
+"use client";
+import { useQuery } from "@tanstack/react-query";
 import { FeaturedCard } from "./FeaturedCard";
 import { Button } from "./primitives/Button";
 import { LiveDot } from "./primitives/LiveDot";
-
-const STATS = [
-  { num: "₦2.4B+", label: "Traded volume" },
-  { num: "12,400", label: "Verified bidders" },
-  { num: "98.7%", label: "Settled in 24h" },
-];
+import { getPublicStats } from "./api/public.api";
+import { fmtCompactNaira } from "./utils";
 
 const HERO_GLOW =
   "radial-gradient(ellipse at 50% 30%, rgba(255,122,26,0.45) 0%, transparent 50%), radial-gradient(ellipse at 30% 40%, rgba(255,180,70,0.22) 0%, transparent 40%), radial-gradient(ellipse at 70% 50%, rgba(184,68,13,0.3) 0%, transparent 45%)";
 
 export function Hero() {
+  const { data: stats } = useQuery({
+    queryKey: ["public", "stats"],
+    queryFn: getPublicStats,
+    staleTime: 60_000,
+  });
+
+  const numFmt = new Intl.NumberFormat("en-NG");
+  const items = [
+    { num: stats ? fmtCompactNaira(stats.tradedVolume) : "—", label: "Traded volume" },
+    { num: stats ? numFmt.format(stats.verifiedBidders) : "—", label: "Verified bidders" },
+    { num: stats ? `${stats.settlementRate}%` : "—", label: "Settled in 24h" },
+  ];
+
   return (
     <section className="relative isolate overflow-hidden px-5 py-20 pb-[120px] md:px-10">
       <div
@@ -40,7 +51,7 @@ export function Hero() {
             <em className="italic accent-gradient-text">loud.</em>
           </h1>
           <p className="max-w-[520px] text-[19px] leading-[1.55] text-fg-muted">
-            A serious auction platform for cars and gadgets across Nigeria. Every listing is verified. Every bid is backed by real funds. Every payment runs through OPay — no drama.
+            A serious auction platform for cars and gadgets across Nigeria. Every listing is verified. Every bid is backed by real funds. Every payment runs through Strowallet — no drama.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3.5">
             <Button href="/register" variant="primary" size="lg">
@@ -54,7 +65,7 @@ export function Hero() {
             </Button>
           </div>
           <div className="mt-12 grid max-w-[520px] grid-cols-3 gap-6 border-t border-line pt-8">
-            {STATS.map((s) => (
+            {items.map((s) => (
               <div key={s.label}>
                 <div className="font-display text-[32px] font-semibold tracking-[-0.02em] text-fg">{s.num}</div>
                 <div className="mt-1 text-xs uppercase tracking-wider text-fg-dim">{s.label}</div>

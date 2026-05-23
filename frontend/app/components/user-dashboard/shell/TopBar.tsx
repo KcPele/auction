@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMe } from "@/app/components/auth/hooks/use-me";
 import { useUnreadCount } from "@/app/components/notifications/hooks/use-notifications";
+import { SearchBox } from "@/app/components/search/SearchBox";
 import { Icon } from "../primitives/Icon";
 
 const TITLE_MAP: Record<string, string> = {
@@ -45,16 +46,7 @@ export function TopBar() {
       <div className="font-display text-xl font-semibold tracking-[-0.02em]">
         {resolveTitle(path)}
       </div>
-      <div className="flex max-w-[480px] flex-1 items-center gap-2.5 rounded-[10px] border border-line bg-surface px-3.5 py-[9px]">
-        <Icon name="search" size={16} style={{ color: "var(--fg-muted)" }} />
-        <input
-          placeholder="Search auctions, sellers, categories…"
-          className="flex-1 border-none bg-transparent text-[13px] text-fg outline-none"
-        />
-        <span className="rounded border border-line px-1.5 py-0.5 font-mono text-[10px] text-fg-dim">
-          ⌘K
-        </span>
-      </div>
+      <SearchBox />
       <div className="ml-auto flex items-center gap-2">
         <Link href="/dashboard/notifications" className={ICON_BTN_CLASS}>
           <Icon name="bell" size={18} />

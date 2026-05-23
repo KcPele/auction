@@ -38,7 +38,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Get the current user profile and permissions' })
   @ApiOkResponse({ description: 'Current user profile returned.' })
   getMe(@CurrentUser() user: AuthenticatedUser) {
-    return this.usersService.getMe(user.id);
+    return this.usersService.getMe(user.id, user.role);
   }
 
   @Patch('me')

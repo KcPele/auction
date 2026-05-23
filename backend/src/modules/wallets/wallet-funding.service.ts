@@ -157,10 +157,16 @@ export class WalletFundingService {
   }
 
   private parseVirtualAccount(response: Record<string, unknown>) {
+    // Strowallet returns flat snake_case fields at the top level
+    // (account_number, account_name, bank_name), but some other providers/
+    // shapes nest under an accounts[] array — handle both.
     const account = Array.isArray(response.accounts)
       ? (response.accounts[0] as Record<string, unknown> | undefined)
       : response;
-    const accountNumber = this.readOptionalString(account, 'accountNumber');
+    const accountNumber =
+      this.readOptional(account, 'accountNumber') ??
+      this.readOptional(account, 'account_number') ??
+      this.readOptional(response, 'account_number');
 
     if (!accountNumber) {
       return null;
@@ -169,24 +175,33 @@ export class WalletFundingService {
     return {
       accountNumber,
       accountName:
-        this.readOptionalString(account, 'accountName') ??
-        this.readOptionalString(response, 'accountName'),
+        this.readOptional(account, 'accountName') ??
+        this.readOptional(account, 'account_name') ??
+        this.readOptional(response, 'account_name'),
       bankName:
-        this.readOptionalString(account, 'bankName') ??
-        this.readOptionalString(response, 'bankName') ??
+        this.readOptional(account, 'bankName') ??
+        this.readOptional(account, 'bank_name') ??
+        this.readOptional(response, 'bank_name') ??
         'Strowallet',
-      bankCode: this.readOptionalString(account, 'bankCode'),
+      bankCode:
+        this.readOptional(account, 'bankCode') ??
+        this.readOptional(account, 'bank_code'),
       providerReference:
-        this.readOptionalString(response, 'sessionId') ??
-        this.readOptionalString(response, 'reservationReference') ??
-        this.readOptionalString(response, 'settlementId'),
+        this.readOptional(response, 'sessionId') ??
+        this.readOptional(response, 'reservationReference') ??
+        this.readOptional(response, 'settlementId') ??
+        this.readOptional(response, 'customer_id') ??
+        this.readOptional(response, 'customerId'),
     };
   }
 
-  private readOptionalString(source: unknown, key: string) {
+  private readOptional(source: unknown, key: string) {
     if (!source || typeof source !== 'object') return null;
     const value = (source as Record<string, unknown>)[key];
-    return typeof value === 'string' && value.trim() ? value.trim() : null;
+    if (value == null) return null;
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    return null;
   }
 
   private async findWalletForUpdate(manager: EntityManager, walletId: string) {

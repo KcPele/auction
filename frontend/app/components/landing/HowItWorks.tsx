@@ -44,7 +44,7 @@ export function HowItWorks() {
             <br />
             Wallet holds are atomic.
             <br />
-            Payments run through OPay.
+            Payments run through Strowallet.
           </div>
         </div>
 

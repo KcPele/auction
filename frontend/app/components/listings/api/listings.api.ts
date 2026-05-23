@@ -52,6 +52,7 @@ export const toCarListing = (dto: CarListingDto): CarListing => ({
   mileage: dto.mileage,
   condition: dto.condition,
   knownFaults: dto.knownFaults,
+  videoUrls: dto.videoUrls ?? [],
   holdPercent: dto.holdPercent,
   minimumBidIncrement: koboToNaira(num(dto.minimumBidIncrementKobo)),
 });
@@ -172,15 +173,18 @@ export const submitGadgetListing = (id: string) =>
   });
 
 // Uploads
+// Fastify multipart streams form parts in order — `file.fields` only contains
+// text fields that arrived BEFORE the file part. Append purpose/category first
+// so the backend can read them on every file in the iterator.
 export const uploadOneFile = (input: {
   file: File;
   purpose: UploadPurpose;
   category?: "CAR" | "GADGET";
 }): Promise<UploadAssetDto> => {
   const fd = new FormData();
-  fd.append("file", input.file);
   fd.append("purpose", input.purpose);
   if (input.category) fd.append("category", input.category);
+  fd.append("file", input.file);
   return apiClient<UploadOneResponseDto>("/uploads", {
     method: "POST",
     body: fd,
@@ -193,9 +197,9 @@ export const uploadBatchFiles = (input: {
   category?: "CAR" | "GADGET";
 }): Promise<UploadAssetDto[]> => {
   const fd = new FormData();
-  for (const f of input.files) fd.append("files", f);
   fd.append("purpose", input.purpose);
   if (input.category) fd.append("category", input.category);
+  for (const f of input.files) fd.append("files", f);
   return apiClient<UploadBatchResponseDto>("/uploads/batch", {
     method: "POST",
     body: fd,

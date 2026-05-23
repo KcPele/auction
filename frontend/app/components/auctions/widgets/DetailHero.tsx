@@ -8,24 +8,39 @@ const HERO_BG = {
     "repeating-linear-gradient(135deg, rgba(255,170,90,0.03) 0 10px, rgba(255,170,90,0.07) 10px 20px), linear-gradient(180deg, #3a2d1f, #231810)",
 };
 
+type Slide = { kind: "photo" | "video"; url: string };
+
 interface Props {
   auction: AuctionDetail;
 }
 
 export function DetailHero({ auction }: Props) {
   const photos = auction.listing?.photoUrls ?? [];
-  const [photo, setPhoto] = useState(0);
+  const videos = auction.listing?.videoUrls ?? [];
+  const slides: Slide[] = [
+    ...photos.map((url) => ({ kind: "photo" as const, url })),
+    ...videos.map((url) => ({ kind: "video" as const, url })),
+  ];
+  const [index, setIndex] = useState(0);
   const fallbackIcon = auction.category === "cars" ? "car" : "phone";
+  const current = slides[index];
 
   return (
     <div
       className="relative -mx-[18px] flex aspect-[4/3] items-center justify-center text-[rgba(255,200,140,0.3)]"
       style={HERO_BG}
     >
-      {photos[photo] ? (
+      {current?.kind === "video" ? (
+        <video
+          src={current.url}
+          controls
+          playsInline
+          className="h-full w-full bg-black object-contain"
+        />
+      ) : current ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={photos[photo]}
+          src={current.url}
           alt={auction.title}
           className="h-full w-full object-cover"
         />
@@ -40,24 +55,26 @@ export function DetailHero({ auction }: Props) {
         </span>
       )}
 
-      {photos.length > 1 && (
+      {slides.length > 1 && (
         <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-center gap-1.5">
-          {photos.slice(0, 5).map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setPhoto(i)}
-              className={`flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border bg-black/50 backdrop-blur ${
-                i === photo
-                  ? "border-accent text-accent"
-                  : "border-line text-fg-muted"
-              }`}
-            >
-              <Icon name="image" size={14} />
-            </button>
-          ))}
-          <div className="ml-auto rounded-full border border-line bg-black/70 px-2.5 py-1.5 font-mono text-[11px]">
-            {photo + 1} / {photos.length}
+          <div className="flex flex-1 items-center gap-1.5 overflow-x-auto pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {slides.map((s, i) => (
+              <button
+                key={`${s.kind}-${i}`}
+                type="button"
+                onClick={() => setIndex(i)}
+                className={`flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border bg-black/50 backdrop-blur ${
+                  i === index
+                    ? "border-accent text-accent"
+                    : "border-line text-fg-muted"
+                }`}
+              >
+                <Icon name={s.kind === "video" ? "play" : "image"} size={14} />
+              </button>
+            ))}
+          </div>
+          <div className="rounded-full border border-line bg-black/70 px-2.5 py-1.5 font-mono text-[11px]">
+            {index + 1} / {slides.length}
           </div>
         </div>
       )}

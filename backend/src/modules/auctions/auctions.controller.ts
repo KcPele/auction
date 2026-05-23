@@ -84,6 +84,20 @@ export class AuctionsController {
     return this.auctionsService.cancel(user.id, id, dto);
   }
 
+  @Post(':id/force-close')
+  @ApiCookieAuth('better-auth.session_token')
+  @Roles(UserRole.Admin)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({
+    summary:
+      'Admin: immediately close a live auction (skip remaining timer). Useful for ops intervention or finalising stuck auctions.',
+  })
+  @ApiOkResponse({ description: 'Auction closed.' })
+  @HttpCode(200)
+  forceClose(@Param('id') id: string) {
+    return this.auctionsService.forceCloseAuction(id);
+  }
+
   @Post(':id/confirm-payment')
   @ApiCookieAuth('better-auth.session_token')
   @UseGuards(JwtAuthGuard)

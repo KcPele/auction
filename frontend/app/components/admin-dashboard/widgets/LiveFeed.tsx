@@ -103,7 +103,7 @@ export function LiveFeed() {
           ) : (
             items.map((it) => {
               const dot = DOT_COLOR[it.type] ?? "bg-fg-dim";
-              const lbl = TYPE_LABEL[it.type] ?? it.label;
+              const lbl = it.label || TYPE_LABEL[it.type] || it.type;
               return (
                 <div
                   key={it.id}

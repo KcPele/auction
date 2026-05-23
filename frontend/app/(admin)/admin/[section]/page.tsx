@@ -9,6 +9,7 @@ import { NotificationsScreen } from "@/app/components/admin-dashboard/screens/No
 import { PaymentsScreen } from "@/app/components/admin-dashboard/screens/PaymentsScreen";
 import { SettlementScreen } from "@/app/components/admin-dashboard/screens/SettlementScreen";
 import { SettingsScreen } from "@/app/components/admin-dashboard/screens/SettingsScreen";
+import { SupportScreen } from "@/app/components/admin-dashboard/screens/SupportScreen";
 import { UsersScreen } from "@/app/components/admin-dashboard/screens/UsersScreen";
 import { WithdrawalsScreen } from "@/app/components/admin-dashboard/screens/WithdrawalsScreen";
 
@@ -25,6 +26,7 @@ const SCREENS: Record<string, () => React.ReactElement> = {
   settlements: SettlementScreen,
   withdrawals: WithdrawalsScreen,
   health: HealthScreen,
+  support: SupportScreen,
 };
 
 export default async function AdminSectionPage({

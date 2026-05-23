@@ -5,6 +5,7 @@ import { useAdminAuctions } from "@/app/components/admin/hooks/use-admin-dashboa
 import { useAdminDisputes } from "@/app/components/admin/hooks/use-admin-extras";
 import { usePendingWithdrawals } from "@/app/components/admin/hooks/use-admin-withdrawals";
 import { usePendingApplications, usePendingListings } from "@/app/components/admin/hooks/use-admin-listings";
+import { SearchBox } from "@/app/components/search/SearchBox";
 import { AdminIcon } from "../primitives/Icon";
 import { SECTION_LABELS } from "../data";
 
@@ -56,13 +57,8 @@ export function TopBar({ onBurgerClick }: Props) {
         <span className="font-semibold text-fg">{crumb}</span>
       </div>
 
-      <div className="ml-5 hidden max-w-[440px] flex-1 items-center gap-2 rounded-md border border-line bg-surface px-3 py-[7px] text-fg-muted md:flex">
-        <AdminIcon name="search" size={13} strokeWidth={2} />
-        <input
-          placeholder="Search users, listings, auctions, ledger entries..."
-          className="flex-1 border-none bg-transparent text-[13px] text-fg outline-none placeholder:text-fg-dim"
-        />
-        <span className="rounded border border-line px-[5px] py-px font-mono text-[10px] text-fg-dim">⌘K</span>
+      <div className="ml-5 hidden flex-1 md:flex">
+        <SearchBox resultHrefPrefix="/admin/auctions" />
       </div>
 
       <div className="ml-auto flex items-center gap-2">

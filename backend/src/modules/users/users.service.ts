@@ -13,6 +13,7 @@ import { Auction } from '../auctions/entities/auction.entity';
 import { AuctionDelivery } from '../auctions/entities/auction-delivery.entity';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
 import { BidStatus } from '../../common/enums/bid-status.enum';
+import { UserRole } from '../../common/enums/user-role.enum';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { Bid } from '../bids/entities/bid.entity';
@@ -55,13 +56,19 @@ export class UsersService {
     private readonly deliveryRepository: Repository<AuctionDelivery>,
   ) {}
 
-  async getMe(userId: string) {
+  async getMe(userId: string, effectiveRole?: UserRole) {
     const user = await this.findActiveUser(userId);
     const preferences = await this.ensurePreferences(user.id);
     const permissions = await this.permissionsRepository.find({
       where: { userId: user.id },
       order: { createdAt: 'DESC' },
     });
+
+    // Prefer the effective role computed by AuthService (which folds in the
+    // Better Auth admin flag). Falls back to the app users.role copy.
+    if (effectiveRole && effectiveRole !== user.role) {
+      user.role = effectiveRole;
+    }
 
     return {
       user: presentUser(user),

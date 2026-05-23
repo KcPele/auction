@@ -18,5 +18,17 @@ export function buildTypeOrmConfig(
     synchronize: false,
     migrationsRun: false,
     logging: config.get<string>('NODE_ENV') === 'development',
+    // Production-ready pool: reconnect on transient DB blips, don't crash the
+    // process on idle-socket errors. The previous setup let an `ETIMEDOUT`
+    // bubble out as an unhandled `error` event and SIGKILL'd Nest.
+    retryAttempts: 10,
+    retryDelay: 3000,
+    extra: {
+      max: 20,
+      // node-postgres uses these to evict dead sockets before the OS does.
+      keepAlive: true,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+    },
   };
 }

@@ -84,6 +84,10 @@ export const listAuctions = async (params: {
   search?: string;
   limit?: number;
   offset?: number;
+  minPriceKobo?: number;
+  maxPriceKobo?: number;
+  minYear?: number;
+  maxYear?: number;
 } = {}): Promise<Auction[]> => {
   const dto = await apiClient<ListAuctionsResponseDto>("/auctions", {
     query: {
@@ -97,6 +101,10 @@ export const listAuctions = async (params: {
       search: params.search,
       limit: params.limit ?? 20,
       offset: params.offset ?? 0,
+      minPriceKobo: params.minPriceKobo,
+      maxPriceKobo: params.maxPriceKobo,
+      minYear: params.minYear,
+      maxYear: params.maxYear,
     },
   });
   return dto.auctions.map((a) => toAuction(a, null));

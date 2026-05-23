@@ -22,6 +22,7 @@ import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../users/entities/user.entity';
 import { BidsGateway } from '../bids/bids.gateway';
+import { WalletsService } from '../wallets/wallets.service';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { CancelAuctionDto } from './dto/cancel-auction.dto';
 import { ListAuctionsQueryDto } from './dto/list-auctions-query.dto';
@@ -61,6 +62,7 @@ export class AuctionsService implements OnApplicationBootstrap {
     private readonly notificationsService: NotificationsService,
     private readonly lifecycleScheduler: AuctionLifecycleScheduler,
     private readonly bidsGateway: BidsGateway,
+    private readonly walletsService: WalletsService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -114,20 +116,104 @@ export class AuctionsService implements OnApplicationBootstrap {
       }
     }
 
-    const where = {
-      ...(query.category ? { category: query.category } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      ...(auctionIds ? { id: In(auctionIds) } : {}),
+    // Year filter applies only to cars — pre-resolve matching listing IDs and
+    // narrow the auction ID set before the main query.
+    if (
+      (query.minYear || query.maxYear) &&
+      query.category !== ListingCategory.Gadget
+    ) {
+      const yearQb = this.carListingsRepository
+        .createQueryBuilder('c')
+        .select('c.id');
+      if (query.minYear) yearQb.andWhere('c.year >= :minY', { minY: query.minYear });
+      if (query.maxYear) yearQb.andWhere('c.year <= :maxY', { maxY: query.maxYear });
+      const carIds = (await yearQb.getMany()).map((c) => c.id);
+      if (carIds.length === 0) {
+        return { auctions: [] };
+      }
+      const yearAuctions = await this.auctionsRepository.find({
+        where: { category: ListingCategory.Car, listingId: In(carIds) },
+        select: ['id'],
+      });
+      const yearIds = yearAuctions.map((a) => a.id);
+      auctionIds = auctionIds
+        ? auctionIds.filter((id) => yearIds.includes(id))
+        : yearIds;
+      if (auctionIds.length === 0) {
+        return { auctions: [] };
+      }
+    }
+
+    const qb = this.auctionsRepository
+      .createQueryBuilder('a')
+      .orderBy('a.startTime', 'ASC')
+      .addOrderBy('a.createdAt', 'DESC')
+      .take(query.limit)
+      .skip(query.offset);
+    if (query.category) qb.andWhere('a.category = :cat', { cat: query.category });
+    if (query.status) qb.andWhere('a.status = :st', { st: query.status });
+    if (auctionIds) qb.andWhere('a.id IN (:...ids)', { ids: auctionIds });
+    if (query.minPriceKobo != null)
+      qb.andWhere('a."basePriceKobo" >= :minP', { minP: query.minPriceKobo });
+    if (query.maxPriceKobo != null)
+      qb.andWhere('a."basePriceKobo" <= :maxP', { maxP: query.maxPriceKobo });
+    const auctions = await qb.getMany();
+
+    // Hydrate display title/subtitle/cover from the underlying listing so the
+    // browse cards can show the make/model/year without a per-card fetch.
+    const carIds = auctions
+      .filter((a) => a.category === ListingCategory.Car)
+      .map((a) => a.listingId);
+    const gadgetIds = auctions
+      .filter((a) => a.category === ListingCategory.Gadget)
+      .map((a) => a.listingId);
+    const [cars, gadgets] = await Promise.all([
+      carIds.length
+        ? this.carListingsRepository.find({ where: { id: In(carIds) } })
+        : Promise.resolve([] as CarListing[]),
+      gadgetIds.length
+        ? this.gadgetListingsRepository.find({ where: { id: In(gadgetIds) } })
+        : Promise.resolve([] as GadgetListing[]),
+    ]);
+    const carMap = new Map(cars.map((c) => [c.id, c]));
+    const gadgetMap = new Map(gadgets.map((g) => [g.id, g]));
+
+    return {
+      auctions: auctions.map((a) => {
+        const base = presentAuction(a);
+        if (a.category === ListingCategory.Car) {
+          const c = carMap.get(a.listingId);
+          if (c) {
+            return {
+              ...base,
+              title: `${c.year} ${c.make} ${c.model}`.trim(),
+              subtitle: [c.condition, `${c.mileage.toLocaleString()} km`]
+                .filter(Boolean)
+                .join(' · '),
+              coverUrl: c.photoUrls?.[0] ?? null,
+            };
+          }
+        } else {
+          const g = gadgetMap.get(a.listingId);
+          if (g) {
+            return {
+              ...base,
+              title: `${g.brand} ${g.model}`.trim(),
+              subtitle: [
+                g.type,
+                g.batteryHealthPercent
+                  ? `${g.batteryHealthPercent}% battery`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · '),
+              coverUrl: g.photoUrls?.[0] ?? null,
+            };
+          }
+        }
+        return base;
+      }),
     };
-
-    const auctions = await this.auctionsRepository.find({
-      where,
-      order: { startTime: 'ASC', createdAt: 'DESC' },
-      take: query.limit,
-      skip: query.offset,
-    });
-
-    return { auctions: auctions.map(presentAuction) };
   }
 
   async findOne(id: string) {
@@ -245,6 +331,21 @@ export class AuctionsService implements OnApplicationBootstrap {
       auction: presentAuction(result.auction),
       changed: result.changed,
     };
+  }
+
+  async forceCloseAuction(auctionId: string) {
+    // Bump endTime into the past so closeAuction runs the real settlement
+    // path. Idempotent — closeAuction is a no-op on already-closed auctions.
+    await this.auctionsRepository
+      .createQueryBuilder()
+      .update()
+      .set({ endTime: () => 'NOW() - INTERVAL \'1 second\'' })
+      .where('id = :id', { id: auctionId })
+      .andWhere('status IN (:...statuses)', {
+        statuses: [AuctionStatus.Scheduled, AuctionStatus.Live],
+      })
+      .execute();
+    return this.closeAuction(auctionId);
   }
 
   async closeAuction(auctionId: string) {
@@ -435,6 +536,7 @@ export class AuctionsService implements OnApplicationBootstrap {
         knownFaults: car.knownFaults,
         mechanicId: car.mechanicId,
         photoUrls: car.photoUrls,
+        videoUrls: car.videoUrls ?? [],
         basePriceKobo: Number(car.basePriceKobo),
         status: car.status,
         reviewedById: car.reviewedById,
@@ -569,6 +671,19 @@ export class AuctionsService implements OnApplicationBootstrap {
     for (const bid of losingBids) {
       bid.status = BidStatus.Outbid;
       await manager.save(bid);
+      // Release the bidder's hold so their wallet frees up the moment the
+      // auction closes. Idempotent — releaseBidHold no-ops if not active.
+      if (bid.walletHoldId) {
+        await this.walletsService.releaseBidHold(manager, {
+          holdId: bid.walletHoldId,
+          reference: `auction_close_${winningBid.auctionId}_bid_${bid.id}`,
+          metadata: {
+            auctionId: winningBid.auctionId,
+            bidId: bid.id,
+            reason: 'auction_closed',
+          },
+        });
+      }
     }
   }
 

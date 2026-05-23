@@ -16,6 +16,7 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { PaymentAccountSetting } from '../admin/entities/payment-account-setting.entity';
 import { Bid } from '../bids/entities/bid.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { WalletsService } from '../wallets/wallets.service';
 import { WalletLedgerEntry } from '../wallets/entities/wallet-ledger-entry.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { Auction } from './entities/auction.entity';
@@ -53,6 +54,7 @@ export class AuctionSettlementService {
     @InjectRepository(AuctionDelivery)
     private readonly deliveryRepository: Repository<AuctionDelivery>,
     private readonly notificationsService: NotificationsService,
+    private readonly walletsService: WalletsService,
   ) {}
 
   async getPaymentInstructions(user: AuthenticatedUser, auctionId: string) {
@@ -129,6 +131,20 @@ export class AuctionSettlementService {
           auction,
           amountKobo: walletPaymentKobo,
           note: input.note,
+        });
+      }
+
+      // Release the winner's bid hold — they've now paid externally and/or
+      // from the wallet, so the held funds should be freed.
+      if (winningBid.walletHoldId) {
+        await this.walletsService.releaseBidHold(manager, {
+          holdId: winningBid.walletHoldId,
+          reference: `auction_settle_${auction.id}_bid_${winningBid.id}`,
+          metadata: {
+            auctionId: auction.id,
+            bidId: winningBid.id,
+            reason: 'auction_settled',
+          },
         });
       }
 

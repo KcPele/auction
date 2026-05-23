@@ -10,6 +10,7 @@ import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { JobsModule } from '../jobs/jobs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { User } from '../users/entities/user.entity';
+import { WalletsModule } from '../wallets/wallets.module';
 import { AuctionLifecycleProcessor } from './auction-lifecycle.processor';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { AuctionPaymentDeadlineProcessor } from './auction-payment-deadline.processor';
@@ -35,6 +36,7 @@ import { AuctionDelivery } from './entities/auction-delivery.entity';
     JobsModule,
     NotificationsModule,
     BidsModule,
+    WalletsModule,
   ],
   controllers: [AuctionsController],
   providers: [

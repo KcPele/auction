@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { IncomingHttpHeaders } from 'http';
 import { Pool } from 'pg';
 import { Repository } from 'typeorm';
+import { EmailService } from '../../common/email/email.service';
 import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { NotificationPreference } from '../users/entities/notification-preference.entity';
@@ -63,6 +64,7 @@ export class AuthService implements OnModuleDestroy {
     private readonly usersRepository: Repository<User>,
     @InjectRepository(NotificationPreference)
     private readonly preferencesRepository: Repository<NotificationPreference>,
+    private readonly emailService: EmailService,
   ) {}
 
   async handleRequest(request: {
@@ -164,7 +166,19 @@ export class AuthService implements OnModuleDestroy {
       this.importEsm<BetterAuthPluginsModule>('better-auth/plugins'),
     ]);
 
-    this.pool = new Pool({ connectionString: this.databaseUrl });
+    this.pool = new Pool({
+      connectionString: this.databaseUrl,
+      keepAlive: true,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+      max: 10,
+    });
+    // node-postgres emits `error` on idle clients when the socket dies; if
+    // nothing listens, the event escalates to an unhandled exception and
+    // crashes the process. Log + drop so the pool can reconnect on next use.
+    this.pool.on('error', (err: Error) => {
+      console.error('[auth pg pool] idle client error:', err.message);
+    });
 
     return betterAuth({
       appName: this.config.getOrThrow<string>('APP_NAME'),
@@ -180,14 +194,39 @@ export class AuthService implements OnModuleDestroy {
       emailAndPassword: {
         enabled: true,
         minPasswordLength: 8,
-        sendResetPassword: async (_data: { url: string; token: string; user: unknown }) => {
-          return;
+        sendResetPassword: async (data: {
+          url: string;
+          token: string;
+          user: { email?: string; name?: string };
+        }) => {
+          if (!data.user.email) return;
+          await this.emailService.send({
+            to: data.user.email,
+            subject: 'Reset your BidNaija password',
+            html: `<p>Hi${data.user.name ? ' ' + data.user.name : ''},</p>
+              <p>Click the link below to reset your BidNaija password. The link expires in 1 hour.</p>
+              <p><a href="${data.url}">${data.url}</a></p>
+              <p>If you didn't ask for this, you can safely ignore this email.</p>`,
+            text: `Reset your BidNaija password: ${data.url}`,
+          });
         },
       },
       emailVerification: {
         sendOnSignUp: false,
-        sendVerificationEmail: async (_data: { url: string; token: string; user: unknown }) => {
-          return;
+        sendVerificationEmail: async (data: {
+          url: string;
+          token: string;
+          user: { email?: string; name?: string };
+        }) => {
+          if (!data.user.email) return;
+          await this.emailService.send({
+            to: data.user.email,
+            subject: 'Verify your BidNaija email',
+            html: `<p>Hi${data.user.name ? ' ' + data.user.name : ''},</p>
+              <p>Confirm your email so we can keep your account secure.</p>
+              <p><a href="${data.url}">${data.url}</a></p>`,
+            text: `Verify your BidNaija email: ${data.url}`,
+          });
         },
       },
       advanced: { database: { generateId: 'uuid' } },

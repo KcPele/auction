@@ -45,6 +45,7 @@ const NAV: NavGroup[] = [
       { id: "withdrawals", label: "Withdrawal auth", icon: "wallet", href: "/admin/withdrawals" },
       { id: "settlements", label: "Settlements", icon: "check", href: "/admin/settlements" },
       { id: "notifications", label: "Notifications log", icon: "bell", href: "/admin/notifications" },
+      { id: "support", label: "Support", icon: "help", href: "/admin/support" },
       { id: "health", label: "System health", icon: "radio", href: "/admin/health" },
       { id: "settings", label: "Settings", icon: "sliders", href: "/admin/settings" },
     ],

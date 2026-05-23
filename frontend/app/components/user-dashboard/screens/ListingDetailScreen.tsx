@@ -30,7 +30,10 @@ const dateFmt = new Intl.DateTimeFormat("en-NG", {
 export function ListingDetailScreen({ id }: { id: string }) {
   const router = useRouter();
   const params = useSearchParams();
-  const category = (params.get("category") ?? "car") as Category;
+  // Tolerate both singular and plural category in the URL — My listings emits
+  // the ListingDto category ("cars"/"gadgets"), older callers used "car"/"gadget".
+  const rawCategory = (params.get("category") ?? "car").toLowerCase();
+  const category: Category = rawCategory.startsWith("gadget") ? "gadget" : "car";
 
   const car = useCarListing(category === "car" ? id : undefined);
   const gadget = useGadgetListing(category === "gadget" ? id : undefined);

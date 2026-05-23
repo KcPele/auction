@@ -66,6 +66,17 @@ export class CreateCarListingDto {
   @IsString({ each: true })
   photoUrls!: string[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['https://cdn.example.com/car.mp4'],
+    description: 'Up to 3 video URLs. Each video and total combined size are validated server-side at upload time.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(3)
+  @IsString({ each: true })
+  videoUrls?: string[];
+
   @ApiProperty({ example: 250000000 })
   @IsInt()
   @Min(1)

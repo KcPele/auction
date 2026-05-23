@@ -21,6 +21,7 @@ export type CarListingDto = {
   knownFaults: string | null;
   mechanicId: string | null;
   photoUrls: string[];
+  videoUrls: string[];
   basePriceKobo: number | string;
   holdPercent: number;
   minimumBidIncrementKobo: number | string;
@@ -91,6 +92,7 @@ export type CarListing = Listing & {
   mileage: number;
   condition: string;
   knownFaults: string | null;
+  videoUrls: string[];
   holdPercent: number;
   minimumBidIncrement: number;
 };
@@ -124,6 +126,7 @@ export type CreateCarInput = {
   knownFaults?: string;
   mechanicId?: string;
   photoUrls: string[];
+  videoUrls?: string[];
   basePriceNaira: number;
   holdPercent: number;
   minimumBidIncrementNaira: number;

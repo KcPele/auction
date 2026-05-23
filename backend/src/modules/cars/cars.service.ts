@@ -126,6 +126,7 @@ export class CarsService {
       knownFaults: dto.knownFaults?.trim() ?? null,
       mechanicId: dto.mechanicId ?? null,
       photoUrls: dto.photoUrls,
+      videoUrls: dto.videoUrls ?? [],
       basePriceKobo: String(dto.basePriceKobo),
       holdPercent: dto.holdPercent,
       minimumBidIncrementKobo: String(dto.minimumBidIncrementKobo),

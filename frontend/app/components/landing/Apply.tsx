@@ -5,19 +5,18 @@ interface CodeRow {
   label: string;
   title: string;
   sub: string;
-  status: string;
-  statusColor: string;
   icon: React.ReactNode;
   emphasized?: boolean;
 }
 
+// Static descriptions of the two listing categories an applicant can request.
+// Counts/availability come from the admin code inventory and aren't public —
+// we only show what the categories are and what each requires.
 const CODES: CodeRow[] = [
   {
     label: "CAR-CODE",
     title: "List vehicles",
     sub: "Requires a registered mechanic partner",
-    status: "REQUEST",
-    statusColor: "text-accent",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M3 13l2-5a2 2 0 0 1 2-1.4h10a2 2 0 0 1 2 1.4l2 5" />
@@ -29,8 +28,6 @@ const CODES: CodeRow[] = [
     label: "GADGET-CODE",
     title: "List gadgets",
     sub: "Requires proof of ownership per item",
-    status: "REQUEST",
-    statusColor: "text-accent",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <rect x="6" y="3" width="12" height="18" rx="2" />
@@ -40,9 +37,7 @@ const CODES: CodeRow[] = [
   {
     label: "HOLD BOTH",
     title: "One user, both codes",
-    sub: "Requires proof of ownership per item",
-    status: "AVAILABLE",
-    statusColor: "text-accent-2",
+    sub: "Apply for both — same review, one approval",
     emphasized: true,
     icon: <span className="font-bold">★</span>,
   },
@@ -106,9 +101,6 @@ export function Apply() {
                 <div className="text-[11px] uppercase tracking-[0.1em] text-fg-dim">{c.label}</div>
                 <div className="font-semibold">{c.title}</div>
                 <div className="text-xs text-fg-muted">{c.sub}</div>
-              </div>
-              <div className={`col-start-2 row-start-2 font-mono text-[11px] md:col-start-3 md:row-start-1 ${c.statusColor}`}>
-                {c.status}
               </div>
             </div>
           ))}

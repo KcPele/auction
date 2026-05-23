@@ -5,6 +5,7 @@ import { LiveDot } from "./primitives/LiveDot";
 
 export function Ticker() {
   const feed = useTickerFeed();
+  if (feed.length === 0) return null;
   const row = [...feed, ...feed];
   return (
     <div className="relative flex items-center gap-4 overflow-hidden border-y border-line bg-[linear-gradient(90deg,rgba(255,122,26,0.12),transparent_30%)] py-3 pl-6">

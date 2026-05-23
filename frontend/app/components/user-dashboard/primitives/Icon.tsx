@@ -45,6 +45,7 @@ export type IconName =
   | "zap"
   | "trend"
   | "key"
+  | "play"
   | "edit";
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name"> {
@@ -155,6 +156,8 @@ export function Icon({ name, size = 22, strokeWidth = 1.6, ...rest }: IconProps)
       return <svg {...p}><path d="M3 17 9 11l4 4 8-8" /><path d="M14 7h7v7" /></svg>;
     case "key":
       return <svg {...p}><circle cx="8" cy="15" r="4" /><path d="m11 12 8-8 2 2-2 2 2 2-3 3-2-2" /></svg>;
+    case "play":
+      return <svg {...p}><path d="M7 4v16l13-8z" fill="currentColor" /></svg>;
     case "edit":
       return <svg {...p}><path d="M12 20h9M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z" /></svg>;
     default:

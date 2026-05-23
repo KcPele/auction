@@ -15,6 +15,8 @@ import { fmtNaira } from "../utils";
 type Step = "category" | "details" | "pricing" | "preview";
 type ListingCategory = "CAR" | "GADGET";
 const MAX_LISTING_PHOTOS = 10;
+const MAX_LISTING_VIDEOS = 3;
+const MAX_VIDEO_TOTAL_BYTES = 10 * 1024 * 1024; // 10 MB combined
 
 const PRIMARY_BTN_BG = {
   background: "linear-gradient(180deg, var(--accent-light), var(--accent))",
@@ -59,8 +61,12 @@ export function CreateListingScreen() {
 
   // Photos
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  // Videos: track url + size so we can enforce the 10 MB combined cap as the
+  // user adds more files (the server also enforces, but the UX is nicer here).
+  const [videos, setVideos] = useState<{ url: string; sizeBytes: number }[]>([]);
 
   const photosInput = useRef<HTMLInputElement>(null);
+  const videosInput = useRef<HTMLInputElement>(null);
   const proofInput = useRef<HTMLInputElement>(null);
   const uploadBatch = useUploadBatch();
   const uploadOne = useUploadOne();
@@ -85,6 +91,39 @@ export function CreateListingScreen() {
     } catch (err) {
       if (err instanceof ApiError) toast.error(err.message);
       else toast.error("Could not upload photos");
+    }
+  };
+
+  const onVideos = async (files: FileList | null) => {
+    if (!files || !files.length || !category) return;
+    const remainingSlots = MAX_LISTING_VIDEOS - videos.length;
+    if (remainingSlots <= 0) {
+      toast.error(`A listing can have up to ${MAX_LISTING_VIDEOS} videos`);
+      return;
+    }
+    const picked = Array.from(files).slice(0, remainingSlots);
+    const usedBytes = videos.reduce((s, v) => s + v.sizeBytes, 0);
+    const addedBytes = picked.reduce((s, f) => s + f.size, 0);
+    if (usedBytes + addedBytes > MAX_VIDEO_TOTAL_BYTES) {
+      toast.error(
+        `Total video size must stay under ${MAX_VIDEO_TOTAL_BYTES / (1024 * 1024)} MB`,
+      );
+      return;
+    }
+    try {
+      const assets = await uploadBatch.mutateAsync({
+        files: picked,
+        purpose: "LISTING_VIDEO",
+        category,
+      });
+      setVideos((prev) => [
+        ...prev,
+        ...assets.map((a, i) => ({ url: a.url, sizeBytes: picked[i].size })),
+      ]);
+      toast.success(`Uploaded ${assets.length} video(s)`);
+    } catch (err) {
+      if (err instanceof ApiError) toast.error(err.message);
+      else toast.error("Could not upload videos");
     }
   };
 
@@ -125,6 +164,7 @@ export function CreateListingScreen() {
           condition,
           knownFaults: faults || undefined,
           photoUrls,
+          videoUrls: videos.map((v) => v.url),
           basePriceNaira: basePrice,
           holdPercent,
           minimumBidIncrementNaira: bidIncrement,
@@ -147,6 +187,7 @@ export function CreateListingScreen() {
           defects: defects || undefined,
           proofDocumentUrl: proofUrl,
           photoUrls,
+          videoUrls: videos.map((v) => v.url),
           basePriceNaira: basePrice,
           holdPercent,
           minimumBidIncrementNaira: bidIncrement,
@@ -262,6 +303,20 @@ export function CreateListingScreen() {
             className="hidden"
             onChange={(e) => onPhotos(e.target.files)}
           />
+          <VideoUploader
+            videos={videos}
+            onPick={() => videosInput.current?.click()}
+            onRemove={(i) => setVideos((p) => p.filter((_, idx) => idx !== i))}
+            isPending={uploadBatch.isPending}
+          />
+          <input
+            ref={videosInput}
+            type="file"
+            multiple
+            accept="video/mp4,video/quicktime,video/webm"
+            className="hidden"
+            onChange={(e) => onVideos(e.target.files)}
+          />
           <NavRow onBack={() => setStep("category")} onNext={() => setStep("pricing")} />
         </div>
       )}
@@ -329,6 +384,20 @@ export function CreateListingScreen() {
             accept="image/*"
             className="hidden"
             onChange={(e) => onPhotos(e.target.files)}
+          />
+          <VideoUploader
+            videos={videos}
+            onPick={() => videosInput.current?.click()}
+            onRemove={(i) => setVideos((p) => p.filter((_, idx) => idx !== i))}
+            isPending={uploadBatch.isPending}
+          />
+          <input
+            ref={videosInput}
+            type="file"
+            multiple
+            accept="video/mp4,video/quicktime,video/webm"
+            className="hidden"
+            onChange={(e) => onVideos(e.target.files)}
           />
           <NavRow onBack={() => setStep("category")} onNext={() => setStep("pricing")} />
         </div>
@@ -532,6 +601,68 @@ function PhotoUploader({
               >
                 <Icon name="x" size={10} />
               </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VideoUploader({
+  videos,
+  onPick,
+  onRemove,
+  isPending,
+}: {
+  videos: { url: string; sizeBytes: number }[];
+  onPick: () => void;
+  onRemove: (i: number) => void;
+  isPending: boolean;
+}) {
+  const totalMb = videos.reduce((s, v) => s + v.sizeBytes, 0) / (1024 * 1024);
+  const remainingMb = MAX_VIDEO_TOTAL_BYTES / (1024 * 1024) - totalMb;
+  const full =
+    videos.length >= MAX_LISTING_VIDEOS || remainingMb <= 0;
+  return (
+    <div>
+      <label className={labelClass}>
+        Videos ({videos.length}/{MAX_LISTING_VIDEOS}) · optional · {totalMb.toFixed(1)} / {MAX_VIDEO_TOTAL_BYTES / (1024 * 1024)} MB used
+      </label>
+      <button
+        type="button"
+        onClick={onPick}
+        disabled={isPending || full}
+        className={`${inputClass} flex cursor-pointer items-center gap-2 text-fg-dim disabled:opacity-60`}
+      >
+        <Icon name="image" size={14} />
+        {isPending
+          ? "Uploading…"
+          : full
+            ? "No room for more videos"
+            : "Add videos (mp4, mov, webm)"}
+      </button>
+      {videos.length > 0 && (
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {videos.map((v, i) => (
+            <div key={v.url} className="relative">
+              <video
+                src={v.url}
+                className="aspect-video w-full rounded-lg bg-black object-cover"
+                muted
+                playsInline
+                preload="metadata"
+              />
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                className="absolute right-1 top-1 rounded-full bg-black/70 p-0.5 text-fg"
+              >
+                <Icon name="x" size={10} />
+              </button>
+              <div className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-fg-muted">
+                {(v.sizeBytes / (1024 * 1024)).toFixed(1)} MB
+              </div>
             </div>
           ))}
         </div>

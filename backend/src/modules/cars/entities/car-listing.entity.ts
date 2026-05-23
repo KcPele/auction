@@ -45,6 +45,9 @@ export class CarListing {
   @Column({ type: 'jsonb', default: () => "'[]'" })
   photoUrls!: string[];
 
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  videoUrls!: string[];
+
   @Column({ type: 'bigint' })
   basePriceKobo!: string;
 

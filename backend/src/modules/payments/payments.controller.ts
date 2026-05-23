@@ -7,6 +7,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { StrowalletWebhookGuard } from '../../common/guards/strowallet-webhook.guard';
 import { AccountNameQueryDto } from './dto/account-name-query.dto';
 import { StrowalletWebhookDto } from './dto/strowallet-webhook.dto';
 import { PaymentsService } from './payments.service';
@@ -21,6 +22,7 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('strowallet/webhook')
+  @UseGuards(StrowalletWebhookGuard)
   @ApiOperation({ summary: 'Receive a Strowallet webhook event' })
   @ApiCreatedResponse({ description: 'Webhook event accepted.' })
   handleStrowalletWebhook(

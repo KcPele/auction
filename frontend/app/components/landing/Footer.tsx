@@ -24,7 +24,7 @@ export function Footer() {
         <div>
           <BrandMark size={32} />
           <p className="my-4 mb-5 max-w-[300px] text-sm leading-[1.55] text-fg-muted">
-            Nigeria&apos;s serious auction floor for cars and gadgets. Verified listings, real-money holds, OPay settlement, admin oversight — built for the market that made &quot;no wahala&quot; an art form.
+            Nigeria&apos;s serious auction floor for cars and gadgets. Verified listings, real-money holds, Strowallet settlement, admin oversight — built for the market that made &quot;no wahala&quot; an art form.
           </p>
           <div className="flex flex-wrap gap-2.5">
             <div className="rounded-full bg-[rgba(255,122,26,0.1)] px-2.5 py-1 text-[11px] font-semibold text-accent">
