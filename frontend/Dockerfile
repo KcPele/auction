@@ -5,7 +5,10 @@ RUN corepack enable
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+# --ignore-scripts skips ALL post-install scripts, bypassing ERR_PNPM_IGNORED_BUILDS.
+# We then explicitly rebuild the two packages that need native compilation.
+RUN pnpm install --frozen-lockfile --ignore-scripts && \
+    pnpm rebuild sharp unrs-resolver
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
