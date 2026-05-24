@@ -18,6 +18,7 @@ import { NotificationType } from '../../common/enums/notification-type.enum';
 import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { NotificationsService } from '../notifications/notifications.service';
+import { User } from '../users/entities/user.entity';
 import { SupportConversation } from './entities/support-conversation.entity';
 import { SupportMessage } from './entities/support-message.entity';
 import { SupportAiSetting } from './entities/support-ai-setting.entity';
@@ -57,6 +58,8 @@ export class SupportService {
     private readonly msgRepo: Repository<SupportMessage>,
     @InjectRepository(SupportAiSetting)
     private readonly settingsRepo: Repository<SupportAiSetting>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly tools: SupportAiTools,
     private readonly openRouter: OpenRouterClient,
     private readonly notificationsService: NotificationsService,
@@ -95,12 +98,23 @@ export class SupportService {
       order: { lastMessageAt: 'DESC', createdAt: 'DESC' },
       take: 100,
     });
-    return convs.map((c) => this.presentConversation(c));
+
+    // Batch-load the users so we can show name + email in the admin UI.
+    const userIds = [...new Set(convs.map((c) => c.userId))];
+    const users = userIds.length
+      ? await this.userRepo.findBy(
+          userIds.map((id) => ({ id })) as Parameters<typeof this.userRepo.findBy>[0],
+        )
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    return convs.map((c) => this.presentConversation(c, userMap.get(c.userId)));
   }
 
   async getConversation(user: AuthenticatedUser, id: string) {
     const conv = await this.findConvForUser(user, id);
-    return this.presentConversation(conv);
+    const userEntity = await this.userRepo.findOneBy({ id: conv.userId });
+    return this.presentConversation(conv, userEntity ?? undefined);
   }
 
   async listMessages(user: AuthenticatedUser, id: string): Promise<MessageView[]> {
@@ -607,7 +621,7 @@ export class SupportService {
 
   // --- Presenters ------------------------------------------------------
 
-  private presentConversation(conv: SupportConversation) {
+  private presentConversation(conv: SupportConversation, user?: User) {
     const unreadForUser =
       conv.lastMessageAt &&
       (!conv.userLastReadAt || conv.lastMessageAt > conv.userLastReadAt);
@@ -617,6 +631,8 @@ export class SupportService {
     return {
       id: conv.id,
       userId: conv.userId,
+      userName: user ? `${user.firstName} ${user.lastName}`.trim() : null,
+      userEmail: user?.email ?? null,
       state: conv.state,
       subject: conv.subject,
       assignedAdminId: conv.assignedAdminId,

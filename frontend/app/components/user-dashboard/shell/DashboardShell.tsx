@@ -11,9 +11,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     >
       {/* Desktop shell */}
       <div className="hidden min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
-        <Sidebar />
+        <aside className="sticky top-0 h-screen overflow-y-auto">
+          <Sidebar />
+        </aside>
         <div className="flex min-w-0 flex-col">
-          <TopBar />
+          <div className="sticky top-0 z-30 bg-bg/80 backdrop-blur">
+            <TopBar />
+          </div>
           <div className="mx-auto w-full max-w-[900px] px-8 pb-[60px] pt-6">
             {children}
           </div>

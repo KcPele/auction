@@ -243,8 +243,23 @@ function getSocket(): Socket {
   if (!supportSocket) {
     supportSocket = io(`${WS_URL}/support`, {
       withCredentials: true,
-      transports: ["websocket"],
+      // Allow polling fallback — needed when WS upgrade is blocked (some
+      // proxies / corp networks) or the cookie can't ride the upgrade.
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 5000,
     });
+    if (typeof window !== "undefined") {
+      supportSocket.on("connect_error", (err) => {
+        // Surfaces auth/CORS issues that previously failed silently.
+        console.error("[support socket] connect_error", err.message);
+      });
+      supportSocket.on("support.error", (payload) => {
+        console.error("[support socket] server error", payload);
+      });
+    }
   }
   return supportSocket;
 }
@@ -260,7 +275,15 @@ export function useSupportStream(conversationId: string | null, isAdmin = false)
     if (!conversationId) return;
     const socket = getSocket();
     if (!socket.connected) socket.connect();
-    socket.emit("support.join", { conversationId });
+
+    // Wait for server auth (`support.ready`) before joining the room.
+    // Otherwise `support.join` can race past async `handleConnection` and
+    // `client.data.user` is still undefined when onJoin runs → silent no-op.
+    const joinRoom = () => socket.emit("support.join", { conversationId });
+    if (socket.connected) joinRoom();
+    socket.on("support.ready", joinRoom);
+    // Also re-join on every reconnect — room membership is lost on disconnect.
+    socket.on("connect", joinRoom);
 
     const onMessage = (payload: {
       conversationId: string;
@@ -318,6 +341,8 @@ export function useSupportStream(conversationId: string | null, isAdmin = false)
 
     return () => {
       socket.emit("support.leave", { conversationId });
+      socket.off("support.ready", joinRoom);
+      socket.off("connect", joinRoom);
       socket.off("support.message", onMessage);
       socket.off("support.state", onState);
     };

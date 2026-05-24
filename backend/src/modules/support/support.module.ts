@@ -17,6 +17,7 @@ import { SupportAiTools } from './support-ai.tools';
 import { SupportAiSetting } from './entities/support-ai-setting.entity';
 import { SupportConversation } from './entities/support-conversation.entity';
 import { SupportMessage } from './entities/support-message.entity';
+import { User } from '../users/entities/user.entity';
 import { OpenRouterClient } from './openrouter.client';
 
 @Module({
@@ -33,6 +34,7 @@ import { OpenRouterClient } from './openrouter.client';
       GadgetListing,
       Notification,
       NotificationRead,
+      User,
     ]),
     forwardRef(() => AuthModule),
     NotificationsModule,

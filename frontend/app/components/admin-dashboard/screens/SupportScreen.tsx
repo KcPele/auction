@@ -146,7 +146,7 @@ export function SupportScreen() {
                     {c.subject || `Conversation ${c.id.slice(0, 6)}`}
                   </div>
                   <div className="mt-0.5 truncate text-[11px] text-fg-dim">
-                    User · {c.userId.slice(0, 8)} ·{" "}
+                    {c.userName ?? c.userEmail ?? `User · ${c.userId.slice(0, 8)}`} ·{" "}
                     {c.lastMessageAt
                       ? c.lastMessageAt.toLocaleString("en-NG", {
                         dateStyle: "short",
@@ -174,10 +174,12 @@ export function SupportScreen() {
                     {active.subject || `Conversation ${active.id.slice(0, 8)}`}
                   </div>
                   <div className="mt-0.5 text-[11px] text-fg-dim">
-                    User: {active.userId} · Assigned:{" "}
+                    {active.userName
+                      ? `${active.userName}${active.userEmail ? ` · ${active.userEmail}` : ""}`
+                      : active.userEmail ?? active.userId}
                     {active.assignedAdminId
-                      ? active.assignedAdminId.slice(0, 8)
-                      : "—"}
+                      ? ` · Assigned: ${active.assignedAdminId.slice(0, 8)}`
+                      : " · Unassigned"}
                     {active.handoffReason ? ` · "${active.handoffReason}"` : ""}
                   </div>
                 </div>

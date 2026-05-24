@@ -78,9 +78,17 @@ export class SupportGateway
     client: AuthedSocket,
     payload: { conversationId?: string } = {},
   ) {
-    const user = client.data.user;
     const id = payload.conversationId;
-    if (!user || !id) return;
+    if (!id) return;
+    // `handleConnection` runs async — incoming events can race past it. If
+    // the user isn't attached yet, poll briefly so we don't drop the join.
+    for (let i = 0; i < 20 && !client.data.user; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    if (!client.data.user) {
+      client.emit('support.error', { message: 'Not authenticated' });
+      return;
+    }
     await client.join(conversationRoom(id));
     client.emit('support.joined', { conversationId: id });
   }

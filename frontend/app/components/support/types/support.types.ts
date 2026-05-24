@@ -9,6 +9,8 @@ export type SupportRole = "USER" | "AI" | "ADMIN" | "SYSTEM" | "TOOL";
 export interface SupportConversationDto {
   id: string;
   userId: string;
+  userName: string | null;
+  userEmail: string | null;
   state: SupportState;
   subject: string | null;
   assignedAdminId: string | null;

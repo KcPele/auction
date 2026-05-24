@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { useMe } from "@/app/components/auth/hooks/use-me";
+import { signOutCall } from "@/app/components/auth/api/auth.api";
 import { AdminIcon, type AdminIconName } from "../primitives/Icon";
 
 interface NavItem {
@@ -58,10 +60,16 @@ interface Props {
 
 export function Sidebar({ onNavigate }: Props) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: me } = useMe();
   const initials = me
     ? `${me.firstName[0] ?? ""}${me.lastName[0] ?? ""}`.toUpperCase()
     : "AD";
+
+  const handleLogout = async () => {
+    await signOutCall();
+    router.push("/login");
+  };
 
   return (
     <aside className="z-[60] flex h-full flex-col overflow-hidden border-r border-line bg-bg-1">
@@ -99,7 +107,10 @@ export function Sidebar({ onNavigate }: Props) {
               {section.group}
             </div>
             {section.items.map((it) => {
-              const active = it.href === "/admin" ? pathname === "/admin" : pathname.startsWith(it.href);
+              const active =
+                it.href === "/admin"
+                  ? pathname === "/admin"
+                  : pathname.startsWith(it.href);
               return (
                 <Link
                   key={it.id}
@@ -122,6 +133,7 @@ export function Sidebar({ onNavigate }: Props) {
         ))}
       </nav>
 
+      {/* Footer: user info + logout */}
       <div className="flex items-center gap-2.5 border-t border-line p-3">
         <div
           className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-[#0a0806]"
@@ -137,6 +149,14 @@ export function Sidebar({ onNavigate }: Props) {
           </div>
           <div className="text-[11px] text-fg-dim">Administrator</div>
         </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          title="Sign out"
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-fg-dim transition-colors hover:bg-red-500/10 hover:text-red-400"
+        >
+          <LogOut size={15} />
+        </button>
       </div>
     </aside>
   );
