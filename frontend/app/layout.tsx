@@ -23,7 +23,7 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "BidNaija — Nigeria's auction floor for cars & gadgets",
   description:
-    "Serious auction platform for cars and gadgets across Nigeria. Verified listings, real-money holds, OPay settlement.",
+    "Serious auction platform for cars and gadgets across Nigeria. Verified listings, real-money holds, StroWallet settlement.",
 };
 
 export default function RootLayout({

@@ -7,7 +7,7 @@ export function PaymentsScreen() {
     <>
       <SectionHeader
         title="Payments & ledger"
-        sub="Every wallet movement as a ledger entry. Reconcile OPay settlements, export reports, investigate anomalies."
+        sub="Every wallet movement as a ledger entry. Reconcile StroWallet settlements, export reports, investigate anomalies."
       />
       <Ledger />
     </>
