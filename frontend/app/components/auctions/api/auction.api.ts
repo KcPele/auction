@@ -5,6 +5,7 @@ import type {
   AuctionCategory,
   AuctionDetail,
   AuctionDto,
+  AuctionListItemDto,
   Bid,
   GetAuctionResponseDto,
   ListAuctionsResponseDto,
@@ -35,10 +36,16 @@ const photoFor = (listing: ListingDto | null): string | null => {
 };
 
 const toAuction = (
-  dto: AuctionDto,
+  dto: AuctionDto | AuctionListItemDto,
   listing: ListingDto | null = null,
 ): Auction => {
-  const { title, subtitle } = titleFor(listing);
+  const fallback = titleFor(listing);
+  // Backend list endpoint hydrates these from the underlying listing.
+  // Prefer them when present so cards show real make/model/year + photo.
+  const hydrated = dto as AuctionListItemDto;
+  const title = hydrated.title?.trim() || fallback.title;
+  const subtitle = hydrated.subtitle ?? fallback.subtitle;
+  const cover = hydrated.coverUrl ?? photoFor(listing);
   return {
     id: dto.id,
     category: dto.category === "CAR" ? "cars" : "gadgets",
@@ -64,7 +71,7 @@ const toAuction = (
     listingId: dto.listingId,
     minimumBidIncrement: koboToNaira(dto.minimumBidIncrementKobo),
     holdPercent: dto.holdPercent,
-    photoUrl: photoFor(listing),
+    photoUrl: cover,
   };
 };
 

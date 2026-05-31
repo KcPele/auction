@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiCookieAuth,
   ApiCreatedResponse,
@@ -6,6 +15,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -13,6 +23,7 @@ import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { InitiateTopupDto } from './dto/initiate-topup.dto';
 import { ListWalletLedgerQueryDto } from './dto/list-wallet-ledger-query.dto';
 import { ListWithdrawalsQueryDto } from './dto/list-withdrawals-query.dto';
+import { SimulateFundingDto } from './dto/simulate-funding.dto';
 import { WalletFundingService } from './wallet-funding.service';
 import { WalletWithdrawalsService } from './wallet-withdrawals.service';
 import { WalletsService } from './wallets.service';
@@ -26,6 +37,7 @@ export class WalletsController {
     private readonly walletsService: WalletsService,
     private readonly walletFundingService: WalletFundingService,
     private readonly walletWithdrawalsService: WalletWithdrawalsService,
+    private readonly config: ConfigService,
   ) {}
 
   @Get('me')
@@ -90,5 +102,37 @@ export class WalletsController {
     @Param('id') id: string,
   ) {
     return this.walletWithdrawalsService.getWithdrawal(user.id, id);
+  }
+
+  /**
+   * Sandbox-only: simulate a successful Strowallet collection on the caller's
+   * funding account. Blocked outside sandbox so prod can't free-money itself.
+   */
+  @Post('topup/simulate')
+  @ApiOperation({
+    summary: 'Sandbox: simulate a wallet top-up payment (no real money)',
+  })
+  @ApiCreatedResponse({ description: 'Wallet credited.' })
+  async simulateTopup(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: SimulateFundingDto,
+  ) {
+    const mode = this.config.get<string>('STROWALLET_MODE') ?? 'sandbox';
+    const nodeEnv = this.config.get<string>('NODE_ENV') ?? 'development';
+    if (mode !== 'sandbox' || nodeEnv === 'production') {
+      throw new ForbiddenException(
+        'Simulated funding is disabled outside sandbox mode',
+      );
+    }
+    const { fundingAccount } =
+      await this.walletFundingService.getFundingAccount(user.id);
+    const amountKobo = Math.round(dto.amountNaira * 100);
+    return this.walletFundingService.creditFundingAccount({
+      accountReference: fundingAccount.accountReference,
+      accountNumber: fundingAccount.accountNumber,
+      amountKobo,
+      reference: `sandbox_${user.id}_${Date.now()}`,
+      metadata: { simulated: true, source: 'sandbox-ui', userId: user.id },
+    });
   }
 }

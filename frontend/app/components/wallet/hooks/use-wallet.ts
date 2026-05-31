@@ -7,6 +7,7 @@ import {
   getWallet,
   initiateTopup,
   listMyWithdrawals,
+  simulateTopup,
 } from "../api/wallet.api";
 import type { WithdrawalStatus } from "../types/wallet.types";
 import { walletKeys } from "./wallet-keys";
@@ -54,6 +55,21 @@ export function useInitiateTopup() {
     mutationFn: initiateTopup,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: walletKeys.fundingAccount() });
+    },
+  });
+}
+
+/**
+ * Sandbox-only: instantly credit the wallet without a real bank transfer.
+ * Backend gates this behind STROWALLET_MODE=sandbox.
+ */
+export function useSimulateTopup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: simulateTopup,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: walletKeys.me() });
+      qc.invalidateQueries({ queryKey: walletKeys.ledger() });
     },
   });
 }

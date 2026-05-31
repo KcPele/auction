@@ -1,11 +1,19 @@
 "use client";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useInitiateTopup } from "@/app/components/wallet/hooks/use-wallet";
+import {
+  useInitiateTopup,
+  useSimulateTopup,
+} from "@/app/components/wallet/hooks/use-wallet";
 import { ApiError } from "@/app/lib/api/error";
 import type { FundingAccount } from "@/app/components/wallet/types/wallet.types";
 import { Icon, type IconName } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
+
+// True in dev/staging — backend ALSO gates the endpoint behind
+// STROWALLET_MODE=sandbox so prod can't free-money itself even if this leaks.
+const IS_SANDBOX =
+  (process.env.NEXT_PUBLIC_PAYMENTS_MODE ?? "sandbox") !== "live";
 
 type MethodId = "strowallet" | "bank_transfer";
 
@@ -165,11 +173,23 @@ function FundingDetails({
   account: FundingAccount;
   amount: number;
 }) {
+  const simulate = useSimulateTopup();
   const copy = (val: string) =>
     navigator.clipboard
       .writeText(val)
       .then(() => toast.success("Copied"))
       .catch(() => toast.error("Could not copy"));
+
+  const onSimulate = async () => {
+    try {
+      await simulate.mutateAsync({ amountNaira: amount });
+      toast.success(`Wallet credited ${fmtNaira(amount)} (sandbox)`);
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Could not simulate payment",
+      );
+    }
+  };
 
   return (
     <>
@@ -213,6 +233,28 @@ function FundingDetails({
           </div>
         </div>
       </div>
+
+      {IS_SANDBOX && (
+        <div className="mt-3 rounded-xl border border-dashed border-accent/30 bg-accent/[0.03] p-3.5">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-accent">
+            Sandbox testing
+          </div>
+          <div className="mt-1 text-xs text-fg-muted">
+            No real bank transfer? Click below to simulate the payment hitting
+            the virtual account. Only available in sandbox mode.
+          </div>
+          <button
+            type="button"
+            disabled={simulate.isPending}
+            onClick={onSimulate}
+            className="mt-2.5 w-full cursor-pointer rounded-lg border border-accent/40 bg-accent/[0.08] p-2.5 text-xs font-semibold text-accent disabled:opacity-60"
+          >
+            {simulate.isPending
+              ? "Crediting…"
+              : `Simulate ${fmtNaira(amount)} payment`}
+          </button>
+        </div>
+      )}
     </>
   );
 }

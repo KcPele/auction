@@ -141,6 +141,18 @@ export const initiateTopup = (input: {
     headers: { "Idempotency-Key": crypto.randomUUID() },
   });
 
+/**
+ * Sandbox-only: instantly credit the caller's wallet without a real transfer.
+ * Backend rejects this in production. Wired to the Simulate button on the
+ * funding instructions screen.
+ */
+export const simulateTopup = (input: { amountNaira: number }) =>
+  apiClient<unknown>("/wallets/topup/simulate", {
+    method: "POST",
+    body: { amountNaira: input.amountNaira },
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+  });
+
 export const createWithdrawal = (input: CreateWithdrawalInput) =>
   apiClient<{ withdrawal: WithdrawalDto }>("/wallets/withdrawals", {
     method: "POST",

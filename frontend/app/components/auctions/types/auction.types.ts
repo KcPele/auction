@@ -90,7 +90,18 @@ export type GadgetListingDto = {
 
 export type ListingDto = CarListingDto | GadgetListingDto;
 
-export type ListAuctionsResponseDto = { auctions: AuctionDto[] };
+/**
+ * List endpoint hydrates `title`, `subtitle`, `coverUrl` from the underlying
+ * listing so cards don't need a per-row fetch. Detail endpoint sends the full
+ * listing instead — keep these fields optional here.
+ */
+export type AuctionListItemDto = AuctionDto & {
+  title?: string;
+  subtitle?: string | null;
+  coverUrl?: string | null;
+};
+
+export type ListAuctionsResponseDto = { auctions: AuctionListItemDto[] };
 export type GetAuctionResponseDto = {
   auction: AuctionDto;
   listing: ListingDto | null;
