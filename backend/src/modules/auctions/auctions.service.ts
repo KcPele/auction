@@ -230,7 +230,7 @@ export class AuctionsService implements OnApplicationBootstrap {
     await this.findAuction(auctionId);
     const bids = await this.bidsRepository.find({
       where: { auctionId },
-      order: { amountKobo: 'DESC', createdAt: 'ASC' },
+      order: { createdAt: 'DESC' },
     });
 
     if (bids.length === 0) {
