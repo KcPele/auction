@@ -48,11 +48,19 @@ export class OpeninaryProvider {
       );
     }
 
-    const response = await fetch(this.uploadUrl, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${this.apiKey}` },
-      body: form,
-    });
+    let response: Response;
+    try {
+      response = await fetch(this.uploadUrl, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+        body: form,
+      });
+    } catch (error) {
+      throw new ServiceUnavailableException(
+        'Failed to connect to Openinary upload service',
+      );
+    }
+
     const data = await this.parseUploadResponse(response);
 
     if (!response.ok || !data.success || !data.files[0]) {
