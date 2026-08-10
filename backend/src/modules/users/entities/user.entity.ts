@@ -44,6 +44,9 @@ export class User {
   @Column({ type: 'varchar', length: 32, nullable: true })
   nin!: string | null;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  ninVerifiedAt!: Date | null;
+
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 

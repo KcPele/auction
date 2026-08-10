@@ -96,11 +96,7 @@ export function WithdrawalForm({ onClose }: Props) {
         <button
           type="submit"
           disabled={create.isPending}
-          className="flex-1 rounded-lg p-2.5 text-sm font-semibold text-[#1a0a00] disabled:opacity-60"
-          style={{
-            background:
-              "linear-gradient(180deg, var(--accent-light), var(--accent))",
-          }}
+          className="flex-1 rounded-lg bg-primary p-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
         >
           {create.isPending ? "Requesting…" : "Request withdrawal"}
         </button>

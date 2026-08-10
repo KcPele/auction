@@ -11,18 +11,15 @@ const BID_BAR_BG = {
   paddingBottom: "calc(var(--nav-h) + 14px + env(safe-area-inset-bottom))",
 };
 
-const BID_BTN_BG = {
-  background: "linear-gradient(180deg, var(--accent-light), var(--accent))",
-};
-
 interface Props {
   auctionId: string;
   topBidNaira: number;
   minIncrementNaira: number;
+  hasBids: boolean;
 }
 
-export function BidBar({ auctionId, topBidNaira, minIncrementNaira }: Props) {
-  const suggested = topBidNaira + minIncrementNaira;
+export function BidBar({ auctionId, topBidNaira, minIncrementNaira, hasBids }: Props) {
+  const suggested = hasBids ? topBidNaira + minIncrementNaira : topBidNaira;
   const [amt, setAmt] = useState(suggested);
   const place = usePlaceBid(auctionId);
 
@@ -69,8 +66,7 @@ export function BidBar({ auctionId, topBidNaira, minIncrementNaira }: Props) {
         type="button"
         disabled={place.isPending}
         onClick={onPlace}
-        className="cursor-pointer whitespace-nowrap rounded-xl border-none px-5 py-3.5 text-sm font-bold text-[#1a0a00] disabled:opacity-60"
-        style={BID_BTN_BG}
+        className="cursor-pointer whitespace-nowrap rounded-xl border-none bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
       >
         {place.isPending ? (
           <>

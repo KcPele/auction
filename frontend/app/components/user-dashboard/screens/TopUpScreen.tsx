@@ -41,10 +41,6 @@ const METHODS: Method[] = [
 
 const QUICK = [100_000, 250_000, 500_000, 1_000_000];
 
-const PRIMARY_BTN_BG = {
-  background: "linear-gradient(180deg, var(--accent-light), var(--accent))",
-};
-
 function feeFor(method: MethodId, amt: number) {
   if (method === "bank_transfer") return "Free";
   return fmtNaira(Math.min(amt * 0.015, 2_000));
@@ -119,7 +115,7 @@ export function TopUpScreen() {
                 className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${
                   active
                     ? "bg-accent/[0.12] text-accent"
-                    : "bg-white/[0.04] text-fg-muted"
+                    : "bg-surface-subtle text-fg-muted"
                 }`}
               >
                 <Icon name={m.icon} size={16} />
@@ -157,8 +153,7 @@ export function TopUpScreen() {
         type="button"
         disabled={initiate.isPending}
         onClick={onContinue}
-        className="mt-4 w-full cursor-pointer rounded-xl border-none p-4 text-sm font-bold text-[#1a0a00] disabled:opacity-60"
-        style={PRIMARY_BTN_BG}
+        className="mt-4 w-full cursor-pointer rounded-xl border-none bg-primary p-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
       >
         {initiate.isPending ? "Preparing…" : "Continue"}
       </button>

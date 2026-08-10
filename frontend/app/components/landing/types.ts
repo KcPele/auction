@@ -9,6 +9,7 @@ export interface TickerBid {
 }
 
 export interface Auction {
+  id: string;
   title: string;
   meta: string;
   bid: number;
@@ -17,6 +18,7 @@ export interface Auction {
   end: number;
   kind: Exclude<PlaceholderKind, "photo">;
   tag: string;
+  image: string | null;
 }
 
 export interface Step {

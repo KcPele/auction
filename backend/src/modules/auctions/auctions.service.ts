@@ -69,8 +69,14 @@ export class AuctionsService implements OnApplicationBootstrap {
     await this.scheduleOpenLifecycleJobs();
   }
 
-  async createFromApprovedListing(category: ListingCategory, listingId: string) {
-    const existing = await this.auctionsRepository.findOneBy({
+  async createFromApprovedListing(
+    category: ListingCategory,
+    listingId: string,
+    manager?: EntityManager,
+  ) {
+    const auctionsRepository =
+      manager?.getRepository(Auction) ?? this.auctionsRepository;
+    const existing = await auctionsRepository.findOneBy({
       category,
       listingId,
     });
@@ -79,14 +85,14 @@ export class AuctionsService implements OnApplicationBootstrap {
       return { auction: presentAuction(existing), created: false };
     }
 
-    const listing = await this.findApprovedListing(category, listingId);
-    const fee = await this.findFee(category);
-    const biddingSetting = await this.findBiddingSetting();
+    const listing = await this.findApprovedListing(category, listingId, manager);
+    const fee = await this.findFee(category, manager);
+    const biddingSetting = await this.findBiddingSetting(manager);
     const endTime = new Date(
       listing.startTime.getTime() + listing.durationMinutes * 60_000,
     );
-    const auction = await this.auctionsRepository.save(
-      this.auctionsRepository.create({
+    const auction = await auctionsRepository.save(
+      auctionsRepository.create({
         category,
         listingId: listing.id,
         sellerId: listing.listerId,
@@ -101,9 +107,16 @@ export class AuctionsService implements OnApplicationBootstrap {
         status: AuctionStatus.Scheduled,
       }),
     );
-    await this.lifecycleScheduler.scheduleAuctionLifecycle(auction);
+    if (!manager) {
+      await this.lifecycleScheduler.scheduleAuctionLifecycle(auction);
+    }
 
     return { auction: presentAuction(auction), created: true };
+  }
+
+  async scheduleApprovedAuction(auctionId: string) {
+    const auction = await this.findAuction(auctionId);
+    await this.lifecycleScheduler.scheduleAuctionLifecycle(auction);
   }
 
   async list(query: ListAuctionsQueryDto) {
@@ -159,6 +172,26 @@ export class AuctionsService implements OnApplicationBootstrap {
       qb.andWhere('a."basePriceKobo" <= :maxP', { maxP: query.maxPriceKobo });
     const auctions = await qb.getMany();
 
+    const bidStats = auctions.length
+      ? await this.bidsRepository
+          .createQueryBuilder('bid')
+          .select('bid.auctionId', 'auctionId')
+          .addSelect('COUNT(DISTINCT bid.bidderId)', 'bidderCount')
+          .addSelect('MAX(bid.amountKobo)', 'currentBidKobo')
+          .where('bid.auctionId IN (:...auctionIds)', {
+            auctionIds: auctions.map((auction) => auction.id),
+          })
+          .groupBy('bid.auctionId')
+          .getRawMany<{
+            auctionId: string;
+            bidderCount: string;
+            currentBidKobo: string;
+          }>()
+      : [];
+    const bidStatsMap = new Map(
+      bidStats.map((stats) => [stats.auctionId, stats]),
+    );
+
     // Hydrate display title/subtitle/cover from the underlying listing so the
     // browse cards can show the make/model/year without a per-card fetch.
     const carIds = auctions
@@ -180,7 +213,12 @@ export class AuctionsService implements OnApplicationBootstrap {
 
     return {
       auctions: auctions.map((a) => {
-        const base = presentAuction(a);
+        const stats = bidStatsMap.get(a.id);
+        const base = {
+          ...presentAuction(a),
+          bidderCount: Number(stats?.bidderCount ?? 0),
+          currentBidKobo: Number(stats?.currentBidKobo ?? a.basePriceKobo),
+        };
         if (a.category === ListingCategory.Car) {
           const c = carMap.get(a.listingId);
           if (c) {
@@ -230,7 +268,7 @@ export class AuctionsService implements OnApplicationBootstrap {
     await this.findAuction(auctionId);
     const bids = await this.bidsRepository.find({
       where: { auctionId },
-      order: { createdAt: 'DESC' },
+      order: { amountKobo: 'DESC', createdAt: 'ASC' },
     });
 
     if (bids.length === 0) {
@@ -256,8 +294,7 @@ export class AuctionsService implements OnApplicationBootstrap {
         handle,
         amountKobo: bid.amountKobo,
         placedAt: bid.createdAt,
-        isLeading:
-          bid.status === BidStatus.Winning || bid.status === BidStatus.Accepted,
+        isLeading: bid.status === BidStatus.Winning,
         status: bid.status,
       };
     });
@@ -266,24 +303,53 @@ export class AuctionsService implements OnApplicationBootstrap {
   }
 
   async cancel(adminId: string, auctionId: string, dto: CancelAuctionDto) {
-    const auction = await this.findAuction(auctionId);
+    const auction = await this.dataSource.transaction(async (manager) => {
+      const current = await this.findAuctionForUpdate(manager, auctionId);
 
-    if (
-      ![AuctionStatus.Scheduled, AuctionStatus.Live].includes(auction.status)
-    ) {
-      throw new BadRequestException('Only scheduled or live auctions can be cancelled');
-    }
+      if (
+        ![AuctionStatus.Scheduled, AuctionStatus.Live].includes(current.status)
+      ) {
+        throw new BadRequestException(
+          'Only scheduled or live auctions can be cancelled',
+        );
+      }
 
-    Object.assign(auction, {
-      status: AuctionStatus.Cancelled,
-      cancelledById: adminId,
-      cancellationReason: dto.reason?.trim() ?? null,
-      cancelledAt: new Date(),
+      if (current.currentWinningBidId) {
+        const winningBid = await manager.findOne(Bid, {
+          where: { id: current.currentWinningBidId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (winningBid?.walletHoldId) {
+          await this.walletsService.releaseBidHold(manager, {
+            holdId: winningBid.walletHoldId,
+            reference: `auction_cancel_${current.id}_bid_${winningBid.id}`,
+            metadata: {
+              auctionId: current.id,
+              bidId: winningBid.id,
+              reason: 'auction_cancelled',
+            },
+          });
+        }
+      }
+
+      await manager.update(
+        Bid,
+        { auctionId: current.id },
+        { status: BidStatus.Cancelled },
+      );
+      Object.assign(current, {
+        status: AuctionStatus.Cancelled,
+        currentWinningBidId: null,
+        winnerId: null,
+        cancelledById: adminId,
+        cancellationReason: dto.reason?.trim() ?? null,
+        cancelledAt: new Date(),
+      });
+
+      return manager.save(current);
     });
 
-    return {
-      auction: presentAuction(await this.auctionsRepository.save(auction)),
-    };
+    return { auction: presentAuction(auction) };
   }
 
   async startScheduledAuction(auctionId: string) {
@@ -601,8 +667,13 @@ export class AuctionsService implements OnApplicationBootstrap {
   private async findApprovedListing(
     category: ListingCategory,
     listingId: string,
+    manager?: EntityManager,
   ): Promise<AuctionListing> {
-    const repository = this.getListingRepository(category);
+    const repository = manager
+      ? manager.getRepository(
+          category === ListingCategory.Car ? CarListing : GadgetListing,
+        )
+      : this.getListingRepository(category);
     const listing = await repository.findOneBy({
       id: listingId,
       status: ListingStatus.Approved,
@@ -621,14 +692,18 @@ export class AuctionsService implements OnApplicationBootstrap {
       : this.gadgetListingsRepository;
   }
 
-  private async findFee(category: ListingCategory) {
-    const existing = await this.feesRepository.findOneBy({ category });
+  private async findFee(category: ListingCategory, manager?: EntityManager) {
+    const repository =
+      manager?.getRepository(PlatformFeeSetting) ?? this.feesRepository;
+    const existing = await repository.findOneBy({ category });
 
     return existing ?? DefaultPlatformFees[category];
   }
 
-  private async findBiddingSetting() {
-    const existing = await this.biddingSettingsRepository.findOneBy({
+  private async findBiddingSetting(manager?: EntityManager) {
+    const repository =
+      manager?.getRepository(BiddingSetting) ?? this.biddingSettingsRepository;
+    const existing = await repository.findOneBy({
       id: 'default',
     });
 

@@ -6,14 +6,13 @@ import { timeAgo } from "@/app/components/notifications/utils/relative-time";
 import { Card, CardBody, CardHead } from "./Card";
 import { fmtNGN } from "../utils";
 
-type FeedFilter = "all" | "bid" | "win" | "pay" | "notification";
+type FeedFilter = "all" | "bid" | "win" | "pay" | "alert";
 
 const TYPE_LABEL: Record<string, string> = {
   bid: "bid placed",
   win: "auction won",
-  pay: "payment cleared",
+  pay: "payment due",
   alert: "system alert",
-  notification: "notification sent",
 };
 
 const DOT_COLOR: Record<string, string> = {
@@ -21,21 +20,23 @@ const DOT_COLOR: Record<string, string> = {
   win: "bg-green",
   pay: "bg-blue",
   alert: "bg-red",
-  notification: "bg-fg-dim",
 };
 
-const FILTERS: FeedFilter[] = ["all", "bid", "win", "pay", "notification"];
+const FILTERS: FeedFilter[] = ["all", "bid", "win", "pay", "alert"];
 
 export function LiveFeed() {
   const [filter, setFilter] = useState<FeedFilter>("all");
   const [paused, setPaused] = useState(false);
 
-  const { data, isLoading, isError, refetch } = useActivityFeed({
-    limit: 40,
-    type: filter === "all" ? undefined : filter,
-  });
+  const { data, isLoading, isError, refetch } = useActivityFeed(
+    {
+      limit: 40,
+      type: filter === "all" ? undefined : filter,
+    },
+    !paused,
+  );
 
-  const items: ActivityFeedItem[] = paused ? [] : data ?? [];
+  const items: ActivityFeedItem[] = data ?? [];
 
   return (
     <Card>

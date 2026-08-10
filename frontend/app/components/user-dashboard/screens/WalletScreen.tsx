@@ -23,10 +23,6 @@ const FILTERS: ChipOption<Filter>[] = [
   { id: "pay", label: "Settled" },
 ];
 
-const PRIMARY_BTN_BG = {
-  background: "linear-gradient(180deg, var(--accent-light), var(--accent))",
-};
-
 export function WalletScreen() {
   const [filter, setFilter] = useState<Filter>("all");
   const { data, isLoading, isError, refetch } = useLedger({ limit: 50 });
@@ -118,8 +114,7 @@ export function WalletScreen() {
 
       <Link
         href="/dashboard/wallet/topup"
-        className="mt-6 block cursor-pointer rounded-xl px-5 py-3.5 text-center text-sm font-bold text-[#1a0a00]"
-        style={PRIMARY_BTN_BG}
+        className="mt-6 block cursor-pointer rounded-xl bg-primary px-5 py-3.5 text-center text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
       >
         + Top up wallet
       </Link>

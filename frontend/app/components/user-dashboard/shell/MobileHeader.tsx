@@ -20,7 +20,7 @@ function backInfo(path: string) {
 }
 
 const HEADER_CLASS =
-  "sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-[rgba(11,10,8,0.92)] px-[18px] pb-3 pt-4 backdrop-blur-md lg:hidden";
+  "sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 px-4 pb-3 pt-4 backdrop-blur-md lg:hidden";
 const ICON_BTN_CLASS =
   "relative flex h-[38px] w-[38px] items-center justify-center rounded-full border border-line text-fg-muted hover:border-line-strong hover:bg-surface hover:text-fg";
 
@@ -35,6 +35,18 @@ export function MobileHeader() {
     ? `${me.firstName[0] ?? ""}${me.lastName[0] ?? ""}`.toUpperCase()
     : "";
 
+  const shareCurrentPage = async () => {
+    const shareData = { title: document.title, url: window.location.href };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(shareData.url);
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+    }
+  };
+
   if (path === "/dashboard/notifications") {
     return (
       <div className={HEADER_CLASS}>
@@ -42,9 +54,13 @@ export function MobileHeader() {
           <Icon name="chevron-l" size={20} />
         </button>
         <div className="flex-1 text-center text-sm font-semibold">Notifications</div>
-        <button className={ICON_BTN_CLASS} type="button">
+        <Link
+          href="/dashboard/profile#notification-preferences"
+          className={ICON_BTN_CLASS}
+          aria-label="Notification settings"
+        >
           <Icon name="settings" size={18} />
-        </button>
+        </Link>
       </div>
     );
   }
@@ -56,9 +72,14 @@ export function MobileHeader() {
           <Icon name="chevron-l" size={20} />
         </button>
         <div className="flex-1 text-center text-sm font-semibold">{backTitle}</div>
-        <Link href="/dashboard/notifications" className={ICON_BTN_CLASS}>
+        <button
+          className={ICON_BTN_CLASS}
+          onClick={shareCurrentPage}
+          type="button"
+          aria-label="Share this page"
+        >
           <Icon name="share" size={18} />
-        </Link>
+        </button>
       </div>
     );
   }
@@ -66,11 +87,7 @@ export function MobileHeader() {
   return (
     <div className={HEADER_CLASS}>
       <div
-        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full font-bold text-[#0a0806]"
-        style={{
-          background:
-            "linear-gradient(135deg, var(--accent), var(--accent-deep))",
-        }}
+        className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground"
       >
         {initials || "·"}
       </div>
@@ -87,9 +104,13 @@ export function MobileHeader() {
             </span>
           )}
         </Link>
-        <button className={ICON_BTN_CLASS} type="button">
+        <Link
+          href="/dashboard/support"
+          className={ICON_BTN_CLASS}
+          aria-label="Get help"
+        >
           <Icon name="help" size={18} />
-        </button>
+        </Link>
       </div>
     </div>
   );

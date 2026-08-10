@@ -17,11 +17,6 @@ const STATUS_COLOR: Record<MyBid["status"], string> = {
   scheduled: "text-fg-muted",
 };
 
-const ROW_THUMB_BG = {
-  background:
-    "repeating-linear-gradient(135deg, rgba(255,170,90,0.04) 0 8px, rgba(255,170,90,0.07) 8px 16px), linear-gradient(180deg, #3a2d1f, #231810)",
-};
-
 export function BidRow({ bid, auction }: BidRowProps) {
   if (!auction) return null;
   return (
@@ -29,10 +24,7 @@ export function BidRow({ bid, auction }: BidRowProps) {
       href={`/dashboard/auction/${auction.id}`}
       className="grid w-full cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-3 border-b border-line py-3 text-left text-fg last:border-b-0"
     >
-      <div
-        className="flex h-11 w-11 items-center justify-center rounded-lg border border-line text-[rgba(255,200,140,0.4)]"
-        style={ROW_THUMB_BG}
-      >
+      <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-media-background text-media-foreground">
         <Icon name={auction.cat === "cars" ? "car" : "phone"} size={22} />
       </div>
       <div>

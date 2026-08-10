@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMe } from "@/app/components/auth/hooks/use-me";
 import { useUnreadCount } from "@/app/components/notifications/hooks/use-notifications";
 import { SearchBox } from "@/app/components/search/SearchBox";
+import { ThemeToggle } from "@/app/components/theme/ThemeToggle";
 import { Icon } from "../primitives/Icon";
 
 const TITLE_MAP: Record<string, string> = {
@@ -37,7 +38,7 @@ export function TopBar() {
     ? `${me.firstName[0] ?? ""}${me.lastName[0] ?? ""}`.toUpperCase()
     : "";
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-4 border-b border-line bg-[rgba(11,10,8,0.85)] px-8 py-4 backdrop-blur-md">
+    <div className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-background/90 px-8 py-4 backdrop-blur-md">
       {canBack && (
         <button className={ICON_BTN_CLASS} onClick={() => router.back()} type="button">
           <Icon name="chevron-l" size={18} />
@@ -48,6 +49,7 @@ export function TopBar() {
       </div>
       <SearchBox />
       <div className="ml-auto flex items-center gap-2">
+        <ThemeToggle />
         <Link href="/dashboard/notifications" className={ICON_BTN_CLASS}>
           <Icon name="bell" size={18} />
           {unread > 0 && (
@@ -61,11 +63,7 @@ export function TopBar() {
           className="flex items-center gap-2.5 rounded-[10px] border border-line py-1 pl-1 pr-1.5 hover:bg-surface"
         >
           <span
-            className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-[#0a0806]"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--accent), var(--accent-deep))",
-            }}
+            className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
           >
             {initials || "·"}
           </span>

@@ -34,8 +34,11 @@ export class KycController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Verify NIN with Strowallet' })
   @ApiOkResponse({ description: 'NIN verification result returned.' })
-  verifyNin(@Body() dto: VerifyNinDto) {
-    return this.kycService.verifyNin(dto);
+  verifyNin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: VerifyNinDto,
+  ) {
+    return this.kycService.verifyNin(user.id, dto);
   }
 
   @Post('otp/send')

@@ -12,13 +12,14 @@ import { BidBar } from "@/app/components/auctions/widgets/BidBar";
 import { BidHistoryList } from "@/app/components/auctions/widgets/BidHistoryList";
 import { DetailHero } from "@/app/components/auctions/widgets/DetailHero";
 import { ApiError } from "@/app/lib/api/error";
+import {
+  useAddToWatchlist,
+  useRemoveFromWatchlist,
+  useWatchlist,
+} from "@/app/components/users/hooks/use-users";
 import { Icon } from "../primitives/Icon";
 import { Countdown } from "../widgets/Countdown";
 import { fmtNaira } from "../utils";
-
-const BID_BTN_BG = {
-  background: "linear-gradient(180deg, var(--accent-light), var(--accent))",
-};
 
 export function DetailScreen({ id }: { id: string }) {
   const router = useRouter();
@@ -26,6 +27,25 @@ export function DetailScreen({ id }: { id: string }) {
   const { data: auction, isLoading, isError, refetch } = useAuction(id);
   const { data: bids = [], isLoading: bidsLoading } = useAuctionBids(id);
   const confirmPayment = useConfirmWinnerPayment(id);
+  const { data: watchlist = [] } = useWatchlist();
+  const addToWatchlist = useAddToWatchlist();
+  const removeFromWatchlist = useRemoveFromWatchlist();
+  const isSaved = watchlist.some((item) => item.auctionId === id);
+  const watchlistPending = addToWatchlist.isPending || removeFromWatchlist.isPending;
+
+  const toggleWatchlist = async () => {
+    try {
+      if (isSaved) {
+        await removeFromWatchlist.mutateAsync(id);
+        toast.success("Removed from watchlist");
+      } else {
+        await addToWatchlist.mutateAsync(id);
+        toast.success("Saved to watchlist");
+      }
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update watchlist");
+    }
+  };
 
   // Subscribe to live bid + status events; no extra render in this component,
   // events stream straight into the React Query cache so the lists above
@@ -64,13 +84,29 @@ export function DetailScreen({ id }: { id: string }) {
     <>
       <DetailHero auction={auction} />
 
-      <div className="py-4 pb-3">
-        <h1 className="m-0 mb-1 font-display text-[22px] font-semibold leading-[1.15] tracking-tight">
-          {auction.title}
-        </h1>
+      <div className="flex items-start gap-3 py-4 pb-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="m-0 mb-1 font-display text-[22px] font-semibold leading-[1.15] tracking-tight">
+            {auction.title}
+          </h1>
         {auction.subtitle && (
           <div className="text-xs text-fg-muted">{auction.subtitle}</div>
         )}
+        </div>
+        <button
+          aria-label={isSaved ? "Remove from watchlist" : "Save to watchlist"}
+          aria-pressed={isSaved}
+          className={`flex size-10 items-center justify-center rounded-lg border transition-colors ${
+            isSaved
+              ? "border-primary bg-primary-soft text-primary"
+              : "border-border bg-surface text-muted-foreground hover:border-primary hover:text-primary"
+          }`}
+          disabled={watchlistPending}
+          onClick={() => void toggleWatchlist()}
+          type="button"
+        >
+          <Icon name="heart" size={18} />
+        </button>
       </div>
 
       <div className="mb-3.5 grid grid-cols-2 gap-2.5 rounded-[14px] border border-line bg-surface p-3.5">
@@ -125,8 +161,7 @@ export function DetailScreen({ id }: { id: string }) {
                 else toast.error("Could not confirm");
               }
             }}
-            className="w-full rounded-xl border-none p-3.5 text-sm font-bold text-[#1a0a00] disabled:opacity-60"
-            style={BID_BTN_BG}
+            className="w-full rounded-xl border-none bg-primary p-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
             {confirmPayment.isPending ? "Sending…" : "Confirm payment"}
           </button>
@@ -146,6 +181,7 @@ export function DetailScreen({ id }: { id: string }) {
       {auction.isLive ? (
         <BidBar
           auctionId={id}
+          hasBids={bids.length > 0}
           topBidNaira={topBid}
           minIncrementNaira={minIncrement}
         />
@@ -153,10 +189,12 @@ export function DetailScreen({ id }: { id: string }) {
         <div className="sticky bottom-0 -mx-[18px] -mb-6 px-[18px] pt-3.5">
           <button
             type="button"
-            className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border-none px-5 py-3.5 text-sm font-bold text-[#1a0a00]"
-            style={BID_BTN_BG}
+            disabled={watchlistPending}
+            onClick={() => void toggleWatchlist()}
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border-none bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
-            <Icon name="bell" size={16} /> Remind me when it opens
+            <Icon name={isSaved ? "check" : "bell"} size={16} />
+            {isSaved ? "Saved to watchlist" : "Save and remind me"}
           </button>
         </div>
       ) : null}

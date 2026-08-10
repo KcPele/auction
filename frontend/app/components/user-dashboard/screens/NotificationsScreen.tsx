@@ -33,7 +33,7 @@ const ICON_FOR: Record<NotificationKind, IconName> = {
 const ICON_BG: Record<NotificationKind, string> = {
   email: "bg-accent/[0.12] text-accent",
   wa: "bg-green/[0.12] text-green",
-  bid: "bg-[rgba(107,176,255,0.12)] text-[var(--blue)]",
+  bid: "bg-info-soft text-info",
   alert: "bg-red/[0.12] text-red",
 };
 

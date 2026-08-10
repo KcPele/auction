@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
 import { BidStatus } from '../../common/enums/bid-status.enum';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
@@ -34,14 +34,34 @@ export class AdminDashboardService {
 
   async getDashboardStats(range: string) {
     const since = this.parseRange(range);
-    const [settledAuctions, activeHolds, activeBids] = await Promise.all([
-      this.auctionsRepository.find({ where: { status: AuctionStatus.Settled, settledAt: since as Date | undefined } as Record<string, unknown> }),
-      this.ledgerRepository.find({ where: { type: WalletLedgerType.BidHoldCreated } }),
+    const [settledAuctions, holdBalance, activeBids] = await Promise.all([
+      this.auctionsRepository.find({
+        where: {
+          status: AuctionStatus.Settled,
+          ...(since ? { settledAt: MoreThanOrEqual(since) } : {}),
+        },
+      }),
+      this.ledgerRepository
+        .createQueryBuilder('entry')
+        .select(
+          `COALESCE(SUM(CASE WHEN entry.type = :created THEN ABS(entry.amountKobo) ELSE -ABS(entry.amountKobo) END), 0)`,
+          'total',
+        )
+        .where('entry.type IN (:...types)', {
+          created: WalletLedgerType.BidHoldCreated,
+          types: [
+            WalletLedgerType.BidHoldCreated,
+            WalletLedgerType.BidHoldReleased,
+            WalletLedgerType.BidHoldApplied,
+            WalletLedgerType.BidHoldForfeited,
+          ],
+        })
+        .getRawOne<{ total: string }>(),
       this.bidsRepository.count({ where: { status: In([BidStatus.Accepted, BidStatus.Winning]) } }),
     ]);
 
     const gmvKobo = settledAuctions.reduce((sum, a) => sum + (a.externalPaymentKobo ?? 0) + (a.walletPaymentKobo ?? 0), 0);
-    const walletHoldsKobo = activeHolds.reduce((sum, e) => sum + Math.abs(e.amountKobo), 0);
+    const walletHoldsKobo = Math.max(0, Number(holdBalance?.total ?? 0));
 
     const totalPayments = await this.ledgerRepository.count({ where: { type: In([WalletLedgerType.FinalPaymentConfirmed, WalletLedgerType.BidHoldApplied]) } });
     const failedPayments = await this.ledgerRepository.count({ where: { type: WalletLedgerType.BidHoldForfeited } });

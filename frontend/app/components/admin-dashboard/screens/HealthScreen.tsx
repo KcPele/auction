@@ -4,7 +4,7 @@ import { SectionHeader } from "./SectionHeader";
 
 const DOT: Record<string, string> = {
   ok: "bg-green",
-  warn: "bg-amber",
+  warn: "bg-warning",
   err: "bg-red",
 };
 
@@ -25,7 +25,7 @@ export function HealthScreen() {
 
       <div className="mt-4 grid grid-cols-3 gap-3">
         <Stat value={ok} label="Healthy" color="text-green" />
-        <Stat value={warn} label="Warnings" color="text-amber" />
+        <Stat value={warn} label="Warnings" color="text-warning" />
         <Stat value={err || services.length} label={err ? "Down" : "Total"} color={err ? "text-red" : "text-fg"} />
       </div>
 

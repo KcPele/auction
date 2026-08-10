@@ -70,11 +70,13 @@ function Toggle({
   sub,
   on,
   onChange,
+  disabled = false,
 }: {
   label: string;
   sub?: string;
   on: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2">
@@ -84,11 +86,14 @@ function Toggle({
       </div>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => onChange(!on)}
         aria-label={`Toggle ${label}`}
-        className={`relative h-6 w-[42px] flex-shrink-0 cursor-pointer rounded-full border transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:transition-all after:content-[''] ${
+        aria-checked={on}
+        role="switch"
+        className={`relative h-6 w-[42px] flex-shrink-0 cursor-pointer rounded-full border transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:transition-all after:content-[''] disabled:cursor-not-allowed disabled:opacity-50 ${
           on
-            ? "border-accent bg-accent after:left-[21px] after:bg-[#0a0806]"
+            ? "border-primary bg-primary after:left-[21px] after:bg-primary-foreground"
             : "border-line bg-surface-2 after:bg-fg-muted"
         }`}
       />
@@ -162,9 +167,9 @@ function FeesCard({
         action={
           <button
             type="button"
-            disabled={update.isPending}
+            disabled={update.isPending || !fee}
             onClick={save}
-            className="rounded-md px-3 py-1 text-xs font-semibold text-[#1a0a00] disabled:opacity-60"
+            className="rounded-md px-3 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-60"
             style={PRIMARY_BTN}
           >
             {update.isPending ? "Saving…" : "Save"}
@@ -221,9 +226,9 @@ function BiddingCard() {
         action={
           <button
             type="button"
-            disabled={update.isPending}
+            disabled={update.isPending || !bidding.data}
             onClick={save}
-            className="rounded-md px-3 py-1 text-xs font-semibold text-[#1a0a00] disabled:opacity-60"
+            className="rounded-md px-3 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-60"
             style={PRIMARY_BTN}
           >
             {update.isPending ? "Saving…" : "Save"}
@@ -279,9 +284,9 @@ function PaymentAccountCard() {
         action={
           <button
             type="button"
-            disabled={update.isPending}
+            disabled={update.isPending || !account.data}
             onClick={save}
-            className="rounded-md px-3 py-1 text-xs font-semibold text-[#1a0a00] disabled:opacity-60"
+            className="rounded-md px-3 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-60"
             style={PRIMARY_BTN}
           >
             {update.isPending ? "Saving…" : "Save"}
@@ -373,9 +378,9 @@ function EscrowCard() {
         action={
           <button
             type="button"
-            disabled={update.isPending}
+            disabled={update.isPending || !escrow.data}
             onClick={save}
-            className="rounded-md px-3 py-1 text-xs font-semibold text-[#1a0a00] disabled:opacity-60"
+            className="rounded-md px-3 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-60"
             style={PRIMARY_BTN}
           >
             {update.isPending ? "Saving…" : "Save"}
@@ -442,10 +447,12 @@ function TogglesCard() {
   const set = async (
     key: "emailNotifications" | "whatsappNotifications" | "pauseNewListings",
     value: boolean,
+    rollback: () => void,
   ) => {
     try {
       await update.mutateAsync({ [key]: value });
     } catch (err) {
+      rollback();
       wrap(err, "Could not update toggles");
     }
   };
@@ -458,9 +465,10 @@ function TogglesCard() {
           label="Email notifications"
           sub="Send transactional emails"
           on={email}
+          disabled={!toggles.data || update.isPending}
           onChange={(v) => {
             setEmail(v);
-            set("emailNotifications", v);
+            void set("emailNotifications", v, () => setEmail(!v));
           }}
         />
         <div className="border-t border-line" />
@@ -468,9 +476,10 @@ function TogglesCard() {
           label="WhatsApp notifications"
           sub="WhatsApp Business API"
           on={wa}
+          disabled={!toggles.data || update.isPending}
           onChange={(v) => {
             setWa(v);
-            set("whatsappNotifications", v);
+            void set("whatsappNotifications", v, () => setWa(!v));
           }}
         />
         <div className="border-t border-line" />
@@ -478,9 +487,10 @@ function TogglesCard() {
           label="Pause new listings"
           sub="Block new submissions while issues are investigated"
           on={pause}
+          disabled={!toggles.data || update.isPending}
           onChange={(v) => {
             setPause(v);
-            set("pauseNewListings", v);
+            void set("pauseNewListings", v, () => setPause(!v));
           }}
         />
       </CardBody>

@@ -15,7 +15,7 @@ import { SectionHeader } from "./SectionHeader";
 
 const CAT_BG: Record<string, string> = {
   cars: "bg-accent/10 text-accent",
-  gadgets: "bg-[rgba(107,176,255,0.12)] text-[var(--blue,#6bb0ff)]",
+  gadgets: "bg-info-soft text-info",
 };
 
 export function ListingsScreen() {
@@ -164,7 +164,7 @@ export function ListingsScreen() {
 
       {reviewing && (
         <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-scrim p-4"
           onClick={() => setReviewing(null)}
         >
           <div

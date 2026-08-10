@@ -29,6 +29,7 @@ export type MeUserDto = {
   lastName: string;
   role: string;
   nin: string | null;
+  ninVerifiedAt: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

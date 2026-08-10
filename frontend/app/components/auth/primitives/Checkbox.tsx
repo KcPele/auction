@@ -10,18 +10,19 @@ interface CheckboxProps {
 
 export function Checkbox({ checked, onChange, children }: CheckboxProps) {
   return (
-    <label
-      className="mb-[18px] flex cursor-pointer items-start gap-2.5 text-[13px] leading-[1.5] text-fg-muted"
-      onClick={(e) => {
-        e.preventDefault();
-        onChange(!checked);
-      }}
-    >
+    <label className="mb-5 flex cursor-pointer items-start gap-2.5 text-sm leading-5 text-muted-foreground">
+      <input
+        checked={checked}
+        className="sr-only"
+        onChange={(event) => onChange(event.target.checked)}
+        type="checkbox"
+      />
       <span
-        className={`mt-[1px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border-[1.5px] ${
+        aria-hidden="true"
+        className={`mt-px flex size-5 shrink-0 items-center justify-center rounded border ${
           checked
-            ? "border-accent bg-accent text-[#0a0806]"
-            : "border-line-strong bg-surface"
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-border-strong bg-surface"
         }`}
       >
         {checked && <Icon name="check" size={12} strokeWidth={3} />}

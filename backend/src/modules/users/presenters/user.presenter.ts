@@ -9,6 +9,7 @@ export function presentUser(user: User) {
     lastName: user.lastName,
     role: user.role,
     nin: user.nin,
+    ninVerifiedAt: user.ninVerifiedAt,
     isActive: user.isActive,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AuthService } from '../auth/auth.service';
@@ -48,6 +49,7 @@ describe('WalletsController', () => {
         { provide: WalletsService, useValue: service },
         { provide: WalletFundingService, useValue: fundingService },
         { provide: WalletWithdrawalsService, useValue: withdrawalsService },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: AuthService, useValue: { getAuthenticatedUser: jest.fn() } },
       ],
     }).compile();

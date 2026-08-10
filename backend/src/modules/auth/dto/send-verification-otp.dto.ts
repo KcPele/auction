@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString } from 'class-validator';
+import { IsEmail, IsIn } from 'class-validator';
 
 export class SendVerificationOtpDto {
   @ApiProperty({ example: 'buyer@example.com' })
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ example: '123456' })
-  @IsString()
-  otp!: string;
+  @ApiProperty({ enum: ['email-verification'], example: 'email-verification' })
+  @IsIn(['email-verification'])
+  type!: 'email-verification';
 }

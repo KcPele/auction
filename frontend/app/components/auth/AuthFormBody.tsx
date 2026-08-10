@@ -19,23 +19,23 @@ export function AuthFormBody({
 }: AuthFormBodyProps) {
   return (
     <div
-      className={`my-10 flex w-full max-w-[420px] flex-1 flex-col justify-center max-sm:my-7 ${
+      className={`my-10 flex w-full max-w-md flex-1 flex-col justify-center max-sm:my-7 ${
         centered ? "items-center text-center" : ""
       }`}
     >
       {stepper}
       {eyebrow && (
-        <div className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.15em] text-accent">
+        <div className="mb-2.5 text-sm font-semibold text-primary">
           {eyebrow}
         </div>
       )}
       {title && (
-        <h1 className="m-0 mb-2 font-display text-4xl font-semibold leading-[1.1] tracking-[-0.025em]">
+        <h1 className="m-0 mb-2 font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
           {title}
         </h1>
       )}
       {subtitle && (
-        <p className="m-0 mb-8 max-w-[380px] text-sm text-fg-muted">{subtitle}</p>
+        <p className="m-0 mb-8 max-w-sm text-sm leading-6 text-muted-foreground">{subtitle}</p>
       )}
       {children}
     </div>
@@ -50,9 +50,9 @@ export function AuthFormTop({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="text-[13px] text-fg-dim">{left}</div>
-      {right && <div className="text-[13px] text-fg-muted">{right}</div>}
+    <div className="flex items-center justify-between gap-4 pr-28 md:pr-32">
+      <div className="text-sm text-subtle-foreground">{left}</div>
+      {right && <div className="text-sm text-muted-foreground">{right}</div>}
     </div>
   );
 }

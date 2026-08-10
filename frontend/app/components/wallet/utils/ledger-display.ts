@@ -27,6 +27,6 @@ export const ICON_FOR: Record<ActivityBucket, IconName> = {
 export const ICON_BG: Record<ActivityBucket, string> = {
   top: "bg-green/[0.12] text-green",
   hold: "bg-accent/[0.12] text-accent",
-  release: "bg-[rgba(107,176,255,0.12)] text-[var(--blue)]",
+  release: "bg-info-soft text-info",
   pay: "bg-red/[0.12] text-red",
 };

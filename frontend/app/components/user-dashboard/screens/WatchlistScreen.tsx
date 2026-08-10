@@ -82,7 +82,7 @@ function Card({
   return (
     <div className="rounded-[14px] border border-line bg-surface p-3.5">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-fg-muted">
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-surface-subtle text-fg-muted">
           {w.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

@@ -9,11 +9,6 @@ import { Countdown } from "../widgets/Countdown";
 
 type TabId = "active" | "scheduled" | "won";
 
-const ROW_THUMB_BG = {
-  background:
-    "repeating-linear-gradient(135deg, rgba(255,170,90,0.04) 0 8px, rgba(255,170,90,0.07) 8px 16px), linear-gradient(180deg, #3a2d1f, #231810)",
-};
-
 const STATUS_LABEL: Record<UserBid["status"], string> = {
   leading: "Leading",
   outbid: "Outbid",
@@ -71,7 +66,7 @@ export function MyBidsScreen() {
             onClick={() => setTab(t.id)}
           >
             {t.label}
-            <span className="rounded bg-white/[0.04] px-1.5 py-px font-mono text-[10px]">
+            <span className="rounded bg-surface-subtle px-1.5 py-px font-mono text-[10px]">
               {t.count}
             </span>
           </button>
@@ -128,10 +123,7 @@ function Row({ b }: { b: UserBid }) {
       href={`/dashboard/auction/${b.auctionId}`}
       className="grid w-full cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-3 border-b border-line py-3 text-left text-fg last:border-b-0"
     >
-      <div
-        className="flex h-11 w-11 items-center justify-center rounded-lg border border-line text-[rgba(255,200,140,0.4)]"
-        style={ROW_THUMB_BG}
-      >
+      <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-media-background text-media-foreground">
         {b.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={b.photoUrl} alt={b.title} className="h-full w-full rounded-lg object-cover" />

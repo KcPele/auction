@@ -51,7 +51,7 @@ describe('UsersController', () => {
     await expect(controller.getMe(currentUser)).resolves.toEqual({
       user: { id: currentUser.id },
     });
-    expect(service.getMe).toHaveBeenCalledWith(currentUser.id);
+    expect(service.getMe).toHaveBeenCalledWith(currentUser.id, currentUser.role);
   });
 
   it('updates the current user profile', async () => {

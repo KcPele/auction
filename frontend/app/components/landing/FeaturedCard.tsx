@@ -49,7 +49,7 @@ export function FeaturedCard() {
   const idShort = featured.id.slice(0, 8).toUpperCase();
 
   return (
-    <div className="relative rounded-lg border border-line-strong bg-[linear-gradient(180deg,var(--surface-2),var(--surface))] p-[22px] shadow-[0_10px_40px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,180,90,0.05)] transition-transform duration-[400ms] [transform:perspective(1200px)_rotateY(-3deg)_rotateX(2deg)] hover:[transform:perspective(1200px)_rotateY(-1deg)_rotateX(1deg)_translateY(-4px)]">
+    <div className="relative rounded-lg border border-line-strong bg-[linear-gradient(180deg,var(--surface-2),var(--surface))] p-[22px] shadow-[var(--shadow-md)] transition-transform duration-[400ms] [transform:perspective(1200px)_rotateY(-3deg)_rotateX(2deg)] hover:[transform:perspective(1200px)_rotateY(-1deg)_rotateX(1deg)_translateY(-4px)]">
       <div className="mb-4 flex items-center justify-between">
         <div className={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLive ? "text-red" : "text-accent"}`}>
           {isLive && <LiveDot />}
@@ -69,7 +69,7 @@ export function FeaturedCard() {
         {featured.subtitle || "Verified listing"}
       </div>
 
-      <div className="mb-3.5 grid grid-cols-2 gap-3 rounded-md border border-line bg-black/35 p-3.5">
+      <div className="mb-3.5 grid grid-cols-2 gap-3 rounded-md border border-line bg-surface-subtle p-3.5">
         <div>
           <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-fg-dim">{isLive ? "Current bid" : "Base price"}</div>
           <div className="font-mono text-[22px] font-semibold tabular-nums accent-gradient-text">

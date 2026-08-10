@@ -128,7 +128,7 @@ describe('BidsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('accepts gadget bids below the current top without replacing it', async () => {
+  it('rejects gadget bids below the current top', async () => {
     const currentTopBid = createBid({ amountKobo: 260000000 });
     const auction = createAuction({
       category: ListingCategory.Gadget,
@@ -139,18 +139,9 @@ describe('BidsService', () => {
 
     await expect(
       service.placeBid('bidder-id', auction.id, { amountKobo: 255000000 }),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        bid: expect.objectContaining({ status: BidStatus.Accepted }),
-        isTopBid: false,
-      }),
-    );
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(auction.currentWinningBidId).toBe(currentTopBid.id);
-    expect(bidsGateway.emitBidPlaced).toHaveBeenCalledWith({
-      auctionId: auction.id,
-      bid: expect.objectContaining({ status: BidStatus.Accepted }),
-      isTopBid: false,
-    });
+    expect(bidsGateway.emitBidPlaced).not.toHaveBeenCalled();
     expect(bidsGateway.emitTopBidChanged).not.toHaveBeenCalled();
   });
 

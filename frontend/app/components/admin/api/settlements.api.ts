@@ -22,7 +22,7 @@ export const settleAuctionPayment = (input: {
   });
 
 export const defaultAuctionPayment = (input: { id: string; reason?: string }) =>
-  apiClient<unknown>(`/admin/auctions/${input.id}/default-payment`, {
+  apiClient<{ changed: boolean }>(`/admin/auctions/${input.id}/default-payment`, {
     method: "POST",
     body: input.reason ? { reason: input.reason } : {},
   });

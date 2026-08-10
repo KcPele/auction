@@ -60,11 +60,7 @@ export function RedeemAccessCodeScreen() {
             type="button"
             disabled={code.length < 6 || redeem.isPending}
             onClick={onRedeem}
-            className="mt-4 w-full cursor-pointer rounded-xl border-none p-4 text-sm font-bold text-[#1a0a00] disabled:cursor-not-allowed disabled:opacity-50"
-            style={{
-              background:
-                "linear-gradient(180deg, var(--accent-light), var(--accent))",
-            }}
+            className="mt-4 w-full cursor-pointer rounded-xl border-none bg-primary p-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {redeem.isPending ? "Redeeming…" : "Redeem code"}
           </button>

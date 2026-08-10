@@ -34,8 +34,8 @@ export class GadgetsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get a gadget listing by ID' })
   @ApiOkResponse({ description: 'Gadget listing returned.' })
-  findOne(@Param('id') id: string) {
-    return this.gadgetsService.findOne(id);
+  findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.gadgetsService.findOne(user, id);
   }
 
   @Patch(':id')

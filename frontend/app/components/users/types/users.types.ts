@@ -4,7 +4,6 @@ export type UpdateProfileInput = {
   firstName?: string;
   lastName?: string;
   phone?: string;
-  nin?: string;
 };
 
 export type NotificationPreferencesInput = {

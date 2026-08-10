@@ -16,7 +16,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const CHANNEL_BG: Record<string, string> = {
-  EMAIL: "bg-[rgba(107,176,255,0.12)] text-[var(--blue,#6bb0ff)]",
+  EMAIL: "bg-info-soft text-info",
   WHATSAPP: "bg-green/[0.12] text-green",
   SMS: "bg-accent/[0.12] text-accent",
   PUSH: "bg-surface-2 text-fg-muted",

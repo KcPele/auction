@@ -8,14 +8,12 @@ interface SectionProps {
 
 export function Section({ id, children, className = "" }: SectionProps) {
   return (
-    <section id={id} className={`relative px-5 py-24 md:px-10 md:py-[100px] ${className}`}>
-      <div className="mx-auto max-w-[1280px]">{children}</div>
+    <section id={id} className={`scroll-mt-20 px-5 py-16 md:px-8 md:py-24 ${className}`}>
+      <div className="mx-auto max-w-7xl">{children}</div>
     </section>
   );
 }
 
 export function SectionDivider() {
-  return (
-    <div className="mx-auto h-px max-w-[1280px] bg-[linear-gradient(90deg,transparent,var(--line-strong)_20%,var(--line-strong)_80%,transparent)]" />
-  );
+  return <div className="mx-auto h-px max-w-7xl bg-border" aria-hidden="true" />;
 }

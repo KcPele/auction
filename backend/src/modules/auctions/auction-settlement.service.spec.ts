@@ -7,6 +7,7 @@ import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
 import type { NotificationsService } from '../notifications/notifications.service';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { Bid } from '../bids/entities/bid.entity';
+import type { WalletsService } from '../wallets/wallets.service';
 import { AuctionSettlementService } from './auction-settlement.service';
 
 describe('AuctionSettlementService', () => {
@@ -16,6 +17,7 @@ describe('AuctionSettlementService', () => {
   let paymentAccountsRepository: { findOneBy: jest.Mock };
   let deliveryRepository: { findOneBy: jest.Mock; save: jest.Mock };
   let notificationsService: { create: jest.Mock };
+  let walletsService: { releaseBidHold: jest.Mock; forfeitBidHold: jest.Mock };
   let service: AuctionSettlementService;
 
   beforeEach(() => {
@@ -25,6 +27,10 @@ describe('AuctionSettlementService', () => {
     paymentAccountsRepository = { findOneBy: jest.fn() };
     deliveryRepository = { findOneBy: jest.fn(), save: jest.fn() };
     notificationsService = { create: jest.fn() };
+    walletsService = {
+      releaseBidHold: jest.fn(),
+      forfeitBidHold: jest.fn(),
+    };
     service = new AuctionSettlementService(
       dataSource as never,
       auctionsRepository as never,
@@ -32,6 +38,7 @@ describe('AuctionSettlementService', () => {
       paymentAccountsRepository as never,
       deliveryRepository as never,
       notificationsService as unknown as NotificationsService,
+      walletsService as unknown as WalletsService,
     );
   });
 
@@ -136,9 +143,11 @@ describe('AuctionSettlementService', () => {
     const auction = createAuction({
       status: AuctionStatus.AwaitingPayment,
       winnerId: 'winner-id',
+      currentWinningBidId: 'winning-bid-id',
       paymentDeadlineAt: new Date(Date.now() - 60_000),
     });
-    const manager = createManager({ auction });
+    const winningBid = createBid({ id: 'winning-bid-id' });
+    const manager = createManager({ auction, bids: [winningBid] });
     dataSource.transaction.mockImplementation((callback) => callback(manager));
 
     await expect(
@@ -150,6 +159,10 @@ describe('AuctionSettlementService', () => {
       }),
       changed: true,
     });
+    expect(walletsService.forfeitBidHold).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({ holdId: winningBid.walletHoldId }),
+    );
   });
 });
 

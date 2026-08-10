@@ -8,10 +8,6 @@ import { ApiError } from "@/app/lib/api/error";
 import { Icon } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
 
-const PRIMARY_BTN_BG = {
-  background: "linear-gradient(180deg, var(--accent-light), var(--accent))",
-};
-
 const formatDate = new Intl.DateTimeFormat("en-NG", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -113,8 +109,7 @@ export function PaymentInstructionsScreen({
             else toast.error("Could not confirm");
           }
         }}
-        className="mt-6 w-full cursor-pointer rounded-xl border-none p-4 text-sm font-bold text-[#1a0a00] disabled:opacity-60"
-        style={PRIMARY_BTN_BG}
+        className="mt-6 w-full cursor-pointer rounded-xl border-none bg-primary p-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
       >
         {confirm.isPending ? "Sending…" : "I've made the transfer"}
       </button>

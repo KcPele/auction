@@ -21,10 +21,6 @@ const STATUS_STYLE: Record<ListingStatusUi, string> = {
   rejected: "bg-red/[0.12] text-red",
 };
 
-const PRIMARY_BTN_BG = {
-  background: "linear-gradient(180deg, var(--accent-light), var(--accent))",
-};
-
 const dateFmt = new Intl.DateTimeFormat("en-NG", {
   day: "numeric",
   month: "short",
@@ -56,8 +52,7 @@ export function MyListingsScreen() {
         </h1>
         <Link
           href="/dashboard/listings/create"
-          className="inline-flex items-center gap-1.5 rounded-lg border-none px-3 py-2 text-xs font-bold text-[#1a0a00]"
-          style={PRIMARY_BTN_BG}
+          className="inline-flex items-center gap-1.5 rounded-lg border-none bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
         >
           <Icon name="plus" size={14} /> New listing
         </Link>

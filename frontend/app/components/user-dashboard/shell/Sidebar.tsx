@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useWallet } from "@/app/components/wallet/hooks/use-wallet";
+import { BrandMark } from "@/app/components/landing/BrandMark";
 import { Icon, type IconName } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
 
@@ -51,7 +52,7 @@ function NavList({ items, path }: { items: NavItem[]; path: string }) {
           >
             <Icon name={n.icon} size={18} /> {n.label}
             {n.badge && (
-              <span className="ml-auto rounded-full bg-red px-1.5 py-px font-mono text-[10px] font-semibold text-white">
+              <span className="ml-auto rounded-full bg-danger px-1.5 py-px font-mono text-[10px] font-semibold text-status-foreground">
                 {n.badge}
               </span>
             )}
@@ -67,11 +68,9 @@ export function Sidebar() {
   const { data: wallet } = useWallet();
 
   return (
-    <aside className="sticky top-0 flex h-screen flex-col gap-1 border-r border-line bg-bg-1 px-3.5 py-[22px]">
+    <aside className="sticky top-0 flex h-screen flex-col gap-1 border-r border-border bg-surface-subtle px-3.5 py-6">
       <div className="flex items-center px-3 pb-[22px] pt-2">
-        <span className="font-display text-xl font-bold tracking-[-0.02em]">
-          Bid<span className="italic accent-gradient-text">Naija</span>
-        </span>
+        <BrandMark />
       </div>
       <div className="px-3 pb-1.5 pt-[18px] font-mono text-[10px] uppercase tracking-[0.15em] text-fg-dim">
         Auctions
@@ -90,7 +89,7 @@ export function Sidebar() {
         </div>
         <Link
           href="/dashboard/wallet/topup"
-          className="mt-2.5 block w-full rounded-lg p-2 text-center text-xs font-bold text-[#1a0a00] accent-gradient-bg"
+          className="mt-2.5 block w-full rounded-lg bg-primary p-2 text-center text-xs font-semibold text-primary-foreground hover:bg-primary-hover"
         >
           + Top up wallet
         </Link>

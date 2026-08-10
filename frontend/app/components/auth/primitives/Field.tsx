@@ -2,17 +2,18 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 
 interface FieldProps {
   label: ReactNode;
+  htmlFor?: string;
   hint?: ReactNode;
   meta?: ReactNode;
   className?: string;
   children: ReactNode;
 }
 
-export function Field({ label, hint, meta, className = "", children }: FieldProps) {
+export function Field({ label, htmlFor, hint, meta, className = "", children }: FieldProps) {
   return (
     <div className={`mb-[18px] ${className}`}>
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1 text-xs font-medium text-fg-muted">
-        <span>{label}</span>
+        <label htmlFor={htmlFor}>{label}</label>
         {hint && <span className="font-mono text-[11px] text-fg-dim">{hint}</span>}
       </div>
       {children}
@@ -27,7 +28,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 const inputBase =
-  "w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-3 text-[15px] text-fg outline-none transition-colors placeholder:text-fg-dim focus:border-accent focus:bg-surface-2";
+  "w-full rounded-lg border border-border-strong bg-surface px-3.5 py-3 text-base text-foreground outline-none transition-colors placeholder:text-subtle-foreground focus:border-primary focus:bg-surface-subtle";
 
 export function Input({ leftIcon, rightSlot, className = "", ...rest }: InputProps) {
   if (!leftIcon && !rightSlot) {
@@ -57,12 +58,12 @@ interface PhoneInputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export function PhoneInput({ prefix = "🇳🇬 +234", className = "", ...rest }: PhoneInputProps) {
   return (
-    <div className="flex overflow-hidden rounded-[10px] border border-line-strong bg-surface focus-within:border-accent">
-      <div className="flex shrink-0 items-center gap-2 border-r border-line bg-surface-2 px-3.5 py-3 font-mono text-sm text-fg-muted">
+    <div className="flex overflow-hidden rounded-lg border border-border-strong bg-surface focus-within:border-primary">
+      <div className="flex shrink-0 items-center gap-2 border-r border-border bg-surface-subtle px-3.5 py-3 font-mono text-sm text-muted-foreground">
         {prefix}
       </div>
       <input
-        className={`w-full bg-transparent px-3.5 py-3 text-[15px] text-fg outline-none placeholder:text-fg-dim ${className}`}
+        className={`w-full bg-transparent px-3.5 py-3 text-base text-foreground outline-none placeholder:text-subtle-foreground ${className}`}
         {...rest}
       />
     </div>

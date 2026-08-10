@@ -8,16 +8,16 @@ export function Ticker() {
   if (feed.length === 0) return null;
   const row = [...feed, ...feed];
   return (
-    <div className="relative flex items-center gap-4 overflow-hidden border-y border-line bg-[linear-gradient(90deg,rgba(255,122,26,0.12),transparent_30%)] py-3 pl-6">
-      <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-line-strong bg-[rgba(255,122,26,0.06)] px-3 py-1.5 text-[11px] font-bold tracking-[0.12em] text-accent">
+    <div className="relative flex items-center gap-4 overflow-hidden border-y border-line bg-[linear-gradient(90deg,var(--decorative-soft),transparent_30%)] py-3 pl-6">
+      <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-line-strong bg-[var(--decorative-subtle)] px-3 py-1.5 text-[11px] font-bold tracking-[0.12em] text-accent">
         <LiveDot />
         LIVE BIDS
       </div>
       <div
         className="flex-1 overflow-hidden"
         style={{
-          maskImage: "linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)",
-          WebkitMaskImage: "linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)",
+          maskImage: "linear-gradient(90deg, transparent, var(--mask-opaque) 6%, var(--mask-opaque) 94%, transparent)",
+          WebkitMaskImage: "linear-gradient(90deg, transparent, var(--mask-opaque) 6%, var(--mask-opaque) 94%, transparent)",
         }}
       >
         <div className="flex gap-12 whitespace-nowrap animate-[tickerScroll_55s_linear_infinite]">

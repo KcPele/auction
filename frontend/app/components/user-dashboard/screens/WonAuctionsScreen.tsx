@@ -115,7 +115,7 @@ function Card({
         <button
           type="button"
           onClick={() => router.push(`/dashboard/auction/${w.auctionId}/payment`)}
-          className="mt-3 w-full rounded-lg border-none p-2.5 text-xs font-bold text-[#1a0a00] accent-gradient-bg"
+          className="mt-3 w-full rounded-lg border-none p-2.5 text-xs font-bold text-primary-foreground accent-gradient-bg"
         >
           View payment instructions
         </button>

@@ -9,16 +9,19 @@ import { Button } from "./primitives/Button";
 import { LiveDot } from "./primitives/LiveDot";
 import { useTick } from "./hooks/useTick";
 import type { Auction as LandingAuction } from "./types";
+import { ArrowRight, BellRing } from "lucide-react";
 
 const adapt = (a: ApiAuction): LandingAuction => ({
+  id: a.id,
   title: a.title || "Auction",
   meta: a.subtitle ?? "",
-  bid: a.basePrice,
-  bidders: 0,
+  bid: a.currentBid,
+  bidders: a.bidderCount,
   status: a.isLive ? "live" : a.isUpcoming ? "scheduled" : "scheduled",
   end: Math.max(0, Math.floor((a.endTime.getTime() - Date.now()) / 1000)),
   kind: a.category === "cars" ? "car" : "gadget",
   tag: a.category === "cars" ? "CAR" : "GADGET",
+  image: a.photoUrl,
 });
 
 export function Auctions() {
@@ -48,40 +51,44 @@ export function Auctions() {
         kicker={
           <span className="inline-flex items-center gap-2">
             <LiveDot />
-            {liveCount} auction{liveCount === 1 ? "" : "s"} live right now
+            {liveCount} auction{liveCount === 1 ? "" : "s"} live now
           </span>
         }
         title={
           <>
-            On the{" "}
-            <em className="italic accent-gradient-text">block</em> this hour.
+            Live and upcoming auctions
           </>
         }
         right={
           <div className="flex gap-2.5">
-            <Button href="/login" variant="ghost">
-              All auctions
-            </Button>
-            <Button href="/register" variant="primary">
-              Open feed
+            <Button href="/register" variant="ghost">
+              Browse all
+              <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           </div>
         }
       />
 
       {live.isLoading && upcoming.isLoading ? (
-        <div className="py-12 text-center text-sm text-fg-muted">
+        <div className="rounded-xl border border-border bg-surface py-16 text-center text-sm text-muted-foreground">
           Loading auctions…
         </div>
       ) : auctions.length === 0 ? (
-        <div className="py-12 text-center text-sm text-fg-muted">
-          No auctions yet — check back soon.
+        <div className="rounded-xl border border-border bg-surface px-6 py-14 text-center">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-md bg-primary-soft text-primary">
+            <BellRing className="size-5" aria-hidden="true" />
+          </span>
+          <h3 className="mt-5 text-lg font-bold text-foreground">New auctions are being prepared</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            The marketplace is fresh. Create an account and we will let you know when the first verified listings go live.
+          </p>
+          <Button href="/register" className="mt-6">Create account</Button>
         </div>
       ) : (
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {auctions.map((a, i) => {
-            const endSec = Math.max(0, a.end - Math.floor(tick / 1000));
-            return <AuctionCard key={i} auction={a} endSec={endSec} />;
+          {auctions.map((a) => {
+            const endSec = Math.max(0, a.end - tick);
+            return <AuctionCard key={a.id} auction={a} endSec={endSec} />;
           })}
         </div>
       )}

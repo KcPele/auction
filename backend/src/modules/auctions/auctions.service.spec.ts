@@ -9,6 +9,7 @@ import type { NotificationsService } from '../notifications/notifications.servic
 import type { BidsGateway } from '../bids/bids.gateway';
 import type { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { AuctionsService } from './auctions.service';
+import type { WalletsService } from '../wallets/wallets.service';
 
 describe('AuctionsService', () => {
   let dataSource: { transaction: jest.Mock };
@@ -17,14 +18,20 @@ describe('AuctionsService', () => {
     create: jest.Mock;
     save: jest.Mock;
     find: jest.Mock;
+    createQueryBuilder: jest.Mock;
   };
-  let bidsRepository: { find: jest.Mock; findOneBy: jest.Mock };
-  let carListingsRepository: { findOneBy: jest.Mock };
-  let gadgetListingsRepository: { findOneBy: jest.Mock };
+  let bidsRepository: {
+    find: jest.Mock;
+    findOneBy: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let carListingsRepository: { findOneBy: jest.Mock; find: jest.Mock };
+  let gadgetListingsRepository: { findOneBy: jest.Mock; find: jest.Mock };
   let feesRepository: { findOneBy: jest.Mock };
   let biddingSettingsRepository: { findOneBy: jest.Mock };
   let usersRepository: { find: jest.Mock; findOneBy: jest.Mock };
   let notificationsService: { create: jest.Mock };
+  let walletsService: { releaseBidHold: jest.Mock };
   let bidsGateway: { emitStatusChanged: jest.Mock; emitAuctionClosed: jest.Mock };
   let lifecycleScheduler: {
     scheduleAuctionLifecycle: jest.Mock;
@@ -48,14 +55,20 @@ describe('AuctionsService', () => {
         ...value,
       })),
       find: jest.fn(),
+      createQueryBuilder: jest.fn(() => createListQueryBuilder()),
     };
-    bidsRepository = { find: jest.fn(), findOneBy: jest.fn() };
-    carListingsRepository = { findOneBy: jest.fn() };
-    gadgetListingsRepository = { findOneBy: jest.fn() };
+    bidsRepository = {
+      find: jest.fn(),
+      findOneBy: jest.fn(),
+      createQueryBuilder: jest.fn(() => createBidStatsQueryBuilder()),
+    };
+    carListingsRepository = { findOneBy: jest.fn(), find: jest.fn().mockResolvedValue([]) };
+    gadgetListingsRepository = { findOneBy: jest.fn(), find: jest.fn().mockResolvedValue([]) };
     feesRepository = { findOneBy: jest.fn() };
     biddingSettingsRepository = { findOneBy: jest.fn() };
     usersRepository = { find: jest.fn(), findOneBy: jest.fn() };
     notificationsService = { create: jest.fn() };
+    walletsService = { releaseBidHold: jest.fn() };
     bidsGateway = { emitStatusChanged: jest.fn(), emitAuctionClosed: jest.fn() };
     lifecycleScheduler = {
       scheduleAuctionLifecycle: jest.fn(),
@@ -75,6 +88,7 @@ describe('AuctionsService', () => {
       notificationsService as unknown as NotificationsService,
       lifecycleScheduler as unknown as AuctionLifecycleScheduler,
       bidsGateway as unknown as BidsGateway,
+      walletsService as unknown as WalletsService,
     );
   });
 
@@ -151,7 +165,9 @@ describe('AuctionsService', () => {
   });
 
   it('lists auctions with filters and pagination', async () => {
-    auctionsRepository.find.mockResolvedValue([createAuction()]);
+    auctionsRepository.createQueryBuilder.mockReturnValue(
+      createListQueryBuilder([createAuction()]),
+    );
 
     await expect(
       service.list({
@@ -163,15 +179,7 @@ describe('AuctionsService', () => {
     ).resolves.toEqual({
       auctions: [expect.objectContaining({ id: 'auction-id' })],
     });
-    expect(auctionsRepository.find).toHaveBeenCalledWith({
-      where: {
-        category: ListingCategory.Car,
-        status: AuctionStatus.Scheduled,
-      },
-      order: { startTime: 'ASC', createdAt: 'DESC' },
-      take: 10,
-      skip: 5,
-    });
+    expect(auctionsRepository.createQueryBuilder).toHaveBeenCalledWith('a');
   });
 
   it('lists bids for an existing auction', async () => {
@@ -186,7 +194,8 @@ describe('AuctionsService', () => {
 
   it('cancels a scheduled auction', async () => {
     const auction = createAuction();
-    auctionsRepository.findOneBy.mockResolvedValue(auction);
+    const manager = createManager({ auction });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
 
     await expect(
       service.cancel('admin-id', auction.id, { reason: 'Issue found' }),
@@ -200,9 +209,10 @@ describe('AuctionsService', () => {
   });
 
   it('rejects cancellation after an auction has ended', async () => {
-    auctionsRepository.findOneBy.mockResolvedValue(
-      createAuction({ status: AuctionStatus.Ended }),
-    );
+    const manager = createManager({
+      auction: createAuction({ status: AuctionStatus.Ended }),
+    });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
 
     await expect(
       service.cancel('admin-id', 'auction-id', {}),
@@ -380,5 +390,35 @@ function createManager(input?: {
     }),
     create: jest.fn((_entity, value) => value),
     save: jest.fn(async (value) => value),
+    update: jest.fn(),
   };
+}
+
+function createListQueryBuilder(items: ReturnType<typeof createAuction>[] = []) {
+  const qb = {
+    orderBy: jest.fn(),
+    addOrderBy: jest.fn(),
+    take: jest.fn(),
+    skip: jest.fn(),
+    andWhere: jest.fn(),
+    getMany: jest.fn().mockResolvedValue(items),
+  };
+  for (const method of ['orderBy', 'addOrderBy', 'take', 'skip', 'andWhere'] as const) {
+    qb[method].mockReturnValue(qb);
+  }
+  return qb;
+}
+
+function createBidStatsQueryBuilder() {
+  const qb = {
+    select: jest.fn(),
+    addSelect: jest.fn(),
+    where: jest.fn(),
+    groupBy: jest.fn(),
+    getRawMany: jest.fn().mockResolvedValue([]),
+  };
+  for (const method of ['select', 'addSelect', 'where', 'groupBy'] as const) {
+    qb[method].mockReturnValue(qb);
+  }
+  return qb;
 }

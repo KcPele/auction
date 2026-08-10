@@ -1,6 +1,9 @@
 "use client";
-import { useDelivery } from "@/app/components/auctions/hooks/use-auctions";
+import { toast } from "sonner";
+import { useMe } from "@/app/components/auth/hooks/use-me";
+import { useDelivery, useUpdateDelivery } from "@/app/components/auctions/hooks/use-auctions";
 import type { DeliveryStatusWire } from "@/app/components/auctions/api/auction.api";
+import { ApiError } from "@/app/lib/api/error";
 import { Icon, type IconName } from "../primitives/Icon";
 
 const STEPS: {
@@ -26,6 +29,8 @@ const dateFmt = new Intl.DateTimeFormat("en-NG", {
 
 export function DeliveryTrackingScreen({ auctionId }: { auctionId: string }) {
   const { data, isLoading, isError, refetch } = useDelivery(auctionId);
+  const { data: me } = useMe();
+  const update = useUpdateDelivery(auctionId);
 
   if (isLoading) {
     return (
@@ -48,6 +53,18 @@ export function DeliveryTrackingScreen({ auctionId }: { auctionId: string }) {
   }
 
   const currentIdx = stepIndex(data.status);
+  const nextStep = STEPS[currentIdx + 1];
+  const canUpdate = me?.id === data.sellerId && Boolean(nextStep);
+
+  const advanceDelivery = async () => {
+    if (!nextStep) return;
+    try {
+      await update.mutateAsync(nextStep.key);
+      toast.success(`Delivery updated to ${nextStep.label.toLowerCase()}`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update delivery");
+    }
+  };
 
   return (
     <>
@@ -115,6 +132,17 @@ export function DeliveryTrackingScreen({ auctionId }: { auctionId: string }) {
       <div className="mt-2 text-center text-[11px] text-fg-dim">
         Last updated: {dateFmt.format(data.updatedAt)}
       </div>
+
+      {canUpdate && nextStep && (
+        <button
+          className="mt-5 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+          disabled={update.isPending}
+          onClick={() => void advanceDelivery()}
+          type="button"
+        >
+          {update.isPending ? "Updating…" : `Mark as ${nextStep.label.toLowerCase()}`}
+        </button>
+      )}
     </>
   );
 }

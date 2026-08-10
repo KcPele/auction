@@ -1,14 +1,12 @@
-import { All, Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { All, Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import {
   ApiBody,
-  ApiCookieAuth,
   ApiExcludeEndpoint,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
 import type { IncomingHttpHeaders } from 'http';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthService } from './auth.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -17,7 +15,6 @@ import { SignInEmailDto } from './dto/sign-in-email.dto';
 import { SignInPhoneDto } from './dto/sign-in-phone.dto';
 import { SignUpEmailDto } from './dto/sign-up-email.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
-import { VerifyNinDto } from './dto/verify-nin.dto';
 
 type AuthFastifyRequest = {
   method: string;
@@ -99,7 +96,7 @@ export class AuthController {
     return this.forwardToBetterAuth(request, reply);
   }
 
-  @Post('forgot-password')
+  @Post('request-password-reset')
   @ApiOperation({ summary: 'Request a password reset token' })
   @ApiBody({ type: ForgotPasswordDto })
   @ApiOkResponse({ description: 'Password reset email sent.' })
@@ -123,7 +120,7 @@ export class AuthController {
     return this.forwardToBetterAuth(request, reply);
   }
 
-  @Post('send-verification-otp')
+  @Post('email-otp/send-verification-otp')
   @ApiOperation({ summary: 'Send email verification OTP' })
   @ApiBody({ type: SendVerificationOtpDto })
   @ApiOkResponse({ description: 'Verification OTP sent.' })
@@ -135,7 +132,7 @@ export class AuthController {
     return this.forwardToBetterAuth(request, reply);
   }
 
-  @Post('verify-email')
+  @Post('email-otp/verify-email')
   @ApiOperation({ summary: 'Verify email with OTP' })
   @ApiBody({ type: VerifyEmailDto })
   @ApiOkResponse({ description: 'Email verified.' })
@@ -145,15 +142,6 @@ export class AuthController {
     @Res() reply: AuthFastifyReply,
   ) {
     return this.forwardToBetterAuth(request, reply);
-  }
-
-  @Post('verify-nin')
-  @ApiCookieAuth('better-auth.session_token')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Verify NIN' })
-  @ApiOkResponse({ description: 'NIN verification result.' })
-  async verifyNin(@Body() dto: VerifyNinDto) {
-    return this.authService.verifyNin(dto.nin);
   }
 
   @Get('get-session')

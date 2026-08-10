@@ -7,13 +7,17 @@ import { useSearchAuctions } from "./hooks/use-search";
 interface Props {
   /** Where to send the user when they click a result. */
   resultHrefPrefix?: string;
+  getResultHref?: (auctionId: string) => string;
 }
 
 /**
  * Reusable search box used by the user TopBar and the admin TopBar. Lives in
  * its own feature folder per the project pattern (folder per feature).
  */
-export function SearchBox({ resultHrefPrefix = "/dashboard/auction" }: Props) {
+export function SearchBox({
+  resultHrefPrefix = "/dashboard/auction",
+  getResultHref,
+}: Props) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -63,7 +67,7 @@ export function SearchBox({ resultHrefPrefix = "/dashboard/auction" }: Props) {
       </div>
 
       {open && q.trim().length >= 2 && (
-        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[360px] overflow-y-auto rounded-[10px] border border-line bg-bg shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[360px] overflow-y-auto rounded-lg border border-border bg-surface shadow-[var(--shadow-md)]">
           {isFetching && data.length === 0 ? (
             <div className="px-4 py-3 text-xs text-fg-dim">Searching…</div>
           ) : data.length === 0 ? (
@@ -74,7 +78,10 @@ export function SearchBox({ resultHrefPrefix = "/dashboard/auction" }: Props) {
                 key={hit.auctionId}
                 type="button"
                 onClick={() => {
-                  router.push(`${resultHrefPrefix}/${hit.auctionId}`);
+                  router.push(
+                    getResultHref?.(hit.auctionId) ??
+                      `${resultHrefPrefix}/${hit.auctionId}`,
+                  );
                   setOpen(false);
                   setQ("");
                 }}

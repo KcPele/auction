@@ -85,11 +85,11 @@ export function Sidebar({ onNavigate }: Props) {
             <rect x="2" y="2" width="28" height="28" rx="7" fill="url(#adm-sbg)" />
             <path
               d="M9 22.5 L18.5 13 M15 9.5 L21.5 16 M12.5 7 L24 18.5"
-              stroke="#0a0806"
+              stroke="var(--primary-foreground)"
               strokeWidth="2.4"
               strokeLinecap="round"
             />
-            <circle cx="22.5" cy="22.5" r="2" fill="#0a0806" />
+            <circle cx="22.5" cy="22.5" r="2" fill="var(--primary-foreground)" />
           </svg>
           <span className="font-display text-[17px] font-bold tracking-tight text-fg">
             Bid<span className="accent-gradient-text italic">Naija</span>
@@ -136,7 +136,7 @@ export function Sidebar({ onNavigate }: Props) {
       {/* Footer: user info + logout */}
       <div className="flex items-center gap-2.5 border-t border-line p-3">
         <div
-          className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-[#0a0806]"
+          className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-primary-foreground"
           style={{
             background: "linear-gradient(135deg, var(--accent), var(--accent-deep))",
           }}
@@ -153,7 +153,7 @@ export function Sidebar({ onNavigate }: Props) {
           type="button"
           onClick={handleLogout}
           title="Sign out"
-          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-fg-dim transition-colors hover:bg-red-500/10 hover:text-red-400"
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-fg-dim transition-colors hover:bg-danger-soft hover:text-danger"
         >
           <LogOut size={15} />
         </button>

@@ -59,10 +59,14 @@ export function SettlementScreen() {
   const onDefault = async () => {
     if (!defaultingFor) return;
     try {
-      await markDefault.mutateAsync({
+      const result = await markDefault.mutateAsync({
         id: defaultingFor.id,
         reason: reason || undefined,
       });
+      if (!result.changed) {
+        toast.error("The payment deadline has not passed yet");
+        return;
+      }
       toast.success("Auction defaulted");
       setDefaultingFor(null);
       setReason("");
@@ -110,7 +114,7 @@ export function SettlementScreen() {
                   <div className="font-mono text-[16px] font-bold text-accent">
                     {fmtNGN(s.currentBid)}
                   </div>
-                  <span className="rounded-full border border-amber/30 bg-amber/10 px-2 py-0.5 text-[10px] font-semibold text-amber">
+                  <span className="rounded-full border border-warning/30 bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning">
                     {s.status}
                   </span>
                 </div>
@@ -124,11 +128,7 @@ export function SettlementScreen() {
                     setExternalNaira(s.currentBid);
                     setWalletNaira(0);
                   }}
-                  className="flex-1 rounded-lg border-none p-2 text-xs font-bold text-[#1a0a00]"
-                  style={{
-                    background:
-                      "linear-gradient(180deg, var(--accent-2), var(--accent))",
-                  }}
+                  className="flex-1 rounded-lg border-none bg-primary p-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover"
                 >
                   Settle &amp; release escrow
                 </button>
@@ -163,11 +163,7 @@ export function SettlementScreen() {
               type="button"
               disabled={settle.isPending}
               onClick={onSettle}
-              className="rounded-md border-none px-3 py-1.5 text-xs font-bold text-[#1a0a00] disabled:opacity-60"
-              style={{
-                background:
-                  "linear-gradient(180deg, var(--accent-2), var(--accent))",
-              }}
+              className="rounded-md border-none bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
             >
               {settle.isPending ? "Settling…" : "Confirm settle"}
             </button>
@@ -233,8 +229,8 @@ export function SettlementScreen() {
         }
       >
         <p className="mb-3 text-[12px] text-fg-muted">
-          Marking as defaulted forfeits the winner&apos;s hold and frees the
-          listing for relisting.
+          Marking as defaulted forfeits the winner&apos;s hold and records the
+          missed payment for review.
         </p>
         <label className="mb-1 block text-xs font-medium text-fg-muted">
           Reason (optional)

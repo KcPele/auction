@@ -23,10 +23,10 @@ function stateBadge(state: SupportState) {
     case "WAITING_ADMIN":
       return {
         text: "WAITING FOR HUMAN",
-        cls: "border-orange/30 bg-orange/10 text-orange",
+        cls: "border-warning/30 bg-warning-soft text-warning",
       };
     case "ADMIN_ACTIVE":
-      return { text: "AGENT ONLINE", cls: "border-blue/30 bg-blue/10 text-blue" };
+      return { text: "AGENT ONLINE", cls: "border-info/30 bg-info-soft text-info" };
     case "RESOLVED":
       return { text: "RESOLVED", cls: "border-green/30 bg-green/10 text-green" };
   }
@@ -86,6 +86,7 @@ export function SupportChatScreen() {
       await postMsg.mutateAsync(content);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not send message");
+      throw err;
     }
   };
 

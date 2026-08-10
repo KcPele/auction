@@ -15,12 +15,7 @@ import { ListingReviewDialog } from "./ListingReviewDialog";
 
 const KIND_TAG: Record<"cars" | "gadgets", string> = {
   cars: "text-accent-2 bg-accent-2/[0.06] border-accent-2/20",
-  gadgets: "text-[#a2c9ff] bg-[#a2c9ff]/[0.06] border-[#a2c9ff]/20",
-};
-
-const ROW_THUMB_BG = {
-  background:
-    "repeating-linear-gradient(135deg, rgba(255,170,90,0.04) 0 8px, rgba(255,170,90,0.08) 8px 16px), linear-gradient(180deg, #3a2d1f, #231810)",
+  gadgets: "text-info bg-info-soft border-info/20",
 };
 
 export function Queue() {
@@ -104,10 +99,7 @@ export function Queue() {
                 className="flex flex-col gap-3 overflow-hidden border-b border-line px-3.5 py-3 last:border-b-0 sm:flex-row sm:items-center sm:px-[18px]"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <div
-                    className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-line text-[rgba(255,200,140,0.4)]"
-                    style={ROW_THUMB_BG}
-                  >
+                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-media-background text-media-foreground">
                     {q.photoUrls[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img

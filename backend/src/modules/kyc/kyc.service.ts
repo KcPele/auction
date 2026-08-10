@@ -20,8 +20,16 @@ export class KycService {
     return this.strowalletProvider.verifyBvn(dto);
   }
 
-  verifyNin(dto: VerifyNinDto) {
-    return this.strowalletProvider.verifyNin(dto);
+  async verifyNin(userId: string, dto: VerifyNinDto) {
+    const result = await this.strowalletProvider.verifyNin(dto);
+    const user = await this.usersRepository.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    user.nin = dto.numberNin;
+    user.ninVerifiedAt = new Date();
+    await this.usersRepository.save(user);
+    return { verified: true, data: result };
   }
 
   sendOtp(dto: SendOtpDto) {

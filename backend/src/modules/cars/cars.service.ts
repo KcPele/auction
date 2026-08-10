@@ -7,6 +7,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
+import { assertCanViewListing } from '../../common/authorization/listing-view.policy';
+import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import {
   assertFutureStartTime,
   assertHoldPercent,
@@ -47,8 +49,10 @@ export class CarsService {
     return { carListings };
   }
 
-  async findOne(id: string) {
-    return { carListing: await this.findListing(id) };
+  async findOne(user: AuthenticatedUser, id: string) {
+    const listing = await this.findListing(id);
+    this.assertCanView(user, listing);
+    return { carListing: listing };
   }
 
   async update(userId: string, id: string, dto: UpdateCarListingDto) {
@@ -107,6 +111,10 @@ export class CarsService {
     }
 
     return listing;
+  }
+
+  private assertCanView(user: AuthenticatedUser, listing: CarListing) {
+    assertCanViewListing(user, listing, 'Car listing not found');
   }
 
   private validateSchedule(holdPercent: number, startTime: string) {
@@ -169,4 +177,3 @@ export class CarsService {
     return { [key]: value };
   }
 }
-

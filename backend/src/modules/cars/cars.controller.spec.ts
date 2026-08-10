@@ -65,10 +65,10 @@ describe('CarsController', () => {
   it('gets a car listing', async () => {
     service.findOne.mockResolvedValue({ carListing: { id: 'car-id' } });
 
-    await expect(controller.findOne('car-id')).resolves.toEqual({
+    await expect(controller.findOne(user, 'car-id')).resolves.toEqual({
       carListing: { id: 'car-id' },
     });
-    expect(service.findOne).toHaveBeenCalledWith('car-id');
+    expect(service.findOne).toHaveBeenCalledWith(user, 'car-id');
   });
 
   it('updates a draft car listing', async () => {

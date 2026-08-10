@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -12,7 +13,6 @@ import { useSignIn } from "./hooks/use-me";
 import { AuthButton } from "./primitives/AuthButton";
 import { Checkbox } from "./primitives/Checkbox";
 import { Field, Input } from "./primitives/Field";
-import { Icon } from "./primitives/Icon";
 import { signInSchema, type SignInForm } from "./utils/auth.schema";
 
 export function LoginForm() {
@@ -65,20 +65,23 @@ export function LoginForm() {
         }
       />
       <AuthFormBody
-        eyebrow="Sign in"
-        title="Place your next bid."
-        subtitle="Enter your credentials to get back into the auction floor."
+        eyebrow="Secure sign in"
+        title="Welcome back."
+        subtitle="Sign in to manage your bids, payments, and listings."
       >
-        <Field label="Email address" hint={errors.email?.message}>
+        <Field htmlFor="login-email" label="Email address" hint={errors.email?.message}>
           <Input
+            autoComplete="email"
+            id="login-email"
             type="email"
-            placeholder="adaeze@gmail.com"
-            leftIcon={<Icon name="mail" size={18} />}
+            placeholder="you@example.com"
+            leftIcon={<Mail aria-hidden="true" size={18} />}
             {...register("email")}
           />
         </Field>
 
         <Field
+          htmlFor="login-password"
           label="Password"
           hint={
             errors.password?.message ?? (
@@ -89,16 +92,19 @@ export function LoginForm() {
           }
         >
           <Input
+            autoComplete="current-password"
+            id="login-password"
             type={showPw ? "text" : "password"}
             placeholder="Your password"
-            leftIcon={<Icon name="lock" size={18} />}
+            leftIcon={<LockKeyhole aria-hidden="true" size={18} />}
             rightSlot={
               <button
+                aria-label={showPw ? "Hide password" : "Show password"}
                 type="button"
                 onClick={() => setShowPw(!showPw)}
-                className="rounded-md p-2 text-fg-muted hover:bg-surface-2 hover:text-fg"
+                className="rounded-md p-2 text-muted-foreground hover:bg-surface-subtle hover:text-foreground"
               >
-                <Icon name={showPw ? "x" : "check"} size={16} />
+                {showPw ? <EyeOff aria-hidden="true" size={16} /> : <Eye aria-hidden="true" size={16} />}
               </button>
             }
             {...register("password")}
@@ -119,11 +125,11 @@ export function LoginForm() {
         />
 
         <AuthButton type="submit" disabled={isPending || isSubmitting}>
-          {isPending ? "Signing in…" : "Continue"}{" "}
-          <Icon name="arrow-r" size={16} strokeWidth={2} />
+          {isPending ? "Signing in…" : "Sign in"}{" "}
+          <ArrowRight aria-hidden="true" size={16} strokeWidth={2} />
         </AuthButton>
 
-        <div className="mt-6 text-center text-xs text-fg-dim">
+        <div className="mt-6 text-center text-xs text-subtle-foreground">
           By signing in you agree to BidNaija&apos;s bidder terms and privacy policy.
         </div>
       </AuthFormBody>

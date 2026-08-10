@@ -159,7 +159,7 @@ export function DashboardScreen() {
           delta="confirmed vs failed"
           deltaDir="flat"
           spark={[]}
-          sparkColor="#6bb0ff"
+          sparkColor="var(--info)"
         />
       </div>
 

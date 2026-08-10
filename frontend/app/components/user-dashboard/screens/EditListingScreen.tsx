@@ -20,10 +20,6 @@ import { Icon } from "../primitives/Icon";
 
 type Category = "car" | "gadget";
 
-const PRIMARY_BTN_BG = {
-  background: "linear-gradient(180deg, var(--accent-light), var(--accent))",
-};
-
 const inputClass =
   "w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent placeholder:text-fg-dim";
 const labelClass = "mb-1 block text-xs font-medium text-fg-muted";
@@ -158,8 +154,7 @@ export function EditListingScreen({ id }: { id: string }) {
           type="button"
           disabled={isPending}
           onClick={() => onSave(true)}
-          className="rounded-xl px-5 py-3 text-sm font-bold text-[#1a0a00] disabled:opacity-60"
-          style={PRIMARY_BTN_BG}
+          className="rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
         >
           {submit.isPending ? "Submitting…" : "Save & resubmit"}
         </button>

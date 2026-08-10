@@ -33,10 +33,10 @@ function stateBadge(state: SupportState) {
     case "WAITING_ADMIN":
       return {
         text: "WAITING",
-        cls: "border-orange/30 bg-orange/10 text-orange",
+        cls: "border-warning/30 bg-warning-soft text-warning",
       };
     case "ADMIN_ACTIVE":
-      return { text: "ADMIN", cls: "border-blue/30 bg-blue/10 text-blue" };
+      return { text: "ADMIN", cls: "border-info/30 bg-info-soft text-info" };
     case "RESOLVED":
       return { text: "RESOLVED", cls: "border-green/30 bg-green/10 text-green" };
   }
@@ -188,7 +188,7 @@ export function SupportScreen() {
                     type="button"
                     disabled={active.state === "ADMIN_ACTIVE"}
                     onClick={() => assign.mutate(active.id)}
-                    className="rounded-md border whitespace-nowrap border-blue/40 bg-blue/[0.08] px-2.5 py-1.5 text-xs font-semibold text-blue disabled:opacity-40"
+                    className="rounded-md border whitespace-nowrap border-info/40 bg-info-soft px-2.5 py-1.5 text-xs font-semibold text-info disabled:opacity-40"
                   >
                     Take over
                   </button>

@@ -1,5 +1,6 @@
-import { Placeholder } from "./Placeholder";
-import { LiveDot } from "./primitives/LiveDot";
+import { Clock3, MapPin, Users } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import type { Auction } from "./types";
 import { fmtNaira, formatAuctionTime } from "./utils";
 
@@ -8,47 +9,45 @@ interface AuctionCardProps {
   endSec: number;
 }
 
-const STATUS_LABEL: Record<Auction["status"], string> = {
-  live: "LIVE",
-  starting: "STARTING",
-  scheduled: "SCHEDULED",
-};
-
-const STATUS_CLS: Record<Auction["status"], string> = {
-  live: "bg-[rgba(239,74,58,0.15)] text-red border border-[rgba(239,74,58,0.3)]",
-  starting: "bg-[rgba(232,183,85,0.15)] text-gold border border-[rgba(232,183,85,0.3)]",
-  scheduled: "bg-white/5 text-fg-muted border border-line",
-};
-
 export function AuctionCard({ auction, endSec }: AuctionCardProps) {
-  const holdAmount = Math.round((auction.bid * 0.1) / 1000) * 1000;
+  const image = auction.kind === "car" ? "/images/landing/car-showroom.jpg" : "/images/landing/tech-collection.jpg";
+  const isLive = auction.status === "live";
+
   return (
-    <div className="cursor-pointer rounded-lg border border-line bg-surface p-4 transition-all duration-200 hover:-translate-y-1 hover:border-line-strong">
-      <div className="relative mb-3.5 aspect-[4/3] overflow-hidden rounded-md">
-        <Placeholder aspect="4/3" kind={auction.kind} tag={auction.tag} />
-        <div
-          className={`absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-xs px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.1em] ${STATUS_CLS[auction.status]}`}
-        >
-          {auction.status === "live" && <LiveDot />}
-          {STATUS_LABEL[auction.status]}
+    <Link
+      href={`/dashboard/auction/${auction.id}`}
+      className="block overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-sm)] transition-shadow hover:shadow-[var(--shadow-md)]"
+      aria-label={`View ${auction.title} auction`}
+    >
+      <div className="relative aspect-[4/3] overflow-hidden bg-surface-subtle">
+        {auction.image ? (
+          // User uploads may come from any configured storage host.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={auction.image} alt="" loading="lazy" className="h-full w-full object-cover" />
+        ) : (
+          <Image src={image} alt="" fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
+        )}
+        <span className={`absolute left-4 top-4 rounded-md px-2.5 py-1 text-xs font-semibold ${isLive ? "bg-danger text-status-foreground" : "bg-surface text-foreground"}`}>
+          {isLive ? "Live" : "Upcoming"}
+        </span>
+      </div>
+      <div className="p-5">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <MapPin className="size-3.5" aria-hidden="true" />
+          {auction.meta || "Verified listing"}
         </div>
-        <div className="absolute bottom-3 right-3 rounded-xs border border-line bg-black/70 px-2.5 py-1.5 font-mono text-xs tabular-nums text-fg backdrop-blur-md">
-          {formatAuctionTime(endSec)}
+        <h3 className="mt-3 text-lg font-bold tracking-tight text-foreground">{auction.title}</h3>
+        <div className="mt-5 flex items-end justify-between gap-4 border-t border-border pt-4">
+          <div>
+            <div className="text-xs text-subtle-foreground">{auction.bidders > 0 ? "Current bid" : "Base price"}</div>
+            <div className="mt-1 text-lg font-bold text-foreground">{fmtNaira(auction.bid)}</div>
+          </div>
+          <div className="flex flex-col items-end gap-1.5 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5"><Clock3 className="size-3.5" aria-hidden="true" />{formatAuctionTime(endSec)}</span>
+            <span className="inline-flex items-center gap-1.5"><Users className="size-3.5" aria-hidden="true" />{auction.bidders} bidders</span>
+          </div>
         </div>
       </div>
-      <h3 className="m-0 mb-1 font-display text-lg font-semibold tracking-[-0.01em]">{auction.title}</h3>
-      <div className="mb-3 text-xs text-fg-muted">{auction.meta}</div>
-      <div className="flex items-end justify-between border-t border-line pt-3">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.08em] text-fg-dim">Current bid</div>
-          <div className="font-mono text-lg font-semibold tabular-nums accent-gradient-text">{fmtNaira(auction.bid)}</div>
-        </div>
-        <div className="text-right text-[11px] text-fg-muted">
-          {auction.bidders} bidders
-          <br />
-          <span className="text-[10px] text-fg-dim">{fmtNaira(holdAmount)} hold</span>
-        </div>
-      </div>
-    </div>
+    </Link>
   );
 }

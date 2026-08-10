@@ -1,29 +1,14 @@
 import type { Metadata } from "next";
-import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
-import { Toaster } from "sonner";
+import { AppToaster } from "./components/theme/AppToaster";
+import { ThemeProvider } from "./components/theme/ThemeProvider";
+import { availableThemeNames } from "./components/theme/theme-options";
 import { QueryProvider } from "./lib/query/provider";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  axes: ["opsz"],
-});
-
-const jetbrains = JetBrains_Mono({
-  variable: "--font-jetbrains",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "BidNaija — Nigeria's auction floor for cars & gadgets",
+  title: "BidNaija — Verified auctions for cars and gadgets",
   description:
-    "Serious auction platform for cars and gadgets across Nigeria. Verified listings, real-money holds, StroWallet settlement.",
+    "Buy and sell verified cars and gadgets through transparent online auctions across Nigeria.",
 };
 
 export default function RootLayout({
@@ -34,14 +19,21 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="dark"
-      className={`${inter.variable} ${fraunces.variable} ${jetbrains.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col">
-        <QueryProvider>
-          {children}
-          <Toaster position="top-right" theme="dark" richColors closeButton />
-        </QueryProvider>
+        <ThemeProvider
+          attribute="data-theme"
+          defaultTheme="system"
+          enableSystem
+          themes={[...availableThemeNames]}
+        >
+          <QueryProvider>
+            {children}
+            <AppToaster />
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

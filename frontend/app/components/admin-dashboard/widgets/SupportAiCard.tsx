@@ -71,7 +71,7 @@ function SupportAiCardForm({ initial }: { initial: SupportSettings }) {
           type="button"
           onClick={() => void onSave()}
           disabled={update.isPending}
-          className="rounded-md border border-accent bg-accent px-3 py-1.5 text-xs font-semibold text-[#0a0806] disabled:opacity-50"
+          className="rounded-md border border-primary bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
         >
           {update.isPending ? "Saving…" : "Save"}
         </button>

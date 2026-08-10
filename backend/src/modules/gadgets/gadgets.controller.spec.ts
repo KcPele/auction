@@ -65,10 +65,10 @@ describe('GadgetsController', () => {
   it('gets a gadget listing', async () => {
     service.findOne.mockResolvedValue({ gadgetListing: { id: 'gadget-id' } });
 
-    await expect(controller.findOne('gadget-id')).resolves.toEqual({
+    await expect(controller.findOne(user, 'gadget-id')).resolves.toEqual({
       gadgetListing: { id: 'gadget-id' },
     });
-    expect(service.findOne).toHaveBeenCalledWith('gadget-id');
+    expect(service.findOne).toHaveBeenCalledWith(user, 'gadget-id');
   });
 
   it('updates a draft gadget listing', async () => {
