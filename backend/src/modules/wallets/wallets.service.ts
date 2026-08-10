@@ -144,6 +144,45 @@ export class WalletsService {
     return { hold, released: true };
   }
 
+  async forfeitBidHold(
+    manager: EntityManager,
+    input: {
+      holdId: string;
+      reference: string;
+      metadata: Record<string, unknown>;
+    },
+  ) {
+    const hold = await manager.findOne(WalletHold, {
+      where: { id: input.holdId },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    if (!hold || hold.status !== WalletHoldStatus.Active) {
+      return { hold, forfeited: false };
+    }
+
+    const wallet = await this.findWalletForUpdate(manager, hold.walletId);
+    const balanceBeforeKobo = wallet.balanceKobo;
+    const heldBeforeKobo = wallet.heldKobo;
+    wallet.balanceKobo -= hold.amountKobo;
+    wallet.heldKobo -= hold.amountKobo;
+    hold.status = WalletHoldStatus.Forfeited;
+    hold.releasedAt = new Date();
+
+    await manager.save(wallet);
+    await manager.save(hold);
+    await this.writeLedger(manager, wallet, {
+      type: WalletLedgerType.BidHoldForfeited,
+      amountKobo: -hold.amountKobo,
+      balanceBeforeKobo,
+      heldBeforeKobo,
+      reference: input.reference,
+      metadata: { ...input.metadata, holdId: hold.id },
+    });
+
+    return { hold, forfeited: true };
+  }
+
   private async ensureWallet(userId: string, manager?: EntityManager) {
     const repository = manager?.getRepository(Wallet) ?? this.walletsRepository;
     const existing = await repository.findOneBy({ userId });

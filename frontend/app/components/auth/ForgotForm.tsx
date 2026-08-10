@@ -18,7 +18,7 @@ export function ForgotForm() {
     mutationFn: () =>
       requestPasswordReset({
         email: email.trim(),
-        callbackURL:
+        redirectTo:
           typeof window !== "undefined"
             ? `${window.location.origin}/reset`
             : "/reset",

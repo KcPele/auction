@@ -52,6 +52,8 @@ const toAuction = (
     title,
     subtitle,
     basePrice: koboToNaira(dto.basePriceKobo),
+    currentBid: koboToNaira(hydrated.currentBidKobo ?? dto.basePriceKobo),
+    bidderCount: hydrated.bidderCount ?? 0,
     status: dto.status,
     isLive: dto.status === "LIVE",
     isUpcoming: dto.status === "SCHEDULED",
@@ -182,6 +184,8 @@ export type DeliveryDto = {
 export type Delivery = {
   id: string;
   auctionId: string;
+  winnerId: string;
+  sellerId: string;
   status: DeliveryStatusWire;
   trackingInfo: string | null;
   updatedAt: Date;
@@ -194,6 +198,27 @@ export const getDelivery = async (auctionId: string): Promise<Delivery> => {
   return {
     id: dto.delivery.id,
     auctionId: dto.delivery.auctionId,
+    winnerId: dto.delivery.winnerId,
+    sellerId: dto.delivery.sellerId,
+    status: dto.delivery.status,
+    trackingInfo: dto.delivery.trackingInfo,
+    updatedAt: new Date(dto.delivery.updatedAt),
+  };
+};
+
+export const updateDelivery = async (
+  auctionId: string,
+  status: DeliveryStatusWire,
+): Promise<Delivery> => {
+  const dto = await apiClient<{ delivery: DeliveryDto }>(
+    `/auctions/${auctionId}/delivery`,
+    { method: "PATCH", body: { status } },
+  );
+  return {
+    id: dto.delivery.id,
+    auctionId: dto.delivery.auctionId,
+    winnerId: dto.delivery.winnerId,
+    sellerId: dto.delivery.sellerId,
     status: dto.delivery.status,
     trackingInfo: dto.delivery.trackingInfo,
     updatedAt: new Date(dto.delivery.updatedAt),

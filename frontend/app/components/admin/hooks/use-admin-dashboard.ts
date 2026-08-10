@@ -20,11 +20,13 @@ export function useDashboardStats(range: string) {
 
 export function useActivityFeed(
   params: { limit?: number; offset?: number; type?: string } = {},
+  enabled = true,
 ) {
   return useQuery({
     queryKey: adminKeys.activity(params),
     queryFn: () => getActivityFeed(params),
-    refetchInterval: 15_000,
+    enabled,
+    refetchInterval: enabled ? 15_000 : false,
   });
 }
 

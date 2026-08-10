@@ -32,7 +32,7 @@ export function Wallet() {
         <div className="relative overflow-hidden rounded-lg border border-line-strong bg-[linear-gradient(165deg,var(--surface-2),var(--surface))] p-8">
           <div
             className="pointer-events-none absolute -right-[30%] -top-1/2 h-[400px] w-[400px]"
-            style={{ background: "radial-gradient(circle, rgba(255,122,26,0.15), transparent 60%)" }}
+            style={{ background: "radial-gradient(circle, var(--decorative-soft), transparent 60%)" }}
           />
           <div className="relative mb-1.5 text-[11px] uppercase tracking-[0.12em] text-fg-dim">Total balance</div>
           <div className="relative mb-1.5 font-display text-[56px] font-semibold leading-none tracking-[-0.025em]">
@@ -41,7 +41,7 @@ export function Wallet() {
           </div>
           <div className="relative mb-7 text-[13px] text-fg-muted">4 active holds · Last top-up 2h ago via Strowallet</div>
 
-          <div className="relative grid grid-cols-2 gap-4 rounded-md border border-line bg-black/35 p-5">
+          <div className="relative grid grid-cols-2 gap-4 rounded-md border border-line bg-surface-subtle p-5">
             <div>
               <div className="mb-1.5 flex items-center gap-1.5 text-[11px] uppercase tracking-[0.08em] text-fg-dim">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" /> Held in bids
@@ -56,7 +56,7 @@ export function Wallet() {
             </div>
           </div>
 
-          <div className="relative mt-4 flex h-2 overflow-hidden rounded-full bg-white/5">
+          <div className="relative mt-4 flex h-2 overflow-hidden rounded-full bg-surface-muted">
             <div className="h-full bg-accent" style={{ width: `${heldPct}%` }} />
             <div className="h-full bg-green" style={{ width: `${100 - heldPct}%` }} />
           </div>
@@ -68,7 +68,7 @@ export function Wallet() {
               key={f.title}
               className="grid grid-cols-[40px_1fr] gap-4 rounded-md border border-line bg-surface p-[18px]"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[rgba(255,122,26,0.1)] font-mono text-base font-bold text-accent">
+              <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-primary-soft font-mono text-base font-bold text-primary">
                 {f.icon}
               </div>
               <div>

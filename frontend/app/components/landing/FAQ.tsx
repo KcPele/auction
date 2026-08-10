@@ -1,48 +1,41 @@
 "use client";
+
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { FAQS } from "./data";
 import { Section } from "./Section";
 import { SectionHead } from "./primitives/SectionHead";
-import { FAQS } from "./data";
 
 export function FAQ() {
   const [open, setOpen] = useState<number>(0);
+
   return (
-    <Section id="faq">
+    <Section id="faq" className="bg-background">
       <SectionHead
         center
-        kicker="FAQ"
-        title={
-          <>
-            Straight <em className="italic accent-gradient-text">answers.</em>
-          </>
-        }
+        kicker="Frequently asked questions"
+        title="What to know before you bid or sell."
       />
-      <div className="mx-auto flex max-w-[860px] flex-col gap-2">
-        {FAQS.map((f, i) => {
-          const isOpen = open === i;
+      <div className="mx-auto flex max-w-3xl flex-col gap-3">
+        {FAQS.slice(0, 6).map((item, index) => {
+          const isOpen = open === index;
           return (
-            <div key={i} className="overflow-hidden rounded-md border border-line bg-surface">
+            <article key={item.q} className="overflow-hidden rounded-lg border border-border bg-surface">
               <button
-                className="flex w-full cursor-pointer items-center justify-between gap-5 px-6 py-[22px] text-left font-medium text-[17px] hover:text-accent-2"
-                onClick={() => setOpen(isOpen ? -1 : i)}
+                type="button"
+                className="flex w-full items-center justify-between gap-5 px-5 py-5 text-left font-semibold text-foreground md:px-6"
+                aria-expanded={isOpen}
+                onClick={() => setOpen(isOpen ? -1 : index)}
               >
-                <span>{f.q}</span>
-                <span
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(255,122,26,0.08)] text-sm text-accent transition-transform duration-[250ms] ${
-                    isOpen ? "rotate-45" : ""
-                  }`}
-                >
-                  +
-                </span>
+                {item.q}
+                <ChevronDown className={`size-5 shrink-0 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} aria-hidden="true" />
               </button>
-              <div
-                className={`grid overflow-hidden text-[15px] leading-[1.6] text-fg-muted transition-all duration-300 ${
-                  isOpen ? "grid-rows-[1fr] pb-[22px]" : "grid-rows-[0fr]"
-                }`}
-              >
-                <div className="min-h-0 px-6">{f.a}</div>
+              <div className={`grid transition-[grid-template-rows] duration-200 ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+                <div className="min-h-0 overflow-hidden">
+                  <p className="px-5 pb-5 text-sm leading-7 text-muted-foreground md:px-6 md:pb-6">{item.a}</p>
+                </div>
               </div>
-            </div>
+            </article>
           );
         })}
       </div>

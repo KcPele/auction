@@ -41,7 +41,7 @@ export function Payments() {
           <div className="mt-6 flex flex-col gap-4">
             {CHECKS.map((c) => (
               <div key={c.title} className="flex items-start gap-3.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[rgba(78,168,92,0.15)] font-bold text-green">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-success-soft font-bold text-success">
                   ✓
                 </div>
                 <div>

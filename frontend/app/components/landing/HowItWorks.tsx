@@ -1,72 +1,52 @@
-"use client";
-import { useState } from "react";
+import { BadgeCheck, CircleDollarSign, Gavel, Search, ShieldCheck, WalletCards } from "lucide-react";
 import { Section } from "./Section";
 import { SectionHead } from "./primitives/SectionHead";
-import { BIDDER_STEPS, LISTER_STEPS } from "./data";
-import type { HowFlow } from "./types";
+
+const BUYER_STEPS = [
+  { icon: Search, title: "Explore verified listings", description: "Review photos, condition notes, ownership proof, and auction terms before you bid." },
+  { icon: WalletCards, title: "Fund and place your bid", description: "A clearly disclosed percentage of your bid is held in your wallet while you remain active." },
+  { icon: Gavel, title: "Win and complete payment", description: "Your hold counts toward the total. Pay the balance within the stated settlement window." },
+];
+
+const SELLER_STEPS = [
+  { icon: BadgeCheck, title: "Apply to become a lister", description: "Choose cars, gadgets, or both. Our team reviews every listing application." },
+  { icon: ShieldCheck, title: "Verify the item", description: "Cars need a mechanic review; gadgets need ownership documents and clear condition details." },
+  { icon: CircleDollarSign, title: "Launch your auction", description: "Set the opening price and timing, then follow bids from your dashboard." },
+];
+
+function Flow({ label, steps }: { label: string; steps: typeof BUYER_STEPS }) {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-6 md:p-8">
+      <h3 className="text-xl font-bold tracking-tight text-foreground">{label}</h3>
+      <ol className="mt-6 flex flex-col gap-6">
+        {steps.map(({ icon: Icon, title, description }, index) => (
+          <li key={title} className="grid grid-cols-[auto_1fr] gap-4">
+            <span className="flex size-10 items-center justify-center rounded-md bg-primary-soft text-primary">
+              <Icon className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <div className="text-xs font-semibold text-subtle-foreground">STEP {index + 1}</div>
+              <h4 className="mt-1 font-semibold text-foreground">{title}</h4>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 export function HowItWorks() {
-  const [flow, setFlow] = useState<HowFlow>("bidder");
-  const steps = flow === "bidder" ? BIDDER_STEPS : LISTER_STEPS;
-
-  const tabCls = (active: boolean) =>
-    `flex items-center gap-2.5 rounded-md border px-4 py-3.5 text-left text-sm font-medium transition-all duration-200 ${
-      active
-        ? "border-line-strong bg-[rgba(255,122,26,0.08)] text-fg"
-        : "border-transparent bg-transparent text-fg-muted hover:bg-[rgba(255,170,90,0.04)] hover:text-fg"
-    }`;
-
   return (
-    <Section id="how">
+    <Section id="how" className="bg-background">
       <SectionHead
         kicker="How it works"
-        title={
-          <>
-            Two flows. <em className="italic accent-gradient-text">Both simple.</em>
-          </>
-        }
-        sub="Pick your side. Bidders fund their wallet and bid with skin in the game. Listers earn access and work with verified partners."
+        title="A clear process for both sides."
+        sub="The rules are visible before anyone commits. Buyers know how their money moves, and sellers know what verification requires."
       />
-
-      <div className="grid gap-15 md:grid-cols-[240px_1fr]">
-        <div className="flex flex-col gap-2 self-start md:sticky md:top-24">
-          <button className={tabCls(flow === "bidder")} onClick={() => setFlow("bidder")}>
-            <span className={`font-mono text-[11px] ${flow === "bidder" ? "text-accent" : "text-fg-dim"}`}>01</span>
-            <span>I want to bid</span>
-          </button>
-          <button className={tabCls(flow === "lister")} onClick={() => setFlow("lister")}>
-            <span className={`font-mono text-[11px] ${flow === "lister" ? "text-accent" : "text-fg-dim"}`}>02</span>
-            <span>I want to list</span>
-          </button>
-          <div className="mx-2 my-3 h-px bg-line" />
-          <div className="px-4 text-xs leading-[1.55] text-fg-dim">
-            Notifications are automatic.
-            <br />
-            Wallet holds are atomic.
-            <br />
-            Payments run through Strowallet.
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-5">
-          {steps.map((s, i) => (
-            <div
-              key={i}
-              className="grid grid-cols-[60px_1fr] gap-6 rounded-lg border border-line bg-surface p-7 transition-colors duration-200 hover:border-line-strong"
-            >
-              <div className="font-display text-[42px] font-semibold leading-none tracking-[-0.02em] accent-gradient-text">
-                {String(i + 1).padStart(2, "0")}
-              </div>
-              <div>
-                <h4 className="m-0 mb-2 text-lg font-semibold">{s.title}</h4>
-                <p className="text-sm leading-[1.55] text-fg-muted">{s.desc}</p>
-                <div className="mt-3.5 rounded-r-xs border-l-2 border-accent bg-black/30 px-3.5 py-3 font-mono text-[13px] text-fg-muted">
-                  {s.detail}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Flow label="Buying at auction" steps={BUYER_STEPS} />
+        <Flow label="Selling an item" steps={SELLER_STEPS} />
       </div>
     </Section>
   );

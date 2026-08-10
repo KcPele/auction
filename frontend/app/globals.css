@@ -1,37 +1,140 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0a0806;
-  --bg-1: #120d08;
-  --bg-2: #1a130c;
-  --surface: #15100a;
-  --surface-2: #1d1610;
-  --line: rgba(255, 170, 90, 0.12);
-  --line-strong: rgba(255, 170, 90, 0.22);
+  color-scheme: light;
 
-  --fg: #f4ead9;
-  --fg-muted: #b8a487;
-  --fg-dim: #8a7657;
+  --background: #f7f8fa;
+  --foreground: #172033;
+  --surface: #ffffff;
+  --surface-subtle: #f0f3f7;
+  --surface-muted: #e8edf3;
+  --border: #dce2e9;
+  --border-strong: #c7d0da;
+  --muted-foreground: #596579;
+  --subtle-foreground: #7a879a;
 
-  --accent: #e8b755;
-  --accent-2: #ffb347;
-  --accent-light: #f5d580;
-  --accent-deep: #b8440d;
-  --gold: #e8b755;
-  --green: #4ea85c;
-  --red: #ef4a3a;
-  --blue: #6bb0ff;
-  --surface-3: #281f13;
+  --primary: #1f56d8;
+  --primary-hover: #1948b9;
+  --primary-foreground: #ffffff;
+  --primary-soft: #eaf0ff;
+  --contrast: #10203d;
+  --contrast-foreground: #f8fafc;
 
-  --r-sm: 8px;
-  --r: 14px;
-  --r-lg: 20px;
-  --sidebar-w: 240px;
-  --desktop-content-max: 900px;
-  --nav-h: 68px;
+  --success: #18794e;
+  --danger: #c23b3b;
+  --warning: #a75b08;
+  --info: #2563a8;
+  --status-foreground: #ffffff;
+  --success-soft: #e8f5ee;
+  --danger-soft: #fbecec;
+  --warning-soft: #fff3df;
+  --info-soft: #eaf3fc;
+  --overlay: rgba(16, 32, 61, 0.72);
+  --scrim: rgba(9, 16, 29, 0.58);
+  --media-background: #e9eef5;
+  --media-foreground: #6f7d91;
+  --mask-opaque: #000000;
+  --decorative-soft: color-mix(in srgb, var(--primary) 12%, transparent);
+  --decorative-subtle: color-mix(in srgb, var(--primary) 6%, transparent);
+  --placeholder-pattern: repeating-linear-gradient(135deg, var(--surface-subtle) 0 1.25rem, var(--surface-muted) 1.25rem 2.5rem);
+  --feature-surface: linear-gradient(145deg, var(--primary-soft), var(--surface));
+  --feature-glow: radial-gradient(circle, color-mix(in srgb, var(--primary) 16%, transparent), transparent 70%);
+  --success-glow: 0 0 0.375rem color-mix(in srgb, var(--success) 45%, transparent);
+
+  --shadow-sm: 0 1px 2px rgba(16, 32, 61, 0.05);
+  --shadow-md: 0 12px 32px rgba(16, 32, 61, 0.08);
+  --focus-ring: color-mix(in srgb, var(--primary) 20%, transparent);
+
+  /* Legacy aliases keep the existing app compatible while it is migrated. */
+  --bg: var(--background);
+  --bg-1: var(--surface-subtle);
+  --bg-2: var(--surface-muted);
+  --surface-2: var(--surface-subtle);
+  --surface-3: var(--surface-muted);
+  --line: var(--border);
+  --line-strong: var(--border-strong);
+  --fg: var(--foreground);
+  --fg-muted: var(--muted-foreground);
+  --fg-dim: var(--subtle-foreground);
+  --accent: var(--primary);
+  --accent-2: var(--primary-hover);
+  --accent-light: var(--primary-soft);
+  --accent-deep: var(--primary-hover);
+  --gold: var(--warning);
+  --green: var(--success);
+  --red: var(--danger);
+  --blue: var(--info);
+
+  --r-sm: 0.5rem;
+  --r: 0.75rem;
+  --r-lg: 1rem;
+  --sidebar-w: 15rem;
+  --desktop-content-max: 56.25rem;
+  --nav-h: 4.25rem;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0e1625;
+  --foreground: #edf2f7;
+  --surface: #151f30;
+  --surface-subtle: #1b2739;
+  --surface-muted: #233147;
+  --border: #2b3a50;
+  --border-strong: #3b4b62;
+  --muted-foreground: #a7b2c2;
+  --subtle-foreground: #7f8da1;
+  --primary: #7ea2ff;
+  --primary-hover: #9ab6ff;
+  --primary-foreground: #0d1a33;
+  --primary-soft: #1b315f;
+  --success: #65d59a;
+  --danger: #ff8c8c;
+  --warning: #f6c76b;
+  --info: #82b7ed;
+  --contrast: #f2f6fb;
+  --contrast-foreground: #142036;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.24);
+  --success-soft: #163c2d;
+  --danger-soft: #452225;
+  --warning-soft: #2d271b;
+  --info-soft: #183451;
+  --overlay: rgba(9, 15, 25, 0.74);
+  --scrim: rgba(3, 7, 13, 0.68);
+  --media-background: #1c293b;
+  --media-foreground: #8391a6;
+  --feature-surface: linear-gradient(145deg, var(--surface-muted), var(--surface));
+  --mask-opaque: #ffffff;
 }
 
 @theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-contrast: var(--contrast);
+  --color-contrast-foreground: var(--contrast-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-status-foreground: var(--status-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning-soft: var(--warning-soft);
+  --color-info-soft: var(--info-soft);
+  --color-overlay: var(--overlay);
+  --color-scrim: var(--scrim);
+  --color-media-background: var(--media-background);
+  --color-media-foreground: var(--media-foreground);
+
   --color-bg: var(--bg);
   --color-bg-1: var(--bg-1);
   --color-bg-2: var(--bg-2);
@@ -49,79 +152,83 @@
   --color-gold: var(--gold);
   --color-green: var(--green);
   --color-red: var(--red);
+  --color-blue: var(--blue);
 
-  --font-display: var(--font-fraunces), Georgia, serif;
-  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
 
-  --animate-pulse-dot: pulseDot 1.6s infinite;
-  --animate-pulse-green: pulseGreen 1.8s infinite;
-  --animate-ticker: tickerScroll 55s linear infinite;
+  --animate-pulse-dot: pulseDot 1.8s ease-out infinite;
 }
 
 @keyframes pulseDot {
-  0% { box-shadow: 0 0 0 0 rgba(239, 74, 58, 0.7); }
-  70% { box-shadow: 0 0 0 10px rgba(239, 74, 58, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 74, 58, 0); }
-}
-
-@keyframes pulseGreen {
-  0% { box-shadow: 0 0 0 0 rgba(78, 168, 92, 0.5); }
-  70% { box-shadow: 0 0 0 6px rgba(78, 168, 92, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(78, 168, 92, 0); }
-}
-
-@keyframes tickerScroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 45%, transparent); }
+  70% { box-shadow: 0 0 0 0.45rem transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 
 @keyframes supportTypingBlink {
-  0%, 80%, 100% { opacity: 0.3;  transform: translateY(0); }
-  40%           { opacity: 1;    transform: translateY(-4px); }
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-0.25rem); }
 }
 
-/* Utility class for the support-chat typing indicator. Using a dedicated
- * class (instead of inline `animation: ...`) lets the per-dot animation-delay
- * inline style stick — the `animation` shorthand would otherwise reset it. */
 .support-typing-dot {
-  animation-name: supportTypingBlink;
-  animation-duration: 1.2s;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
-  /* animation-delay is set per-dot via inline style */
+  animation: supportTypingBlink 1.2s ease-in-out infinite;
 }
 
 @layer base {
-  * { box-sizing: border-box; }
+  * {
+    box-sizing: border-box;
+    border-color: var(--border);
+  }
 
-  html, body {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
     margin: 0;
-    padding: 0;
-    background: var(--bg);
-    color: var(--fg);
+    background: var(--background);
+    color: var(--foreground);
     font-family: var(--font-sans);
-    font-size: 16px;
+    font-size: 1rem;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
   }
 
-  a { color: inherit; text-decoration: none; }
-  button { font-family: inherit; cursor: pointer; }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 0.1875rem solid color-mix(in srgb, var(--primary) 45%, transparent);
+    outline-offset: 0.1875rem;
+  }
 }
 
 .accent-gradient-text {
-  background: linear-gradient(180deg, var(--accent-light), var(--accent));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--primary);
 }
+
 .accent-gradient-bg {
-  background: linear-gradient(180deg, var(--accent-light), var(--accent));
+  background: var(--primary);
 }

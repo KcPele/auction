@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth/auth.service';
 import type { StrowalletWebhookDto } from './dto/strowallet-webhook.dto';
 import { PaymentsController } from './payments.controller';
@@ -23,6 +24,7 @@ describe('PaymentsController', () => {
       controllers: [PaymentsController],
       providers: [
         { provide: PaymentsService, useValue: service },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: AuthService, useValue: { getAuthenticatedUser: jest.fn() } },
       ],
     }).compile();

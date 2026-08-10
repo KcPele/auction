@@ -22,8 +22,8 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 const STATUS_STYLE: Record<string, string> = {
-  PENDING: "border-amber/30 bg-amber/10 text-amber",
-  PROCESSING: "border-[rgba(107,176,255,0.3)] bg-[rgba(107,176,255,0.1)] text-[var(--blue,#6bb0ff)]",
+  PENDING: "border-warning/30 bg-warning-soft text-warning",
+  PROCESSING: "border-info/30 bg-info-soft text-info",
   COMPLETED: "border-green/30 bg-green/10 text-green",
   FAILED: "border-red/30 bg-red/10 text-red",
   REVERSED: "border-red/30 bg-red/10 text-red",
@@ -179,7 +179,7 @@ export function WithdrawalsScreen() {
                     type="button"
                     onClick={() => onAuthorize(w)}
                     disabled={authorize.isPending}
-                    className="rounded-lg border-none px-3 py-1.5 text-xs font-bold text-[#1a0a00] disabled:opacity-60"
+                    className="rounded-lg border-none px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-60"
                     style={{
                       background:
                         "linear-gradient(180deg, var(--accent-2), var(--accent))",

@@ -23,7 +23,7 @@ export function TabBar() {
   const path = usePathname() || "/dashboard";
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-5 border-t border-line bg-[rgba(11,10,8,0.96)] pt-2 backdrop-blur-lg lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-5 border-t border-border bg-background/95 pt-2 backdrop-blur-lg lg:hidden"
       style={{
         height: "calc(var(--nav-h) + env(safe-area-inset-bottom))",
         paddingBottom: "calc(12px + env(safe-area-inset-bottom))",

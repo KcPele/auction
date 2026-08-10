@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { ListingAccessStatus } from '../../common/enums/listing-access-status.enum';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
@@ -20,7 +20,9 @@ import { AccessCode } from './entities/access-code.entity';
 
 @Injectable()
 export class AdminListingsService {
+  private readonly logger = new Logger(AdminListingsService.name);
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(AccessCode) private readonly accessCodesRepository: Repository<AccessCode>,
     @InjectRepository(ListingAccessApplication) private readonly applicationsRepository: Repository<ListingAccessApplication>,
     @InjectRepository(UserListingPermission) private readonly permissionsRepository: Repository<UserListingPermission>,
@@ -53,11 +55,16 @@ export class AdminListingsService {
   }
 
   async approveApplication(adminId: string, applicationId: string, dto: ReviewListingApplicationDto) {
-    const application = await this.findPendingApplication(applicationId);
-    const permission = await this.grantPermission({ userId: application.userId, category: application.category, grantedById: adminId });
-    Object.assign(application, { status: ListingAccessStatus.Approved, reviewedById: adminId, reviewNote: dto.reviewNote ?? null, reviewedAt: new Date() });
-    await this.applicationsRepository.save(application);
-    return { application, listingPermission: permission };
+    return this.dataSource.transaction(async (manager) => {
+      const application = await this.findPendingApplication(applicationId, manager);
+      const permission = await this.grantPermission(
+        { userId: application.userId, category: application.category, grantedById: adminId },
+        manager,
+      );
+      Object.assign(application, { status: ListingAccessStatus.Approved, reviewedById: adminId, reviewNote: dto.reviewNote ?? null, reviewedAt: new Date() });
+      await manager.save(application);
+      return { application, listingPermission: permission };
+    });
   }
 
   async rejectApplication(adminId: string, applicationId: string, dto: ReviewListingApplicationDto) {
@@ -81,12 +88,27 @@ export class AdminListingsService {
   }
 
   async approveListing(adminId: string, category: ListingCategory, listingId: string, dto: ReviewListingDto) {
-    const listing = await this.findPendingListing(category, listingId);
-    if (new Date(listing.startTime).getTime() <= Date.now()) throw new BadRequestException('Set a new future start time before approving this listing');
-    Object.assign(listing, { status: ListingStatus.Approved, reviewedById: adminId, reviewNote: dto.reviewNote ?? null, reviewedAt: new Date() });
-    const reviewedListing = await this.saveReviewedListing(category, listing);
-    const auction = await this.auctionsService.createFromApprovedListing(category, listing.id);
-    return { ...reviewedListing, ...auction };
+    const result = await this.dataSource.transaction(async (manager) => {
+      const listing = await this.findPendingListing(category, listingId, manager);
+      if (new Date(listing.startTime).getTime() <= Date.now()) throw new BadRequestException('Set a new future start time before approving this listing');
+      Object.assign(listing, { status: ListingStatus.Approved, reviewedById: adminId, reviewNote: dto.reviewNote ?? null, reviewedAt: new Date() });
+      const reviewedListing = await this.saveReviewedListing(category, listing, manager);
+      const auction = await this.auctionsService.createFromApprovedListing(category, listing.id, manager);
+      return { ...reviewedListing, ...auction };
+    });
+    let schedulingPending = false;
+    if (result.created) {
+      try {
+        await this.auctionsService.scheduleApprovedAuction(result.auction.id);
+      } catch (error) {
+        schedulingPending = true;
+        this.logger.error(
+          `Auction ${result.auction.id} approved but lifecycle scheduling is pending`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+    }
+    return { ...result, schedulingPending };
   }
 
   async rejectListing(adminId: string, category: ListingCategory, listingId: string, dto: ReviewListingDto) {
@@ -95,28 +117,37 @@ export class AdminListingsService {
     return this.saveReviewedListing(category, listing);
   }
 
-  private async grantPermission(input: { userId: string; category: ListingCategory; grantedById: string }) {
-    const existing = await this.permissionsRepository.findOneBy({ userId: input.userId, category: input.category });
+  private async grantPermission(input: { userId: string; category: ListingCategory; grantedById: string }, manager?: EntityManager) {
+    const repository = manager?.getRepository(UserListingPermission) ?? this.permissionsRepository;
+    const existing = await repository.findOneBy({ userId: input.userId, category: input.category });
     if (existing) return existing;
-    return this.permissionsRepository.save(this.permissionsRepository.create(input));
+    return repository.save(repository.create(input));
   }
 
-  private async findPendingApplication(applicationId: string) {
-    const app = await this.applicationsRepository.findOneBy({ id: applicationId, status: ListingAccessStatus.Pending });
+  private async findPendingApplication(applicationId: string, manager?: EntityManager) {
+    const repository = manager?.getRepository(ListingAccessApplication) ?? this.applicationsRepository;
+    const app = await repository.findOne({
+      where: { id: applicationId, status: ListingAccessStatus.Pending },
+      ...(manager ? { lock: { mode: 'pessimistic_write' as const } } : {}),
+    });
     if (!app) throw new NotFoundException('Pending application not found');
     return app;
   }
 
-  private async findPendingListing(category: ListingCategory, listingId: string) {
-    const repo = category === ListingCategory.Car ? this.carListingsRepository : this.gadgetListingsRepository;
-    const listing = await repo.findOneBy({ id: listingId, status: ListingStatus.PendingApproval });
+  private async findPendingListing(category: ListingCategory, listingId: string, manager?: EntityManager) {
+    const entity = category === ListingCategory.Car ? CarListing : GadgetListing;
+    const repo = manager?.getRepository(entity) ?? (category === ListingCategory.Car ? this.carListingsRepository : this.gadgetListingsRepository);
+    const listing = await repo.findOne({
+      where: { id: listingId, status: ListingStatus.PendingApproval },
+      ...(manager ? { lock: { mode: 'pessimistic_write' as const } } : {}),
+    });
     if (!listing) throw new NotFoundException('Pending listing not found');
     return listing;
   }
 
-  private async saveReviewedListing(category: ListingCategory, listing: CarListing | GadgetListing) {
-    if (category === ListingCategory.Car) return { carListing: await this.carListingsRepository.save(listing as CarListing) };
-    return { gadgetListing: await this.gadgetListingsRepository.save(listing as GadgetListing) };
+  private async saveReviewedListing(category: ListingCategory, listing: CarListing | GadgetListing, manager?: EntityManager) {
+    if (category === ListingCategory.Car) return { carListing: await (manager?.getRepository(CarListing) ?? this.carListingsRepository).save(listing as CarListing) };
+    return { gadgetListing: await (manager?.getRepository(GadgetListing) ?? this.gadgetListingsRepository).save(listing as GadgetListing) };
   }
 
   private generateCode() {

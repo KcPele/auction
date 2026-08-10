@@ -8,11 +8,6 @@ interface WalletHeroProps {
   showActions?: boolean;
 }
 
-const HERO_BG = {
-  background:
-    "radial-gradient(ellipse at top right, rgba(232, 183, 85, 0.25), transparent 60%), linear-gradient(165deg, var(--surface-3, #281f13), var(--surface))",
-};
-
 export function WalletHero({ showActions = true }: WalletHeroProps) {
   const { data, isLoading } = useWallet();
 
@@ -23,16 +18,10 @@ export function WalletHero({ showActions = true }: WalletHeroProps) {
   const held = data?.held ?? 0;
 
   return (
-    <div
-      className="relative my-3.5 mb-5 overflow-hidden rounded-[22px] border border-line-strong p-5"
-      style={HERO_BG}
-    >
+    <div className="relative my-3.5 mb-5 overflow-hidden rounded-[22px] border border-line-strong bg-[var(--feature-surface)] p-5">
       <div
         className="pointer-events-none absolute -bottom-[60px] -right-[60px] h-[200px] w-[200px] rounded-full"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(232, 183, 85, 0.15), transparent 70%)",
-        }}
+        style={{ background: "var(--feature-glow)" }}
       />
       <div className="text-[11px] uppercase tracking-[0.12em] text-fg-dim">
         Wallet balance
@@ -48,7 +37,7 @@ export function WalletHero({ showActions = true }: WalletHeroProps) {
         )}
       </div>
       <div className="mt-3.5 grid grid-cols-2 gap-2.5">
-        <div className="rounded-lg border border-line bg-black/35 px-3 py-2.5">
+        <div className="rounded-lg border border-line bg-surface/70 px-3 py-2.5">
           <div className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.1em] text-fg-dim">
             <span className="h-1.5 w-1.5 rounded-full bg-green" /> Available
           </div>
@@ -56,7 +45,7 @@ export function WalletHero({ showActions = true }: WalletHeroProps) {
             {fmt(available)}
           </div>
         </div>
-        <div className="rounded-lg border border-line bg-black/35 px-3 py-2.5">
+        <div className="rounded-lg border border-line bg-surface/70 px-3 py-2.5">
           <div className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.1em] text-fg-dim">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" /> Held for bids
           </div>
@@ -69,17 +58,13 @@ export function WalletHero({ showActions = true }: WalletHeroProps) {
         <div className="relative z-10 mt-3.5 flex gap-2">
           <Link
             href="/dashboard/wallet/topup"
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 py-2.5 text-[13px] font-semibold text-[#1a0a00]"
-            style={{
-              background:
-                "linear-gradient(180deg, var(--accent-light), var(--accent))",
-            }}
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 py-2.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
           >
             <Icon name="plus" size={14} /> Top up
           </Link>
           <Link
             href="/dashboard/wallet"
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-white/[0.04] px-2.5 py-2.5 text-[13px] font-semibold text-fg"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface-subtle px-2.5 py-2.5 text-[13px] font-semibold text-fg"
           >
             <Icon name="chart" size={14} /> Activity
           </Link>

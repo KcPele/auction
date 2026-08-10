@@ -1,6 +1,6 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useMe } from "@/app/components/auth/hooks/use-me";
 import {
@@ -63,19 +63,24 @@ export function KycFlow() {
   const [stepIdx, setStepIdx] = useState(0);
   const step = STEPS[stepIdx];
 
-  // Hydrate sensible defaults from /users/me when available.
-  if (me && stepIdx === 0 && !ninFirst && !ninSurname) {
-    setNinFirst(me.firstName);
-    setNinSurname(me.lastName);
-    setBvnFirstName(me.firstName);
-    setBvnLastName(me.lastName);
-    if (me.phone) {
-      setNinPhone(me.phone);
-      setBvnPhone(me.phone);
-      setOtpPhone(me.phone);
-    }
-    if (me.nin) setNin(me.nin);
-  }
+  // Hydrate sensible defaults after render so loading /users/me never causes
+  // a render-phase state update.
+  useEffect(() => {
+    if (!me || stepIdx !== 0 || ninFirst || ninSurname) return;
+    const frame = window.requestAnimationFrame(() => {
+      setNinFirst(me.firstName);
+      setNinSurname(me.lastName);
+      setBvnFirstName(me.firstName);
+      setBvnLastName(me.lastName);
+      if (me.phone) {
+        setNinPhone(me.phone);
+        setBvnPhone(me.phone);
+        setOtpPhone(me.phone);
+      }
+      if (me.nin) setNin(me.nin);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [me, ninFirst, ninSurname, stepIdx]);
 
   const verifyNin = useVerifyKycNin();
   const verifyBvn = useVerifyKycBvn();

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BadgeCheck, LockKeyhole, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { BrandMark } from "../landing/BrandMark";
 import { Icon } from "./primitives/Icon";
@@ -14,30 +15,18 @@ interface Copy {
 const COPY: Record<BrandVariant, Copy> = {
   bid: {
     eyebrow: "Auction floor",
-    headline: (
-      <>
-        Nigeria&apos;s real-time <em className="italic font-medium accent-gradient-text">auction house</em> for cars &amp; gadgets.
-      </>
-    ),
-    sub: "Verified inventory. 10% holds instead of frozen capital. Release the second you're outbid — win, and escrow pays the seller only when the item is in your hands.",
+    headline: "Bid with confidence on verified cars and gadgets.",
+    sub: "Transparent auctions, secure payments, and clear delivery tracking from one trusted account.",
   },
   register: {
     eyebrow: "Create account",
-    headline: (
-      <>
-        Create an account and start your <em className="italic font-medium accent-gradient-text">auction profile</em>.
-      </>
-    ),
-    sub: "Verify your identity, fund your wallet, and bid through escrow-backed auctions. Your information is encrypted, and we never share it with sellers.",
+    headline: "One account for every auction.",
+    sub: "Create your bidder profile, manage payments, and follow each purchase from bid to delivery.",
   },
   verify: {
     eyebrow: "KYC · last step",
-    headline: (
-      <>
-        Verify once, <em className="italic font-medium accent-gradient-text">bid forever</em>.
-      </>
-    ),
-    sub: "A one-time BVN + ID check unlocks every auction on BidNaija and lets you top up without limits. Takes under two minutes.",
+    headline: "Protect your account with quick verification.",
+    sub: "A short identity check helps us keep auctions fair and payments secure.",
   },
 };
 
@@ -48,42 +37,37 @@ interface AuthBrandPanelProps {
 export function AuthBrandPanel({ variant = "bid" }: AuthBrandPanelProps) {
   const copy = COPY[variant];
   return (
-    <div
-      className="relative hidden min-h-screen overflow-hidden border-r border-line-strong p-12 md:flex md:flex-col"
-      style={{
-        background:
-          "radial-gradient(ellipse at top left, rgba(232,183,85,0.18), transparent 55%), radial-gradient(ellipse at bottom right, rgba(239,74,58,0.08), transparent 50%), linear-gradient(150deg, #1e1709, #0d0a06)",
-      }}
-    >
-      <div
-        className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full"
-        style={{ background: "radial-gradient(circle, rgba(232,183,85,0.2), transparent 70%)" }}
-      />
-
-      <div className="relative z-[2] flex items-center justify-between">
-        <BrandMark size={28} />
+    <aside className="relative hidden min-h-screen overflow-hidden border-r border-border bg-contrast p-12 text-contrast-foreground md:flex md:flex-col">
+      <div className="relative z-10 flex items-center justify-between">
+        <BrandMark size={28} tone="inverse" />
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 rounded-full border border-line px-3.5 py-2 text-[13px] text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-contrast-foreground/20 px-3.5 py-2 text-sm text-contrast-foreground/75 transition-colors hover:border-contrast-foreground/40 hover:text-contrast-foreground"
         >
           <Icon name="chevron-l" size={14} /> Back to site
         </Link>
       </div>
 
-      <div className="relative z-[2] flex max-w-[480px] flex-1 flex-col justify-center">
-        <div className="mb-4 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.15em] text-accent">
-          <span className="inline-block h-[7px] w-[7px] animate-[pulseDot_1.6s_infinite] rounded-full bg-red" />
+      <div className="relative z-10 flex max-w-lg flex-1 flex-col justify-center">
+        <div className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-contrast-foreground/70">
+          <span className="inline-block size-2 rounded-full bg-primary" />
           {copy.eyebrow}
         </div>
-        <h1 className="m-0 mb-4 font-display text-[52px] font-semibold leading-[1.05] tracking-[-0.025em]">
+        <h1 className="m-0 mb-5 max-w-xl font-display text-5xl font-semibold leading-tight tracking-tight">
           {copy.headline}
         </h1>
-        <p className="max-w-[420px] text-[15px] leading-[1.55] text-fg-muted">{copy.sub}</p>
+        <p className="max-w-md text-base leading-7 text-contrast-foreground/70">{copy.sub}</p>
+
+        <div className="mt-10 grid gap-4 text-sm text-contrast-foreground/75">
+          <span className="flex items-center gap-3"><BadgeCheck size={18} /> Verified listings</span>
+          <span className="flex items-center gap-3"><LockKeyhole size={18} /> Secure account access</span>
+          <span className="flex items-center gap-3"><ShieldCheck size={18} /> Protected payments</span>
+        </div>
       </div>
 
-      <div className="relative z-[2] mt-10 flex gap-7 text-xs text-fg-dim">
+      <div className="relative z-10 mt-10 flex gap-7 text-xs text-contrast-foreground/55">
         <span className="ml-auto">© 2026 BidNaija Ltd · RC 7284102</span>
       </div>
-    </div>
+    </aside>
   );
 }

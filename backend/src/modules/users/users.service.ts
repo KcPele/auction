@@ -28,6 +28,12 @@ import { UserListingPermission } from './entities/user-listing-permission.entity
 import { User } from './entities/user.entity';
 import { Watchlist } from './entities/watchlist.entity';
 import { presentUser } from './presenters/user.presenter';
+import {
+  buildListingTitle,
+  deriveUserBidStatus,
+  isExpired,
+} from './users-display.utils';
+import { queryUserBidPage } from './user-bids.query';
 
 @Injectable()
 export class UsersService {
@@ -97,7 +103,6 @@ export class UsersService {
       firstName: dto.firstName?.trim() ?? user.firstName,
       lastName: dto.lastName?.trim() ?? user.lastName,
       phone: dto.phone ?? user.phone,
-      nin: dto.nin ?? user.nin,
     });
 
     return { user: presentUser(await this.usersRepository.save(user)) };
@@ -165,7 +170,7 @@ export class UsersService {
       },
     });
 
-    if (!accessCode || this.isExpired(accessCode.expiresAt)) {
+    if (!accessCode || isExpired(accessCode.expiresAt)) {
       throw new BadRequestException('Invalid access code');
     }
 
@@ -195,13 +200,9 @@ export class UsersService {
   }
 
   async listMyBids(userId: string, query: ListUserBidsQueryDto) {
-    const bids = await this.bidsRepository.find({
-      where: { bidderId: userId },
-      order: { createdAt: 'DESC' },
-    });
-
-    const auctionIds = [...new Set(bids.map((b) => b.auctionId))];
-    if (auctionIds.length === 0) {
+    const page = await queryUserBidPage(this.bidsRepository, userId, query);
+    const auctionIds = page.rows.map((row) => row.auctionId);
+    if (page.total === 0 || auctionIds.length === 0) {
       return { items: [], total: 0 };
     }
 
@@ -210,52 +211,57 @@ export class UsersService {
     });
     const auctionMap = new Map(auctions.map((a) => [a.id, a]));
 
+    const topBidIds = auctions
+      .map((auction) => auction.currentWinningBidId)
+      .filter((id): id is string => Boolean(id));
+    const topBids = topBidIds.length
+      ? await this.bidsRepository.find({ where: { id: In(topBidIds) } })
+      : [];
+    const topBidMap = new Map(topBids.map((bid) => [bid.id, bid]));
+
     const listings = await this.loadListings(auctions);
     const listingMap = new Map(listings.map((l) => [l.id, l]));
 
-    const items = bids
-      .map((bid) => {
-        const auction = auctionMap.get(bid.auctionId);
+    const items = page.rows
+      .map((row) => {
+        const auction = auctionMap.get(row.auctionId);
         if (!auction) return null;
 
         const listing = listingMap.get(auction.listingId);
-        const derivedStatus = this.deriveUserBidStatus(bid, auction);
-        if (
-          query.status &&
-          derivedStatus !== (query.status as unknown as string).toLowerCase()
-        )
-          return null;
+        const derivedStatus = deriveUserBidStatus(
+          { bidderId: userId } as Bid,
+          auction,
+        );
+        const winningBid = auction.currentWinningBidId
+          ? topBidMap.get(auction.currentWinningBidId)
+          : null;
+        const isUserLeading = winningBid?.bidderId === userId;
 
         return {
           auctionId: auction.id,
           auctionTitle: listing
-            ? this.buildListingTitle(auction.category, listing)
+            ? buildListingTitle(auction.category, listing)
             : 'Untitled',
           category: auction.category,
-          bidAmountKobo: bid.amountKobo,
+          bidAmountKobo: row.bidAmountKobo,
           status: derivedStatus === 'won'
             ? 'won'
-            : bid.status === BidStatus.Winning
+            : isUserLeading
               ? 'leading'
-              : bid.status === BidStatus.Outbid
-                ? 'outbid'
-                : bid.status === BidStatus.Accepted
-                  ? 'leading'
-                  : 'outbid',
-          currentHighBidKobo: auction.currentWinningBidId === bid.id
-            ? bid.amountKobo
-            : this.getTopBidAmount(bids, auction),
+              : 'outbid',
+          currentHighBidKobo: auction.currentWinningBidId
+            ? (winningBid?.amountKobo ?? auction.basePriceKobo)
+            : auction.basePriceKobo,
           endsAt: auction.endTime,
           photoUrl: listing?.photoUrls?.[0] ?? null,
         };
       })
       .filter(Boolean);
 
-    const filtered = items as NonNullable<(typeof items)[0]>[];
-    const total = filtered.length;
-    const paged = filtered.slice(query.offset, query.offset + query.limit);
-
-    return { items: paged, total };
+    return {
+      items: items.filter(Boolean) as NonNullable<(typeof items)[0]>[],
+      total: page.total,
+    };
   }
 
   async listWonAuctions(userId: string) {
@@ -287,12 +293,16 @@ export class UsersService {
       return {
         auctionId: auction.id,
         title: listing
-          ? this.buildListingTitle(auction.category, listing)
+          ? buildListingTitle(auction.category, listing)
           : 'Untitled',
         category: auction.category,
         wonAt: auction.settledAt ?? auction.updatedAt,
         paidAt: auction.settledAt,
-        deliveryStatus: delivery?.status ?? 'payment_confirmed',
+        deliveryStatus:
+          delivery?.status ??
+          (auction.status === AuctionStatus.AwaitingPayment
+            ? 'payment_pending'
+            : 'payment_confirmed'),
         trackingInfo: delivery?.trackingInfo ?? null,
       };
     });
@@ -401,7 +411,7 @@ export class UsersService {
         id: entry.id,
         auctionId: entry.auctionId,
         auctionTitle: listing
-          ? this.buildListingTitle(auction!.category, listing)
+          ? buildListingTitle(auction!.category, listing)
           : 'Untitled',
         category: auction?.category ?? null,
         status: auction?.status ?? null,
@@ -440,10 +450,6 @@ export class UsersService {
     );
   }
 
-  private isExpired(expiresAt: Date | null) {
-    return Boolean(expiresAt && expiresAt.getTime() <= Date.now());
-  }
-
   private async loadListings(
     auctions: Auction[],
   ): Promise<(CarListing | GadgetListing & { id: string })[]> {
@@ -470,47 +476,4 @@ export class UsersService {
     })[];
   }
 
-  private buildListingTitle(
-    category: ListingCategory,
-    listing: CarListing | GadgetListing,
-  ): string {
-    if (category === ListingCategory.Car) {
-      const car = listing as CarListing;
-      return `${car.make} ${car.model} ${car.year}`;
-    }
-    const gadget = listing as GadgetListing;
-    return `${gadget.brand} ${gadget.model}`;
-  }
-
-  private deriveUserBidStatus(
-    bid: Bid,
-    auction: Auction,
-  ): 'active' | 'scheduled' | 'won' {
-    if (auction.status === AuctionStatus.Settled && auction.winnerId === bid.bidderId) {
-      return 'won';
-    }
-    if (
-      auction.status === AuctionStatus.AwaitingPayment &&
-      auction.winnerId === bid.bidderId
-    ) {
-      return 'won';
-    }
-    if (
-      [AuctionStatus.Scheduled, AuctionStatus.Live].includes(auction.status)
-    ) {
-      if (auction.status === AuctionStatus.Scheduled) return 'scheduled';
-      return 'active';
-    }
-    return 'active';
-  }
-
-  private getTopBidAmount(bids: Bid[], auction: Auction): number {
-    const auctionBids = bids.filter((b) => b.auctionId === auction.id);
-    const sorted = [...auctionBids].sort((a, b) =>
-      a.amountKobo !== b.amountKobo
-        ? b.amountKobo - a.amountKobo
-        : a.createdAt.getTime() - b.createdAt.getTime(),
-    );
-    return sorted[0]?.amountKobo ?? auction.basePriceKobo;
-  }
 }

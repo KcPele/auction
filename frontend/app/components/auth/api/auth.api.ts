@@ -11,7 +11,7 @@ const toMe = (dto: MeDto): Me => ({
   role: dto.user.role,
   appRole: dto.user.role,
   nin: dto.user.nin,
-  ninVerified: Boolean(dto.user.nin),
+  ninVerified: Boolean(dto.user.ninVerifiedAt),
   isActive: dto.user.isActive,
   notificationPreferences: dto.notificationPreferences,
   listingPermissions: dto.listingPermissions,
@@ -28,6 +28,10 @@ export const getMe = async (): Promise<Me> => {
 // `additionalFields`. We hit Better Auth's HTTP route directly to keep that simple.
 export const signUpEmail = async (input: SignUpInput) => {
   const name = `${input.firstName} ${input.lastName}`.trim();
+  const phoneDigits = input.phone.replace(/\D/g, "");
+  const phone = phoneDigits.startsWith("234")
+    ? `+${phoneDigits}`
+    : `+234${phoneDigits.startsWith("0") ? phoneDigits.slice(1) : phoneDigits}`;
   return apiClient<{ user: { id: string }; token: string | null }>(
     "/auth/sign-up/email",
     {
@@ -38,7 +42,7 @@ export const signUpEmail = async (input: SignUpInput) => {
         password: input.password,
         firstName: input.firstName,
         lastName: input.lastName,
-        phone: input.phone,
+        phone,
         appRole: input.appRole,
         ...(input.nin ? { nin: input.nin } : {}),
         ...(input.referralCode ? { referralCode: input.referralCode } : {}),
@@ -61,9 +65,9 @@ export const signOutCall = async () =>
 
 export const requestPasswordReset = (input: {
   email: string;
-  callbackURL?: string;
+  redirectTo?: string;
 }) =>
-  apiClient<{ status: boolean }>("/auth/forget-password", {
+  apiClient<{ status: boolean }>("/auth/request-password-reset", {
     method: "POST",
     body: input,
   });
@@ -72,12 +76,6 @@ export const resetPassword = (input: { token: string; newPassword: string }) =>
   apiClient<{ status: boolean }>("/auth/reset-password", {
     method: "POST",
     body: input,
-  });
-
-export const verifyNin = (nin: string) =>
-  apiClient<{ verified: boolean; data?: unknown }>("/auth/verify-nin", {
-    method: "POST",
-    body: { nin },
   });
 
 // Email verification OTP (Better Auth email-otp plugin).

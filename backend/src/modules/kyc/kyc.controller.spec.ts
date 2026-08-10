@@ -67,8 +67,8 @@ describe('KycController', () => {
     };
     service.verifyNin.mockResolvedValue({ success: true });
 
-    await expect(controller.verifyNin(dto)).resolves.toEqual({ success: true });
-    expect(service.verifyNin).toHaveBeenCalledWith(dto);
+    await expect(controller.verifyNin(currentUser, dto)).resolves.toEqual({ success: true });
+    expect(service.verifyNin).toHaveBeenCalledWith(currentUser.id, dto);
   });
 
   it('sends OTP', async () => {

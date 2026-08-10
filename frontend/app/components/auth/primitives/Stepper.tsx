@@ -18,9 +18,9 @@ export function Stepper({ steps, current }: StepperProps) {
               <div
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] font-mono text-xs font-bold transition-all ${
                   done
-                    ? "border-green bg-green text-[#0a0806]"
+                    ? "border-success bg-success text-primary-foreground"
                     : active
-                      ? "border-accent bg-accent text-[#0a0806] shadow-[0_0_0_4px_rgba(232,183,85,0.15)]"
+                      ? "border-primary bg-primary text-primary-foreground shadow-[0_0_0_4px_var(--focus-ring)]"
                       : "border-line-strong bg-surface text-fg-dim"
                 }`}
               >

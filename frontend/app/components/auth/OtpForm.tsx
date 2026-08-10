@@ -123,7 +123,7 @@ export function OtpForm() {
           </button>
         </div>
 
-        <div className="mt-7 flex items-start gap-2.5 rounded-[10px] border border-[rgba(78,168,92,0.2)] bg-[rgba(78,168,92,0.06)] p-3.5 text-xs leading-[1.5] text-fg-muted">
+        <div className="mt-7 flex items-start gap-2.5 rounded-lg border border-success/30 bg-success-soft p-3.5 text-xs leading-5 text-muted-foreground">
           <div className="mt-px shrink-0 text-green">
             <Icon name="shield" size={16} />
           </div>

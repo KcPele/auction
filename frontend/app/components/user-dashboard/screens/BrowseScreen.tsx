@@ -12,6 +12,7 @@ import { Countdown } from "../widgets/Countdown";
 import { FilterPanel, type BrowseFilters } from "../widgets/FilterPanel";
 import { fmtNaira } from "../utils";
 import { nairaToKobo } from "@/app/lib/format/money";
+import { useDebounced } from "@/app/components/search/hooks/use-search";
 
 type CatFilter = "all" | AuctionCategory;
 type StatusFilter = "all" | "live" | "soon";
@@ -26,11 +27,6 @@ const STATUS_OPTS: Array<{ id: StatusFilter; label: string }> = [
   { id: "live", label: "Live now" },
   { id: "soon", label: "Opening soon" },
 ];
-
-const TILE_MEDIA_BG = {
-  background:
-    "repeating-linear-gradient(135deg, rgba(255,170,90,0.03) 0 10px, rgba(255,170,90,0.07) 10px 20px), linear-gradient(180deg, #3a2d1f, #231810)",
-};
 
 function chipClass(active: boolean) {
   return `flex-shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium ${
@@ -47,6 +43,7 @@ export function BrowseScreen() {
   const cat = selectedCat ?? initialCat;
   const [status, setStatus] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounced(query.trim(), 250);
   const [filters, setFilters] = useState<BrowseFilters>({});
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -54,7 +51,7 @@ export function BrowseScreen() {
     category: cat === "all" ? undefined : cat,
     status:
       status === "live" ? "LIVE" : status === "soon" ? "SCHEDULED" : undefined,
-    search: query || undefined,
+    search: debouncedQuery || undefined,
     limit: 40,
     minPriceKobo:
       filters.minPrice != null ? nairaToKobo(filters.minPrice) : undefined,
@@ -97,7 +94,7 @@ export function BrowseScreen() {
           >
             <Icon name="sliders" size={18} />
             {filterCount > 0 && (
-              <span className="absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-[#0a0806]">
+              <span className="absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
                 {filterCount}
               </span>
             )}
@@ -168,10 +165,7 @@ function AuctionTile({ a }: { a: Auction }) {
       href={`/dashboard/auction/${a.id}`}
       className="block cursor-pointer overflow-hidden rounded-[14px] border border-line bg-surface text-left text-fg"
     >
-      <div
-        className="relative flex aspect-square items-center justify-center text-[rgba(255,200,140,0.3)]"
-        style={TILE_MEDIA_BG}
-      >
+      <div className="relative flex aspect-square items-center justify-center bg-media-background text-media-foreground">
         {a.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

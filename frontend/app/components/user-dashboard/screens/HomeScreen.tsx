@@ -19,16 +19,6 @@ const CATEGORIES: Array<{
   { id: "gadgets", label: "Gadgets", icon: "phone" },
 ];
 
-const TILE_MEDIA_BG = {
-  background:
-    "repeating-linear-gradient(135deg, rgba(255,170,90,0.03) 0 10px, rgba(255,170,90,0.07) 10px 20px), linear-gradient(180deg, #3a2d1f, #231810)",
-};
-
-const ROW_THUMB_BG = {
-  background:
-    "repeating-linear-gradient(135deg, rgba(255,170,90,0.04) 0 8px, rgba(255,170,90,0.07) 8px 16px), linear-gradient(180deg, #3a2d1f, #231810)",
-};
-
 export function HomeScreen() {
   const live = useAuctions({ status: "LIVE", limit: 12 });
   const upcoming = useAuctions({ status: "SCHEDULED", limit: 6 });
@@ -130,10 +120,7 @@ export function HomeScreen() {
               href={`/dashboard/auction/${a.id}`}
               className="grid w-full cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-3 border-b border-line py-3 text-left text-fg last:border-b-0"
             >
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-lg border border-line text-[rgba(255,200,140,0.4)]"
-                style={ROW_THUMB_BG}
-              >
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-media-background text-media-foreground">
                 {a.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={a.photoUrl} alt={a.title} className="h-full w-full rounded-lg object-cover" />
@@ -169,10 +156,7 @@ function LiveCard({ a }: { a: Auction }) {
       href={`/dashboard/auction/${a.id}`}
       className="block w-[230px] flex-shrink-0 cursor-pointer overflow-hidden rounded-[14px] border border-line bg-surface text-left text-fg"
     >
-      <div
-        className="relative flex aspect-[4/3] items-center justify-center text-[rgba(255,200,140,0.3)]"
-        style={TILE_MEDIA_BG}
-      >
+      <div className="relative flex aspect-[4/3] items-center justify-center bg-media-background text-media-foreground">
         {a.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={a.photoUrl} alt={a.title} className="h-full w-full object-cover" />

@@ -9,8 +9,7 @@ interface PlaceholderProps {
   tag?: string;
 }
 
-const BG =
-  "repeating-linear-gradient(135deg, rgba(255,170,90,0.03) 0 20px, rgba(255,170,90,0.06) 20px 40px), linear-gradient(180deg, #3a2d1f, #231810)";
+const BG = "var(--placeholder-pattern)";
 
 export function Placeholder({ w, h, label, aspect, kind = "photo", tag }: PlaceholderProps) {
   const style: React.CSSProperties = {
@@ -19,7 +18,7 @@ export function Placeholder({ w, h, label, aspect, kind = "photo", tag }: Placeh
   };
   return (
     <div
-      className="relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-md border border-line text-[rgba(255,200,140,0.35)]"
+      className="relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-md border border-line text-media-foreground"
       style={style}
     >
       <svg className="w-8 h-8 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
@@ -47,7 +46,7 @@ export function Placeholder({ w, h, label, aspect, kind = "photo", tag }: Placeh
       </svg>
       <div className="font-mono text-[11px] tracking-wider">{label || (w && h ? `${w} × ${h}` : "")}</div>
       {tag && (
-        <div className="absolute top-2.5 right-2.5 rounded-xs border border-line bg-black/60 px-2 py-[3px] text-[10px] font-semibold uppercase tracking-wider text-fg">
+        <div className="absolute right-2.5 top-2.5 rounded-xs border border-line bg-overlay px-2 py-[3px] text-[10px] font-semibold uppercase tracking-wider text-status-foreground">
           {tag}
         </div>
       )}

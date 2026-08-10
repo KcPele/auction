@@ -19,7 +19,7 @@ interface Props {
 
 const KIND_TAG: Record<"cars" | "gadgets", string> = {
   cars: "text-accent-2 bg-accent-2/[0.06] border-accent-2/20",
-  gadgets: "text-[#a2c9ff] bg-[#a2c9ff]/[0.06] border-[#a2c9ff]/20",
+  gadgets: "text-info bg-info-soft border-info/20",
 };
 
 function DetailRow({
@@ -103,13 +103,7 @@ export function ListingReviewDialog({
       }
     >
       <div className="mb-4 flex items-start gap-3">
-        <div
-          className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-line text-[rgba(255,200,140,0.5)]"
-          style={{
-            background:
-              "repeating-linear-gradient(135deg, rgba(255,170,90,0.04) 0 8px, rgba(255,170,90,0.08) 8px 16px), linear-gradient(180deg, #3a2d1f, #231810)",
-          }}
-        >
+        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-media-background text-media-foreground">
           {a.photoUrls[0] ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

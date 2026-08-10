@@ -86,9 +86,9 @@ export function NinVerifyField({
             disabled={!canVerify || verified || status === "checking"}
             className={`mr-1 inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${
               verified
-                ? "bg-green/15 text-green"
+                ? "bg-success-soft text-success"
                 : canVerify
-                  ? "bg-accent text-[#1a0a00] hover:bg-accent-light"
+                  ? "bg-primary text-primary-foreground hover:bg-primary-hover"
                   : "cursor-not-allowed bg-surface-2 text-fg-dim"
             }`}
           >

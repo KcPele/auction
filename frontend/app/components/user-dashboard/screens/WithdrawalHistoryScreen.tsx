@@ -21,7 +21,7 @@ const FILTERS: ChipOption<Filter>[] = [
 
 const STATUS_STYLE: Record<WithdrawalStatus, string> = {
   PENDING: "bg-accent/[0.12] text-accent",
-  PROCESSING: "bg-[rgba(107,176,255,0.12)] text-[var(--blue)]",
+  PROCESSING: "bg-info-soft text-info",
   COMPLETED: "bg-green/[0.12] text-green",
   FAILED: "bg-red/[0.12] text-red",
   REVERSED: "bg-red/[0.12] text-red",
@@ -53,11 +53,7 @@ export function WithdrawalHistoryScreen() {
         <button
           type="button"
           onClick={() => setShowForm(true)}
-          className="rounded-lg px-3 py-2 text-xs font-bold text-[#1a0a00]"
-          style={{
-            background:
-              "linear-gradient(180deg, var(--accent-light), var(--accent))",
-          }}
+          className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
         >
           New withdrawal
         </button>

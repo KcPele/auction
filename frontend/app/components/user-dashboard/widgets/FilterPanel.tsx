@@ -46,7 +46,7 @@ export function FilterPanel({
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full z-20 mt-2 w-[320px] rounded-xl border border-line bg-bg p-4 shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
+      className="absolute right-0 top-full z-20 mt-2 w-[320px] rounded-xl border border-line bg-bg p-4 shadow-[var(--shadow-md)]"
     >
       <div className="mb-3 flex items-center justify-between">
         <div className="text-sm font-semibold text-fg">Filters</div>

@@ -36,7 +36,7 @@ export function MessageBubble({ message, asAdmin }: Props) {
     message.role === "AI"
       ? "bg-accent/[0.08] border-accent/30 text-fg"
       : message.role === "ADMIN"
-        ? "bg-blue/[0.10] border-blue/30 text-fg"
+        ? "bg-info-soft border-info/30 text-fg"
         : "bg-surface border-line text-fg";
   const label =
     message.role === "AI"

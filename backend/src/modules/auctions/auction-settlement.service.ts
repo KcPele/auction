@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
+import { BidStatus } from '../../common/enums/bid-status.enum';
 import { DeliveryStatus } from '../../common/enums/delivery-status.enum';
 import { NotificationAudience } from '../../common/enums/notification-audience.enum';
 import { NotificationType } from '../../common/enums/notification-type.enum';
@@ -199,6 +200,26 @@ export class AuctionSettlementService {
         auction.paymentDeadlineAt.getTime() > Date.now()
       ) {
         return { auction, changed: false };
+      }
+
+      if (auction.currentWinningBidId) {
+        const winningBid = await this.findWinningBidForUpdate(
+          manager,
+          auction.currentWinningBidId,
+        );
+        if (winningBid.walletHoldId) {
+          await this.walletsService.forfeitBidHold(manager, {
+            holdId: winningBid.walletHoldId,
+            reference: `auction_default_${auction.id}_bid_${winningBid.id}`,
+            metadata: {
+              auctionId: auction.id,
+              bidId: winningBid.id,
+              reason: 'payment_defaulted',
+            },
+          });
+        }
+        winningBid.status = BidStatus.Cancelled;
+        await manager.save(winningBid);
       }
 
       auction.status = AuctionStatus.Defaulted;

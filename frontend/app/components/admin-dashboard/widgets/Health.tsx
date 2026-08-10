@@ -3,8 +3,8 @@ import { useSystemHealth } from "@/app/components/admin/hooks/use-admin-dashboar
 import { Card, CardBody, CardHead } from "./Card";
 
 const DOT: Record<string, string> = {
-  ok: "bg-green shadow-[0_0_6px_rgba(78,168,92,0.5)]",
-  warn: "bg-[#f5b13f]",
+  ok: "bg-success shadow-[var(--success-glow)]",
+  warn: "bg-warning",
   err: "bg-red",
 };
 

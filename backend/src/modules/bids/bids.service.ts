@@ -8,7 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
 import { BidStatus } from '../../common/enums/bid-status.enum';
-import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { NotificationAudience } from '../../common/enums/notification-audience.enum';
 import { NotificationType } from '../../common/enums/notification-type.enum';
 import { Auction } from '../auctions/entities/auction.entity';
@@ -159,19 +158,10 @@ export class BidsService {
     const minimumTopBid =
       currentTopBid.amountKobo + auction.minimumBidIncrementKobo;
 
-    if (auction.category === ListingCategory.Car && amountKobo < minimumTopBid) {
+    if (amountKobo < minimumTopBid) {
       throw new BadRequestException('Bid does not meet the minimum increment');
     }
-
-    if (auction.category === ListingCategory.Car) {
-      return true;
-    }
-
-    if (amountKobo > currentTopBid.amountKobo && amountKobo < minimumTopBid) {
-      throw new BadRequestException('Bid does not meet the minimum increment');
-    }
-
-    return amountKobo > currentTopBid.amountKobo;
+    return true;
   }
 
   private calculateRequiredBalance(basePriceKobo: number, holdPercent: number) {

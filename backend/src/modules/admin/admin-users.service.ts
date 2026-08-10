@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { WalletLedgerEntry } from '../wallets/entities/wallet-ledger-entry.entity';
@@ -14,6 +14,7 @@ export class AdminUsersService {
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
     @InjectRepository(Wallet) private readonly walletsRepository: Repository<Wallet>,
     @InjectRepository(WalletLedgerEntry) private readonly ledgerRepository: Repository<WalletLedgerEntry>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async listUsers(query: ListAdminUsersQueryDto) {
@@ -47,21 +48,51 @@ export class AdminUsersService {
   }
 
   async banUser(userId: string, dto: BanUserDto) {
-    const user = await this.findUser(userId);
-    if (user.isBanned) throw new BadRequestException('User is already banned');
-    user.isBanned = true;
-    user.banReason = dto.reason.trim();
-    user.bannedAt = new Date();
-    return { user: await this.usersRepository.save(user) };
+    return this.dataSource.transaction(async (manager) => {
+      const users = manager.getRepository(User);
+      const user = await this.findUser(userId, users);
+      if (user.isBanned) throw new BadRequestException('User is already banned');
+
+      const reason = dto.reason.trim();
+      user.isBanned = true;
+      user.banReason = reason;
+      user.bannedAt = new Date();
+
+      const [, affectedAuthUsers] = await manager.query<[unknown[], number]>(
+        `UPDATE auth_users
+         SET banned = true, "banReason" = $2, "banExpires" = NULL
+         WHERE id = $1
+        `,
+        [userId, reason],
+      );
+      if (affectedAuthUsers !== 1) throw new NotFoundException('Linked auth user not found');
+
+      await manager.query('DELETE FROM auth_sessions WHERE user_id = $1', [userId]);
+      return { user: await users.save(user) };
+    });
   }
 
   async unbanUser(userId: string) {
-    const user = await this.findUser(userId);
-    if (!user.isBanned) throw new BadRequestException('User is not banned');
-    user.isBanned = false;
-    user.banReason = null;
-    user.bannedAt = null;
-    return { user: await this.usersRepository.save(user) };
+    return this.dataSource.transaction(async (manager) => {
+      const users = manager.getRepository(User);
+      const user = await this.findUser(userId, users);
+      if (!user.isBanned) throw new BadRequestException('User is not banned');
+
+      user.isBanned = false;
+      user.banReason = null;
+      user.bannedAt = null;
+
+      const [, affectedAuthUsers] = await manager.query<[unknown[], number]>(
+        `UPDATE auth_users
+         SET banned = false, "banReason" = NULL, "banExpires" = NULL
+         WHERE id = $1
+        `,
+        [userId],
+      );
+      if (affectedAuthUsers !== 1) throw new NotFoundException('Linked auth user not found');
+
+      return { user: await users.save(user) };
+    });
   }
 
   async getUserWallet(userId: string) {
@@ -72,8 +103,8 @@ export class AdminUsersService {
     return { balanceKobo: wallet.balanceKobo, holdKobo: wallet.heldKobo, ledger };
   }
 
-  private async findUser(userId: string) {
-    const user = await this.usersRepository.findOneBy({ id: userId });
+  private async findUser(userId: string, repository = this.usersRepository) {
+    const user = await repository.findOneBy({ id: userId });
     if (!user) throw new NotFoundException('User not found');
     return user;
   }

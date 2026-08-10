@@ -3,11 +3,6 @@ import { useState } from "react";
 import { Icon } from "@/app/components/user-dashboard/primitives/Icon";
 import type { AuctionDetail } from "../types/auction.types";
 
-const HERO_BG = {
-  background:
-    "repeating-linear-gradient(135deg, rgba(255,170,90,0.03) 0 10px, rgba(255,170,90,0.07) 10px 20px), linear-gradient(180deg, #3a2d1f, #231810)",
-};
-
 type Slide = { kind: "photo" | "video"; url: string };
 
 interface Props {
@@ -26,16 +21,13 @@ export function DetailHero({ auction }: Props) {
   const current = slides[index];
 
   return (
-    <div
-      className="relative -mx-[18px] flex aspect-[4/3] items-center justify-center text-[rgba(255,200,140,0.3)]"
-      style={HERO_BG}
-    >
+    <div className="relative -mx-[18px] flex aspect-[4/3] items-center justify-center bg-media-background text-media-foreground">
       {current?.kind === "video" ? (
         <video
           src={current.url}
           controls
           playsInline
-          className="h-full w-full bg-black object-contain"
+          className="h-full w-full bg-media-background object-contain"
         />
       ) : current ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -63,7 +55,7 @@ export function DetailHero({ auction }: Props) {
                 key={`${s.kind}-${i}`}
                 type="button"
                 onClick={() => setIndex(i)}
-                className={`flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border bg-black/50 backdrop-blur ${
+                className={`flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border bg-overlay text-status-foreground backdrop-blur ${
                   i === index
                     ? "border-accent text-accent"
                     : "border-line text-fg-muted"
@@ -73,7 +65,7 @@ export function DetailHero({ auction }: Props) {
               </button>
             ))}
           </div>
-          <div className="rounded-full border border-line bg-black/70 px-2.5 py-1.5 font-mono text-[11px]">
+          <div className="rounded-full border border-line bg-overlay px-2.5 py-1.5 font-mono text-[11px] text-status-foreground">
             {index + 1} / {slides.length}
           </div>
         </div>

@@ -54,7 +54,7 @@ export function Composer({ onSend, disabled, placeholder }: Props) {
         type="button"
         onClick={() => void send()}
         disabled={disabled || busy || !text.trim()}
-        className="flex h-10 items-center gap-1.5 rounded-xl border border-accent bg-accent px-3 text-sm font-semibold text-[#0a0806] disabled:opacity-50"
+        className="flex h-10 items-center gap-1.5 rounded-xl border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
       >
         <Icon name="arrow-r" size={14} strokeWidth={2.5} />
         {busy ? "…" : "Send"}

@@ -42,8 +42,10 @@ export function useAuctionBidsStream(auctionId: string | undefined) {
     if (!auctionId) return;
     const socket = auctionsSocket();
 
+    const joinAuction = () => socket.emit("auction.join", { auctionId });
+    socket.on("connect", joinAuction);
     if (!socket.connected) socket.connect();
-    socket.emit("auction.join", { auctionId });
+    else joinAuction();
 
     const onBidPlaced = (e: BidPayloadDto) => {
       const newBid: Bid = {
@@ -67,15 +69,10 @@ export function useAuctionBidsStream(auctionId: string | undefined) {
         return [newBid, ...next];
       });
 
-      // Top-bid display lives on the auction detail; bump it too.
+      // The detail model deliberately keeps the immutable base price. Bid
+      // components read their live high bid from the bids query above.
       if (e.isTopBid) {
-        qc.setQueryData<AuctionDetail>(
-          auctionKeys.detail(auctionId),
-          (cur) =>
-            cur
-              ? { ...cur, basePrice: Math.max(cur.basePrice, newBid.amount) }
-              : cur,
-        );
+        qc.invalidateQueries({ queryKey: auctionKeys.detail(auctionId) });
       }
     };
 
@@ -115,6 +112,7 @@ export function useAuctionBidsStream(auctionId: string | undefined) {
 
     return () => {
       socket.emit("auction.leave", { auctionId });
+      socket.off("connect", joinAuction);
       socket.off("bid.placed", onBidPlaced);
       socket.off("auction.topBidChanged", onTopChanged);
       socket.off("auction.statusChanged", onStatusChanged);

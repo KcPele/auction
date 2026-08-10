@@ -31,8 +31,8 @@ export class CarsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get a car listing by ID' })
   @ApiOkResponse({ description: 'Car listing returned.' })
-  findOne(@Param('id') id: string) {
-    return this.carsService.findOne(id);
+  findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.carsService.findOne(user, id);
   }
 
   @Patch(':id')

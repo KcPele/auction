@@ -8,7 +8,9 @@ import {
   getPaymentInstructions,
   listAuctions,
   placeBid,
+  updateDelivery,
 } from "../api/auction.api";
+import type { DeliveryStatusWire } from "../api/auction.api";
 import type { AuctionCategory } from "../types/auction.types";
 import { auctionKeys } from "./auction-keys";
 
@@ -72,6 +74,17 @@ export function useDelivery(id: string | undefined) {
     queryKey: auctionKeys.delivery(id ?? ""),
     queryFn: () => getDelivery(id!),
     enabled: Boolean(id),
+  });
+}
+
+export function useUpdateDelivery(auctionId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (status: DeliveryStatusWire) => updateDelivery(auctionId, status),
+    onSuccess: (delivery) => {
+      qc.setQueryData(auctionKeys.delivery(auctionId), delivery);
+      qc.invalidateQueries({ queryKey: ["users", "won"] });
+    },
   });
 }
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Variant = "primary" | "ghost";
+type Variant = "primary" | "ghost" | "secondary";
 type Size = "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -12,18 +12,20 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const base =
-  "inline-flex items-center gap-2 rounded-full font-semibold whitespace-nowrap border transition-transform duration-150 hover:-translate-y-px active:translate-y-0";
+  "inline-flex items-center justify-center gap-2 rounded-md border font-semibold whitespace-nowrap transition-colors duration-200 disabled:pointer-events-none disabled:opacity-50";
 
 const variants: Record<Variant, string> = {
   primary:
-    "border-transparent text-[#1a0a00] bg-[linear-gradient(180deg,var(--accent-light),var(--accent))] shadow-[0_6px_24px_rgba(232,183,85,0.35),inset_0_1px_0_rgba(255,255,255,0.35)] hover:shadow-[0_10px_32px_rgba(232,183,85,0.5),inset_0_1px_0_rgba(255,255,255,0.45)]",
+    "border-primary bg-primary text-primary-foreground shadow-sm hover:border-primary-hover hover:bg-primary-hover",
+  secondary:
+    "border-contrast bg-contrast text-contrast-foreground shadow-sm hover:opacity-90",
   ghost:
-    "bg-transparent text-fg border-line-strong hover:bg-[rgba(255,170,90,0.06)] hover:border-accent",
+    "border-border-strong bg-surface text-foreground hover:border-primary hover:bg-primary-soft hover:text-primary",
 };
 
 const sizes: Record<Size, string> = {
-  md: "px-3.5 py-2 text-[13px] md:px-5 md:py-3 md:text-sm",
-  lg: "px-5 py-3 text-sm md:px-7 md:py-4 md:text-[15px]",
+  md: "min-h-10 px-4 py-2 text-sm",
+  lg: "min-h-12 px-5 py-3 text-sm md:px-6 md:text-base",
 };
 
 export function Button({
@@ -43,6 +45,7 @@ export function Button({
       </Link>
     );
   }
+
   return (
     <button className={classes} {...rest}>
       {children}

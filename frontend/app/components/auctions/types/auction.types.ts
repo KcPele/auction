@@ -99,6 +99,8 @@ export type AuctionListItemDto = AuctionDto & {
   title?: string;
   subtitle?: string | null;
   coverUrl?: string | null;
+  bidderCount?: number;
+  currentBidKobo?: number;
 };
 
 export type ListAuctionsResponseDto = { auctions: AuctionListItemDto[] };
@@ -154,6 +156,8 @@ export type Auction = {
   title: string;
   subtitle: string | null;
   basePrice: number; // naira
+  currentBid: number; // naira
+  bidderCount: number;
   status: AuctionStatusWire;
   isLive: boolean;
   isUpcoming: boolean;

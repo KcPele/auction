@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Tag } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -12,14 +13,11 @@ import { usePasswordStrength } from "./hooks/usePasswordStrength";
 import { AuthButton } from "./primitives/AuthButton";
 import { Checkbox } from "./primitives/Checkbox";
 import { Field, Input, PhoneInput } from "./primitives/Field";
-import { Icon } from "./primitives/Icon";
-import { NinVerifyField } from "./primitives/NinVerifyField";
 import { signUpSchema, type SignUpForm } from "./utils/auth.schema";
 
 export function RegisterForm() {
   const router = useRouter();
   const [showPw, setShowPw] = useState(false);
-  const [ninVerified, setNinVerified] = useState(false);
 
   const {
     control,
@@ -96,46 +94,50 @@ export function RegisterForm() {
         }
       />
       <AuthFormBody
-        eyebrow="Step 1 of 2"
-        title="Open your bidder account."
-        subtitle="Your phone and email are used to confirm every bid and release escrow."
+        eyebrow="Create your account"
+        title="Start bidding securely."
+        subtitle="Set up your profile now. Identity verification can be completed from your dashboard."
       >
         <div className="mb-1.5 grid grid-cols-2 gap-3">
-          <Field label="First name" hint={errors.firstName?.message}>
-            <Input placeholder="Adaeze" {...register("firstName")} />
+          <Field htmlFor="register-first-name" label="First name" hint={errors.firstName?.message}>
+            <Input autoComplete="given-name" id="register-first-name" placeholder="Adaeze" {...register("firstName")} />
           </Field>
-          <Field label="Last name" hint={errors.lastName?.message}>
-            <Input placeholder="Okafor" {...register("lastName")} />
+          <Field htmlFor="register-last-name" label="Last name" hint={errors.lastName?.message}>
+            <Input autoComplete="family-name" id="register-last-name" placeholder="Okafor" {...register("lastName")} />
           </Field>
         </div>
 
         <Field
+          htmlFor="register-email"
           label="Email address"
           hint={errors.email?.message}
           meta="We'll use this for sign-in and account recovery."
         >
           <Input
+            autoComplete="email"
+            id="register-email"
             type="email"
-            placeholder="adaeze@gmail.com"
-            leftIcon={<Icon name="mail" size={18} />}
+            placeholder="you@example.com"
+            leftIcon={<Mail aria-hidden="true" size={18} />}
             {...register("email")}
           />
         </Field>
 
-        <Field label="Phone number" hint={errors.phone?.message}>
+        <Field htmlFor="register-phone" label="Phone number" hint={errors.phone?.message}>
           <Controller
             control={control}
             name="phone"
             render={({ field }) => (
-              <PhoneInput placeholder="812 345 6789" {...field} />
+              <PhoneInput autoComplete="tel-national" id="register-phone" placeholder="812 345 6789" {...field} />
             )}
           />
         </Field>
 
-        <Field label="I am a" hint={errors.appRole?.message ?? "Select your role"}>
+        <Field htmlFor="register-role" label="Account type" hint={errors.appRole?.message}>
           <select
+            id="register-role"
             {...register("appRole")}
-            className="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-3 text-[15px] text-fg outline-none transition-colors focus:border-accent focus:bg-surface-2"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3.5 py-3 text-base text-foreground outline-none transition-colors focus:border-primary focus:bg-surface-subtle"
           >
             <option value="INDIVIDUAL_BIDDER">Individual Bidder</option>
             <option value="CAR_DEALER">Car Dealer</option>
@@ -144,6 +146,7 @@ export function RegisterForm() {
         </Field>
 
         <Field
+          htmlFor="register-password"
           label="Password"
           hint={
             errors.password?.message ??
@@ -151,16 +154,19 @@ export function RegisterForm() {
           }
         >
           <Input
+            autoComplete="new-password"
+            id="register-password"
             type={showPw ? "text" : "password"}
             placeholder="8+ characters"
-            leftIcon={<Icon name="lock" size={18} />}
+            leftIcon={<LockKeyhole aria-hidden="true" size={18} />}
             rightSlot={
               <button
+                aria-label={showPw ? "Hide password" : "Show password"}
                 type="button"
                 onClick={() => setShowPw(!showPw)}
-                className="rounded-md p-2 text-fg-muted hover:bg-surface-2 hover:text-fg"
+                className="rounded-md p-2 text-muted-foreground hover:bg-surface-subtle hover:text-foreground"
               >
-                <Icon name={showPw ? "x" : "check"} size={16} />
+                {showPw ? <EyeOff aria-hidden="true" size={16} /> : <Eye aria-hidden="true" size={16} />}
               </button>
             }
             {...register("password")}
@@ -177,23 +183,33 @@ export function RegisterForm() {
           </div>
         </Field>
 
-        <NinVerifyField
+        <Field
+          htmlFor="register-nin"
           label="NIN"
-          hint={errors.nin?.message ?? "Optional · skip to verify later"}
-          meta="Add your 11-digit NIN now, or skip and complete verification from Account → KYC."
-          value={nin ?? ""}
-          onChange={(v) => setValue("nin", v, { shouldValidate: true })}
-          onVerified={() => setNinVerified(true)}
-        />
+          hint={errors.nin?.message ?? "Optional"}
+          meta="You can add your 11-digit NIN now or verify later from account settings."
+        >
+          <Input
+            id="register-nin"
+            inputMode="numeric"
+            leftIcon={<ShieldCheck aria-hidden="true" size={18} />}
+            maxLength={11}
+            onChange={(event) => setValue("nin", event.target.value.replace(/\D/g, ""), { shouldValidate: true })}
+            placeholder="12345678901"
+            value={nin ?? ""}
+          />
+        </Field>
 
         <Field
+          htmlFor="register-referral"
           label="Referral code"
           hint="Optional"
           meta="Enter a referral code if one was issued to you."
         >
           <Input
+            id="register-referral"
             placeholder="BN-XXXX-XXXX"
-            leftIcon={<Icon name="tag" size={18} />}
+            leftIcon={<Tag aria-hidden="true" size={18} />}
             {...register("referralCode")}
           />
         </Field>
@@ -212,7 +228,7 @@ export function RegisterForm() {
           )}
         />
         {errors.accept?.message && (
-          <p className="mt-1 text-[11px] text-red-400">{errors.accept.message}</p>
+          <p className="mt-1 text-xs text-danger">{errors.accept.message}</p>
         )}
 
         <AuthButton
@@ -220,14 +236,8 @@ export function RegisterForm() {
           disabled={!accept || isPending || isSubmitting}
         >
           {isPending ? "Creating…" : "Create account"}{" "}
-          <Icon name="arrow-r" size={16} strokeWidth={2} />
+          <ArrowRight aria-hidden="true" size={16} strokeWidth={2} />
         </AuthButton>
-
-        {!ninVerified && (
-          <p className="mt-2 text-center text-[11px] text-fg-dim">
-            You can skip NIN now and verify later from your account settings.
-          </p>
-        )}
       </AuthFormBody>
     </form>
   );

@@ -27,7 +27,7 @@ const STATUS_STYLE: Record<string, string> = {
   LIVE: "bg-red/15 text-red border-red/30",
   SCHEDULED: "bg-accent/15 text-accent border-accent/30",
   ENDED: "bg-surface-2 text-fg-muted border-line",
-  AWAITING_PAYMENT: "bg-[rgba(245,177,63,0.15)] text-[#f5b13f] border-[rgba(245,177,63,0.3)]",
+  AWAITING_PAYMENT: "bg-warning-soft text-warning border-warning/30",
   SETTLED: "bg-green/15 text-green border-green/30",
   CANCELLED: "bg-surface-2 text-fg-dim border-line",
   DEFAULTED: "bg-red/15 text-red border-red/30",

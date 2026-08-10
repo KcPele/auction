@@ -13,7 +13,7 @@ type Category = "cars" | "gadgets";
 
 function statusStyle(status: ListingAccessApplication["status"]) {
   const map = {
-    PENDING: "border-amber/30 bg-amber/10 text-amber",
+    PENDING: "border-warning/30 bg-warning-soft text-warning",
     APPROVED: "border-green/30 bg-green/10 text-green",
     REJECTED: "border-red/30 bg-red/10 text-red",
   } as const;
@@ -55,7 +55,7 @@ export function ListingAccessScreen() {
         <button
           type="button"
           onClick={() => setShowApply((v) => !v)}
-          className="rounded-lg border-none px-3 py-2 text-xs font-bold text-[#1a0a00] accent-gradient-bg"
+          className="rounded-lg border-none px-3 py-2 text-xs font-bold text-primary-foreground accent-gradient-bg"
         >
           + Apply
         </button>
@@ -111,7 +111,7 @@ export function ListingAccessScreen() {
               type="button"
               disabled={apply.isPending}
               onClick={onSubmit}
-              className="rounded-lg border-none p-2.5 text-sm font-bold text-[#1a0a00] accent-gradient-bg disabled:opacity-60"
+              className="rounded-lg border-none p-2.5 text-sm font-bold text-primary-foreground accent-gradient-bg disabled:opacity-60"
             >
               {apply.isPending ? "Submitting…" : "Submit application"}
             </button>

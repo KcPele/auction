@@ -23,6 +23,7 @@ type BetterAuthNodeModule = {
 };
 type BetterAuthPluginsModule = {
   admin: (options: Record<string, unknown>) => unknown;
+  emailOTP: (options: Record<string, unknown>) => unknown;
 };
 
 type BetterAuthInstance = {
@@ -110,15 +111,6 @@ export class AuthService implements OnModuleDestroy {
     });
   }
 
-  async verifyNin(nin: string) {
-    const existing = await this.usersRepository.findOneBy({ nin });
-    if (existing) {
-      return { verified: true, name: `${existing.firstName} ${existing.lastName}` };
-    }
-
-    return { verified: true, name: null };
-  }
-
   async getAuthenticatedUser(
     headers: IncomingHttpHeaders,
   ): Promise<AuthenticatedUser> {
@@ -132,10 +124,11 @@ export class AuthService implements OnModuleDestroy {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const appUser = await this.usersRepository.findOneBy({
-      id: session.user.id,
-      isActive: true,
-    });
+    const appUser = await this.usersRepository.findOneBy({ id: session.user.id });
+
+    if (!appUser?.isActive || appUser.isBanned) {
+      throw new UnauthorizedException('Account access is disabled');
+    }
 
     return {
       id: session.user.id,
@@ -161,7 +154,7 @@ export class AuthService implements OnModuleDestroy {
   }
 
   private async createAuth(): Promise<BetterAuthInstance> {
-    const [{ betterAuth }, { admin }] = await Promise.all([
+    const [{ betterAuth }, { admin, emailOTP }] = await Promise.all([
       this.importEsm<BetterAuthModule>('better-auth'),
       this.importEsm<BetterAuthPluginsModule>('better-auth/plugins'),
     ]);
@@ -234,7 +227,30 @@ export class AuthService implements OnModuleDestroy {
       session: this.sessionSchema,
       account: this.accountSchema,
       verification: this.verificationSchema,
-      plugins: [admin({ defaultRole: 'user', adminRoles: ['admin'] })],
+      plugins: [
+        admin({ defaultRole: 'user', adminRoles: ['admin'] }),
+        emailOTP({
+          overrideDefaultEmailVerification: true,
+          sendVerificationOTP: async (data: {
+            email: string;
+            otp: string;
+            type: 'sign-in' | 'email-verification' | 'forget-password';
+          }) => {
+            const purpose =
+              data.type === 'email-verification'
+                ? 'verify your email'
+                : data.type === 'sign-in'
+                  ? 'sign in'
+                  : 'reset your password';
+            await this.emailService.send({
+              to: data.email,
+              subject: 'Your BidNaija verification code',
+              html: `<p>Use <strong>${data.otp}</strong> to ${purpose}. This code expires shortly.</p>`,
+              text: `Use ${data.otp} to ${purpose}. This code expires shortly.`,
+            });
+          },
+        }),
+      ],
       databaseHooks: {
         user: {
           create: {

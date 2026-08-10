@@ -12,12 +12,13 @@ import { SectionHeader } from "./SectionHeader";
 
 const CAT_BG: Record<string, string> = {
   cars: "bg-accent/10 text-accent",
-  gadgets: "bg-[rgba(107,176,255,0.12)] text-[var(--blue,#6bb0ff)]",
+  gadgets: "bg-info-soft text-info",
 };
 
 const dateFmt = new Intl.DateTimeFormat("en-NG", { dateStyle: "medium" });
 
 export function AccessCodesScreen() {
+  const [renderedAt] = useState(Date.now);
   const [category, setCategory] = useState<"cars" | "gadgets">("cars");
   const [customCode, setCustomCode] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
@@ -26,7 +27,11 @@ export function AccessCodesScreen() {
   const create = useCreateAccessCode();
 
   const codes = data ?? [];
-  const activeCount = codes.filter((c) => c.isActive).length;
+  const isUsable = (code: (typeof codes)[number]) =>
+    code.isActive &&
+    !code.usedAt &&
+    (!code.expiresAt || code.expiresAt.getTime() > renderedAt);
+  const activeCount = codes.filter(isUsable).length;
 
   const onCreate = async () => {
     try {
@@ -100,7 +105,7 @@ export function AccessCodesScreen() {
             type="button"
             disabled={create.isPending}
             onClick={onCreate}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-transparent px-4 py-2 text-xs font-semibold text-[#1a0a00] disabled:opacity-60"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-transparent px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
             style={{
               background:
                 "linear-gradient(180deg, var(--accent-2), var(--accent))",
@@ -162,8 +167,17 @@ export function AccessCodesScreen() {
                   </tr>
                 </thead>
                 <tbody>
-                  {codes.map((c) => (
-                    <tr key={c.id} className="hover:bg-surface-2/40">
+                  {codes.map((c) => {
+                    const usable = isUsable(c);
+                    const status = c.usedAt
+                      ? "Used"
+                      : c.expiresAt && c.expiresAt.getTime() <= renderedAt
+                        ? "Expired"
+                        : usable
+                          ? "Active"
+                          : "Inactive";
+                    return (
+                      <tr key={c.id} className="hover:bg-surface-2/40">
                       <td className="border-b border-line px-3.5 py-3 font-mono text-xs sm:px-[18px]">
                         {c.code}
                       </td>
@@ -179,9 +193,9 @@ export function AccessCodesScreen() {
                       </td>
                       <td className="border-b border-line px-3.5 py-3 sm:px-[18px]">
                         <span
-                          className={`text-[11px] font-semibold ${c.isActive ? "text-green" : "text-fg-dim"}`}
+                          className={`text-[11px] font-semibold ${usable ? "text-success" : "text-fg-dim"}`}
                         >
-                          {c.isActive ? "Active" : "Inactive"}
+                          {status}
                         </span>
                       </td>
                       <td className="border-b border-line px-3.5 py-3 font-mono text-xs text-fg-muted sm:px-[18px]">
@@ -190,8 +204,9 @@ export function AccessCodesScreen() {
                       <td className="border-b border-line px-3.5 py-3 text-[13px] text-fg-muted sm:px-[18px]">
                         {dateFmt.format(c.createdAt)}
                       </td>
-                    </tr>
-                  ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
