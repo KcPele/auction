@@ -6,8 +6,9 @@ import type { UserBid } from "@/app/components/users/types/users.types";
 import { fmtNaira } from "../utils";
 import { Icon } from "../primitives/Icon";
 import { Countdown } from "../widgets/Countdown";
+import { PaginationControls } from "../../ui/PaginationControls";
 
-type TabId = "active" | "scheduled" | "won";
+type TabId = "active" | "past" | "won";
 
 const STATUS_LABEL: Record<UserBid["status"], string> = {
   leading: "Leading",
@@ -16,28 +17,26 @@ const STATUS_LABEL: Record<UserBid["status"], string> = {
 };
 
 const STATUS_COLOR: Record<UserBid["status"], string> = {
-  leading: "text-green",
-  outbid: "text-red",
-  won: "text-accent",
+  leading: "text-success",
+  outbid: "text-danger",
+  won: "text-primary",
 };
 
 export function MyBidsScreen() {
   const [tab, setTab] = useState<TabId>("active");
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
 
   const status =
-    tab === "active" ? "ACTIVE" : tab === "scheduled" ? "SCHEDULED" : "WON";
+    tab === "active" ? "ACTIVE" : tab === "past" ? "PAST" : "WON";
   const { data, isLoading, isError, refetch } = useMyBids({
     status,
-    limit: 50,
+    limit: pageSize,
+    offset: page * pageSize,
   });
   const items = useMemo(() => data?.items ?? [], [data]);
 
-  // Counts come from the same endpoint per-tab — refetch each tab.
-  // Lightweight: kick off the other counts via small queries.
-  const activeCount = useMyBids({ status: "ACTIVE", limit: 1 }).data?.total ?? 0;
-  const scheduledCount =
-    useMyBids({ status: "SCHEDULED", limit: 1 }).data?.total ?? 0;
-  const wonCount = useMyBids({ status: "WON", limit: 1 }).data?.total ?? 0;
+  const counts = data?.counts ?? { active: 0, past: 0, won: 0 };
 
   const firstOutbid = items.find((b) => b.status === "outbid");
 
@@ -50,9 +49,9 @@ export function MyBidsScreen() {
       <div className="my-3 grid auto-cols-fr grid-flow-col rounded-[10px] border border-line bg-surface p-[3px]">
         {(
           [
-            { id: "active", label: "Active", count: activeCount },
-            { id: "scheduled", label: "Scheduled", count: scheduledCount },
-            { id: "won", label: "Won", count: wonCount },
+            { id: "active", label: "Active", count: counts.active },
+            { id: "past", label: "Past", count: counts.past },
+            { id: "won", label: "Won", count: counts.won },
           ] as const
         ).map((t) => (
           <button
@@ -63,7 +62,11 @@ export function MyBidsScreen() {
                 ? "bg-accent/[0.12] font-semibold text-accent"
                 : "bg-transparent font-medium text-fg-muted"
             }`}
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              setTab(t.id);
+              setPage(0);
+            }}
+            aria-pressed={tab === t.id}
           >
             {t.label}
             <span className="rounded bg-surface-subtle px-1.5 py-px font-mono text-[10px]">
@@ -74,9 +77,9 @@ export function MyBidsScreen() {
       </div>
 
       {tab === "active" && firstOutbid && (
-        <div className="mb-3 rounded-[14px] border border-red/20 bg-red/[0.06] p-3.5">
+        <div className="mb-3 rounded-[14px] border border-danger/20 bg-danger-soft p-3.5">
           <div className="flex items-center gap-2.5">
-            <div className="text-red">
+            <div className="text-danger">
               <Icon name="flame" size={18} />
             </div>
             <div className="flex-1 text-[13px]">
@@ -85,7 +88,7 @@ export function MyBidsScreen() {
             </div>
             <Link
               href={`/dashboard/auction/${firstOutbid.auctionId}`}
-              className="text-xs font-semibold text-red"
+              className="text-xs font-semibold text-danger"
             >
               Raise →
             </Link>
@@ -110,14 +113,20 @@ export function MyBidsScreen() {
         ) : items.length === 0 ? (
           <div className="py-8 text-center text-fg-dim">Nothing here yet.</div>
         ) : (
-          items.map((b) => <Row key={b.auctionId} b={b} />)
+          items.map((b) => <Row key={b.auctionId} b={b} tab={tab} />)
         )}
       </div>
+      <PaginationControls
+        page={page}
+        pageSize={pageSize}
+        total={data?.total ?? 0}
+        onPageChange={setPage}
+      />
     </>
   );
 }
 
-function Row({ b }: { b: UserBid }) {
+function Row({ b, tab }: { b: UserBid; tab: TabId }) {
   return (
     <Link
       href={`/dashboard/auction/${b.auctionId}`}
@@ -141,9 +150,15 @@ function Row({ b }: { b: UserBid }) {
         <div className={`text-[10px] font-semibold uppercase ${STATUS_COLOR[b.status]}`}>
           {STATUS_LABEL[b.status]}
         </div>
-        <div className="font-mono text-[11px] text-fg-dim">
-          <Countdown target={b.endsAt.getTime()} compact />
-        </div>
+        {tab === "active" ? (
+          <div className="font-mono text-[11px] text-fg-dim">
+            <Countdown target={b.endsAt.getTime()} compact />
+          </div>
+        ) : (
+          <div className="text-[11px] text-fg-dim">
+            {b.endsAt.toLocaleDateString("en-NG", { dateStyle: "medium" })}
+          </div>
+        )}
       </div>
     </Link>
   );

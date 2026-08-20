@@ -1,9 +1,11 @@
 "use client";
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   useAdminAuctions,
   useCancelAuction,
+  useForceCloseAuction,
 } from "@/app/components/admin/hooks/use-admin-dashboard";
 import type { AdminAuctionItem } from "@/app/components/admin/types/dashboard.types";
 import { ApiError } from "@/app/lib/api/error";
@@ -11,6 +13,7 @@ import { useNow } from "@/app/lib/format/use-now";
 import { fmtNGN, fmtDuration } from "../utils";
 import { Card, CardBody, CardHead } from "../widgets/Card";
 import { Modal } from "../../ui/Modal";
+import { PaginationControls } from "../../ui/PaginationControls";
 import { SectionHeader } from "./SectionHeader";
 
 const STATUS_OPTS = [
@@ -34,14 +37,23 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export function AuctionsScreen() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const targetAuctionId = searchParams.get("auctionId");
   const now = useNow();
   const [status, setStatus] = useState<string>("LIVE");
+  const [page, setPage] = useState(0);
+  const pageSize = 25;
   const { data, isLoading, isError, refetch } = useAdminAuctions({
-    status: status === "all" ? undefined : status,
-    limit: 50,
+    auctionId: targetAuctionId ?? undefined,
+    status: targetAuctionId || status === "all" ? undefined : status,
+    limit: targetAuctionId ? 1 : pageSize,
+    offset: targetAuctionId ? 0 : page * pageSize,
   });
   const cancel = useCancelAuction();
+  const forceClose = useForceCloseAuction();
   const [cancelling, setCancelling] = useState<AdminAuctionItem | null>(null);
+  const [closing, setClosing] = useState<AdminAuctionItem | null>(null);
   const [reason, setReason] = useState("");
 
   const items = data?.items ?? [];
@@ -62,6 +74,18 @@ export function AuctionsScreen() {
     }
   };
 
+  const onForceClose = async () => {
+    if (!closing) return;
+    try {
+      await forceClose.mutateAsync(closing.id);
+      toast.success("Auction closed and winner selected");
+      setClosing(null);
+    } catch (err) {
+      if (err instanceof ApiError) toast.error(err.message);
+      else toast.error("Could not close auction");
+    }
+  };
+
   return (
     <>
       <SectionHeader
@@ -70,11 +94,24 @@ export function AuctionsScreen() {
       />
 
       <div className="mb-3 flex flex-wrap gap-1.5">
+        {targetAuctionId && (
+          <button
+            type="button"
+            onClick={() => router.replace("/admin/auctions")}
+            className="rounded-full border border-primary bg-primary-soft px-3 py-1 text-xs font-semibold text-primary"
+          >
+            Clear search result
+          </button>
+        )}
         {STATUS_OPTS.map((s) => (
           <button
             key={s.id}
             type="button"
-            onClick={() => setStatus(s.id)}
+            onClick={() => {
+              setStatus(s.id);
+              setPage(0);
+            }}
+            aria-pressed={status === s.id}
             className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
               status === s.id
                 ? "border border-accent bg-accent/[0.12] text-accent"
@@ -111,7 +148,9 @@ export function AuctionsScreen() {
             </div>
           ) : items.length === 0 ? (
             <div className="px-5 py-10 text-center text-[13px] italic text-fg-dim">
-              No auctions match those filters.
+              {targetAuctionId
+                ? "The selected auction is not in the current result window."
+                : "No auctions match those filters."}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -172,16 +211,27 @@ export function AuctionsScreen() {
                                 dateStyle: "medium",
                               })}
                         </td>
-                        <td className="border-b border-line px-3.5 py-3 text-right sm:px-[18px]">
+                        <td className="border-b border-line px-3.5 py-3 text-right sm:px-4">
                           {(a.status === "LIVE" ||
                             a.status === "SCHEDULED") && (
-                            <button
-                              type="button"
-                              onClick={() => setCancelling(a)}
-                              className="rounded-md border border-red/30 px-2.5 py-1 text-[11px] font-semibold text-red hover:bg-red/10"
-                            >
-                              Cancel
-                            </button>
+                            <div className="flex justify-end gap-1.5">
+                              {a.status === "LIVE" && (
+                                <button
+                                  type="button"
+                                  onClick={() => setClosing(a)}
+                                  className="rounded-md border border-warning/30 px-2.5 py-1 text-xs font-semibold text-warning hover:bg-warning-soft"
+                                >
+                                  Close now
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setCancelling(a)}
+                                className="rounded-md border border-red/30 px-2.5 py-1 text-xs font-semibold text-red hover:bg-red/10"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -193,6 +243,15 @@ export function AuctionsScreen() {
           )}
         </CardBody>
       </Card>
+
+      {!targetAuctionId && (
+        <PaginationControls
+          page={page}
+          pageSize={pageSize}
+          total={data?.total ?? 0}
+          onPageChange={setPage}
+        />
+      )}
 
       <Modal
         open={!!cancelling}
@@ -235,6 +294,37 @@ export function AuctionsScreen() {
           rows={3}
           className="mt-1.5 w-full resize-none rounded-md border border-line bg-surface px-2.5 py-2 text-sm outline-none focus:border-accent"
         />
+      </Modal>
+
+      <Modal
+        open={!!closing}
+        onClose={() => setClosing(null)}
+        title={closing ? `Close now · ${closing.title}` : ""}
+        widthClass="max-w-md"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setClosing(null)}
+              className="rounded-md border border-line px-3 py-1.5 text-xs text-fg-muted hover:bg-surface-2"
+            >
+              Keep running
+            </button>
+            <button
+              type="button"
+              disabled={forceClose.isPending}
+              onClick={onForceClose}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+            >
+              {forceClose.isPending ? "Closing…" : "Close and select winner"}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-fg-muted">
+          This ends bidding immediately. The highest bidder becomes the winner
+          and receives payment instructions.
+        </p>
       </Modal>
     </>
   );

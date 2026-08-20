@@ -12,7 +12,6 @@ import { AdminListingsService } from './admin-listings.service';
 import { AdminMechanicsService } from './admin-mechanics.service';
 import { AdminSettingsService } from './admin-settings.service';
 import { AdminUsersService } from './admin-users.service';
-import type { AuthorizeWithdrawalDto } from './dto/authorize-withdrawal.dto';
 import type { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import type { DefaultAuctionPaymentDto } from './dto/default-auction-payment.dto';
 import type { GrantListingPermissionDto } from './dto/grant-listing-permission.dto';
@@ -30,9 +29,9 @@ describe('AdminController', () => {
   let users: { listUsers: jest.Mock; banUser: jest.Mock; unbanUser: jest.Mock; getUserWallet: jest.Mock };
   let disputes: { listDisputes: jest.Mock; investigateDispute: jest.Mock; resolveDispute: jest.Mock };
   let mechanics: { listMechanics: jest.Mock; verifyMechanic: jest.Mock; revokeMechanic: jest.Mock };
-  let listings: { listAccessCodes: jest.Mock; createAccessCode: jest.Mock; grantListingPermission: jest.Mock; listPendingApplications: jest.Mock; approveApplication: jest.Mock; rejectApplication: jest.Mock; listPendingListings: jest.Mock; approveListing: jest.Mock; rejectListing: jest.Mock };
+  let listings: { listAccessCodes: jest.Mock; createAccessCode: jest.Mock; deactivateAccessCode: jest.Mock; grantListingPermission: jest.Mock; listPendingApplications: jest.Mock; approveApplication: jest.Mock; rejectApplication: jest.Mock; listPendingListings: jest.Mock; approveListing: jest.Mock; rejectListing: jest.Mock };
   let settings: { listPlatformFees: jest.Mock; updatePlatformFee: jest.Mock; getBiddingSetting: jest.Mock; updateBiddingSetting: jest.Mock; getPaymentAccount: jest.Mock; updatePaymentAccount: jest.Mock; getEscrowSetting: jest.Mock; updateEscrowSetting: jest.Mock; getPlatformToggles: jest.Mock; updatePlatformToggles: jest.Mock };
-  let withdrawals: { listPendingWithdrawals: jest.Mock; authorizeWithdrawal: jest.Mock; resendWithdrawalOtp: jest.Mock };
+  let withdrawals: { listPendingWithdrawals: jest.Mock; listAllWithdrawals: jest.Mock };
   let settlement: { settleAuctionPayment: jest.Mock; defaultAuctionPayment: jest.Mock };
 
   beforeEach(async () => {
@@ -40,9 +39,9 @@ describe('AdminController', () => {
     users = { listUsers: jest.fn(), banUser: jest.fn(), unbanUser: jest.fn(), getUserWallet: jest.fn() };
     disputes = { listDisputes: jest.fn(), investigateDispute: jest.fn(), resolveDispute: jest.fn() };
     mechanics = { listMechanics: jest.fn(), verifyMechanic: jest.fn(), revokeMechanic: jest.fn() };
-    listings = { listAccessCodes: jest.fn(), createAccessCode: jest.fn(), grantListingPermission: jest.fn(), listPendingApplications: jest.fn(), approveApplication: jest.fn(), rejectApplication: jest.fn(), listPendingListings: jest.fn(), approveListing: jest.fn(), rejectListing: jest.fn() };
+    listings = { listAccessCodes: jest.fn(), createAccessCode: jest.fn(), deactivateAccessCode: jest.fn(), grantListingPermission: jest.fn(), listPendingApplications: jest.fn(), approveApplication: jest.fn(), rejectApplication: jest.fn(), listPendingListings: jest.fn(), approveListing: jest.fn(), rejectListing: jest.fn() };
     settings = { listPlatformFees: jest.fn(), updatePlatformFee: jest.fn(), getBiddingSetting: jest.fn(), updateBiddingSetting: jest.fn(), getPaymentAccount: jest.fn(), updatePaymentAccount: jest.fn(), getEscrowSetting: jest.fn(), updateEscrowSetting: jest.fn(), getPlatformToggles: jest.fn(), updatePlatformToggles: jest.fn() };
-    withdrawals = { listPendingWithdrawals: jest.fn(), authorizeWithdrawal: jest.fn(), resendWithdrawalOtp: jest.fn() };
+    withdrawals = { listPendingWithdrawals: jest.fn(), listAllWithdrawals: jest.fn() };
     settlement = { settleAuctionPayment: jest.fn(), defaultAuctionPayment: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
@@ -68,6 +67,28 @@ describe('AdminController', () => {
     listings.createAccessCode.mockResolvedValue({ accessCode: dto });
     await expect(controller.createAccessCode(adminUser, dto)).resolves.toEqual({ accessCode: dto });
     expect(listings.createAccessCode).toHaveBeenCalledWith(adminUser.id, dto);
+  });
+
+  it('deactivates an access code', async () => {
+    listings.deactivateAccessCode.mockResolvedValue({ accessCode: { id: 'code-id', isActive: false } });
+    await expect(controller.deactivateAccessCode('code-id')).resolves.toEqual({
+      accessCode: { id: 'code-id', isActive: false },
+    });
+    expect(listings.deactivateAccessCode).toHaveBeenCalledWith('code-id');
+  });
+
+  it('passes the acting administrator when banning a user', async () => {
+    const dto = { reason: 'Fraudulent bidding' };
+    users.banUser.mockResolvedValue({ user: { id: 'target-user' } });
+
+    await expect(
+      controller.banUser(adminUser, 'target-user', dto),
+    ).resolves.toEqual({ user: { id: 'target-user' } });
+    expect(users.banUser).toHaveBeenCalledWith(
+      adminUser.id,
+      'target-user',
+      dto,
+    );
   });
 
   it('grants listing permission manually', async () => {
@@ -156,16 +177,11 @@ describe('AdminController', () => {
     await expect(controller.listPendingWithdrawals()).resolves.toEqual({ withdrawals: [] });
   });
 
-  it('authorizes a wallet withdrawal with OTP', async () => {
-    const dto: AuthorizeWithdrawalDto = { authorizationCode: '886850' };
-    withdrawals.authorizeWithdrawal.mockResolvedValue({ withdrawal: { id: 'withdrawal-id' } });
-    await expect(controller.authorizeWithdrawal('withdrawal-id', dto)).resolves.toEqual({ withdrawal: { id: 'withdrawal-id' } });
-    expect(withdrawals.authorizeWithdrawal).toHaveBeenCalledWith('withdrawal-id', '886850');
-  });
-
-  it('resends a wallet withdrawal OTP', async () => {
-    withdrawals.resendWithdrawalOtp.mockResolvedValue({ providerResponse: { message: 'sent' } });
-    await expect(controller.resendWithdrawalOtp('withdrawal-id')).resolves.toEqual({ providerResponse: { message: 'sent' } });
+  it('lists all wallet withdrawals', async () => {
+    const query = { limit: 20, offset: 0 };
+    withdrawals.listAllWithdrawals.mockResolvedValue({ items: [], total: 0 });
+    await expect(controller.listAllWithdrawals(query)).resolves.toEqual({ items: [], total: 0 });
+    expect(withdrawals.listAllWithdrawals).toHaveBeenCalledWith(query);
   });
 
   it('settles an auction payment', async () => {

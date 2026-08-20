@@ -12,6 +12,10 @@ import type {
   StatsDto,
   UpdateProfileInput,
   UserBid,
+  UserDispute,
+  UserDisputeDto,
+  UserDelivery,
+  UserDeliveryDto,
   WatchlistItem,
   WonAuction,
 } from "../types/users.types";
@@ -31,8 +35,8 @@ export const updateNotificationPreferences = (
   });
 
 export const listMyBids = async (
-  params: { limit?: number; offset?: number; status?: "ACTIVE" | "SCHEDULED" | "WON" } = {},
-): Promise<{ items: UserBid[]; total: number }> => {
+  params: { limit?: number; offset?: number; status?: "ACTIVE" | "PAST" | "WON" } = {},
+): Promise<{ items: UserBid[]; total: number; counts: ListUserBidsResponseDto["counts"] }> => {
   const dto = await apiClient<ListUserBidsResponseDto>("/users/me/bids", {
     query: {
       limit: params.limit ?? 20,
@@ -42,6 +46,7 @@ export const listMyBids = async (
   });
   return {
     total: dto.total,
+    counts: dto.counts,
     items: dto.items.map((b) => ({
       auctionId: b.auctionId,
       title: b.auctionTitle,
@@ -140,3 +145,39 @@ export const addToWatchlist = (auctionId: string) =>
 
 export const removeFromWatchlist = (auctionId: string) =>
   apiClient<unknown>(`/users/me/watchlist/${auctionId}`, { method: "DELETE" });
+
+const toDispute = (dto: UserDisputeDto): UserDispute => ({
+  ...dto,
+  resolvedAt: dto.resolvedAt ? new Date(dto.resolvedAt) : null,
+  createdAt: new Date(dto.createdAt),
+  updatedAt: new Date(dto.updatedAt),
+});
+
+export const listMyDisputes = async (): Promise<UserDispute[]> => {
+  const dto = await apiClient<{ items: UserDisputeDto[] }>(
+    "/users/me/disputes",
+  );
+  return dto.items.map(toDispute);
+};
+
+export const createDispute = async (input: {
+  auctionId: string;
+  reason: string;
+}): Promise<UserDispute> => {
+  const dto = await apiClient<{ dispute: UserDisputeDto }>(
+    "/users/me/disputes",
+    { method: "POST", body: input },
+  );
+  return toDispute(dto.dispute);
+};
+
+export const listMyDeliveries = async (): Promise<UserDelivery[]> => {
+  const dto = await apiClient<{ items: UserDeliveryDto[] }>(
+    "/users/me/deliveries",
+  );
+  return dto.items.map((item) => ({
+    ...item,
+    category: item.category === "CAR" ? "cars" : "gadgets",
+    updatedAt: new Date(item.updatedAt),
+  }));
+};

@@ -24,8 +24,8 @@ export function HomeScreen() {
   const upcoming = useAuctions({ status: "SCHEDULED", limit: 6 });
   const active = useMyBids({ status: "ACTIVE", limit: 5 });
 
-  const liveAuctions = live.data ?? [];
-  const openingSoon = upcoming.data ?? [];
+  const liveAuctions = live.data?.items ?? [];
+  const openingSoon = upcoming.data?.items ?? [];
   const myActive = active.data?.items ?? [];
 
   return (
@@ -173,7 +173,7 @@ function LiveCard({ a }: { a: Auction }) {
           {a.title}
         </div>
         <div className="font-mono text-[13px] font-semibold tabular-nums text-accent-light">
-          {fmtNaira(a.basePrice)}
+          {fmtNaira(a.currentBid)}
         </div>
         <div className="text-[11px] text-fg-dim">
           <Countdown target={a.endTime.getTime()} compact />

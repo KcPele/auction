@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { useMe } from "@/app/components/auth/hooks/use-me";
 import { signOutCall } from "@/app/components/auth/api/auth.api";
+import { BrandMark } from "@/app/components/landing/BrandMark";
 import { AdminIcon, type AdminIconName } from "../primitives/Icon";
 
 interface NavItem {
@@ -28,7 +29,7 @@ const NAV: NavGroup[] = [
   {
     group: "MODERATION",
     items: [
-      { id: "access-codes", label: "Access code requests", icon: "key", href: "/admin/access-codes" },
+      { id: "access-codes", label: "Access codes", icon: "key", href: "/admin/access-codes" },
       { id: "listings", label: "Listing approvals", icon: "check", href: "/admin/listings" },
       { id: "disputes", label: "Disputes", icon: "alert", href: "/admin/disputes" },
     ],
@@ -44,7 +45,7 @@ const NAV: NavGroup[] = [
     group: "OPERATIONS",
     items: [
       { id: "payments", label: "Payments & ledger", icon: "receipt", href: "/admin/payments" },
-      { id: "withdrawals", label: "Withdrawal auth", icon: "wallet", href: "/admin/withdrawals" },
+      { id: "withdrawals", label: "Withdrawal monitor", icon: "wallet", href: "/admin/withdrawals" },
       { id: "settlements", label: "Settlements", icon: "check", href: "/admin/settlements" },
       { id: "notifications", label: "Notifications log", icon: "bell", href: "/admin/notifications" },
       { id: "support", label: "Support", icon: "help", href: "/admin/support" },
@@ -74,27 +75,7 @@ export function Sidebar({ onNavigate }: Props) {
   return (
     <aside className="z-[60] flex h-full flex-col overflow-hidden border-r border-line bg-bg-1">
       <div className="flex items-center justify-between border-b border-line px-[18px] py-4">
-        <div className="flex items-center gap-2">
-          <svg width="24" height="24" viewBox="0 0 32 32">
-            <defs>
-              <linearGradient id="adm-sbg" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="var(--accent)" />
-                <stop offset="100%" stopColor="var(--accent-2)" />
-              </linearGradient>
-            </defs>
-            <rect x="2" y="2" width="28" height="28" rx="7" fill="url(#adm-sbg)" />
-            <path
-              d="M9 22.5 L18.5 13 M15 9.5 L21.5 16 M12.5 7 L24 18.5"
-              stroke="var(--primary-foreground)"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-            />
-            <circle cx="22.5" cy="22.5" r="2" fill="var(--primary-foreground)" />
-          </svg>
-          <span className="font-display text-[17px] font-bold tracking-tight text-fg">
-            Bid<span className="accent-gradient-text italic">Naija</span>
-          </span>
-        </div>
+        <BrandMark />
         <span className="rounded border border-line-strong bg-accent/5 px-1.5 py-[3px] font-mono text-[9px] tracking-[0.14em] text-accent">
           ADMIN
         </span>
@@ -135,12 +116,7 @@ export function Sidebar({ onNavigate }: Props) {
 
       {/* Footer: user info + logout */}
       <div className="flex items-center gap-2.5 border-t border-line p-3">
-        <div
-          className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-primary-foreground"
-          style={{
-            background: "linear-gradient(135deg, var(--accent), var(--accent-deep))",
-          }}
-        >
+        <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
           {initials}
         </div>
         <div className="min-w-0 flex-1">

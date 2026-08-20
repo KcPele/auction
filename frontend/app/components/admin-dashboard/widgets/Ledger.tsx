@@ -1,6 +1,8 @@
 "use client";
+import { useState } from "react";
 import { useAdminLedger } from "@/app/components/admin/hooks/use-admin-dashboard";
 import type { AdminLedgerEntry } from "@/app/components/admin/types/dashboard.types";
+import { PaginationControls } from "../../ui/PaginationControls";
 import { Card, CardBody, CardHead } from "./Card";
 import { downloadCSV, fmtNGN } from "../utils";
 
@@ -11,8 +13,17 @@ const dateFmt = new Intl.DateTimeFormat("en-NG", {
   hour12: false,
 });
 
-export function Ledger() {
-  const { data, isLoading, isError, refetch } = useAdminLedger({ limit: 50 });
+interface LedgerProps {
+  paginated?: boolean;
+}
+
+export function Ledger({ paginated = false }: LedgerProps) {
+  const [page, setPage] = useState(0);
+  const pageSize = paginated ? 25 : 8;
+  const { data, isLoading, isError, refetch } = useAdminLedger({
+    limit: pageSize,
+    offset: page * pageSize,
+  });
   const items: AdminLedgerEntry[] = data?.items ?? [];
 
   const exportCSV = () => {
@@ -40,46 +51,49 @@ export function Ledger() {
   };
 
   return (
-    <Card>
-      <CardHead
-        title={
-          <>
-            Payment ledger
-            <span className="ml-1.5 text-[11px] font-normal text-fg-dim">
-              last {items.length} entries
-            </span>
-          </>
-        }
-        action={
-          <button
-            type="button"
-            onClick={exportCSV}
-            disabled={items.length === 0}
-            className="bg-transparent text-xs font-medium text-accent hover:text-accent-2 disabled:opacity-50"
-          >
-            Export CSV
-          </button>
-        }
-      />
-      <CardBody flush>
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="px-5 py-10 text-center text-[13px] italic text-fg-dim">
-              Loading…
-            </div>
-          ) : isError ? (
-            <div className="px-5 py-10 text-center text-[13px] italic text-fg-dim">
-              Could not load.{" "}
-              <button onClick={() => refetch()} className="text-accent">
-                Retry
-              </button>
-            </div>
-          ) : items.length === 0 ? (
-            <div className="px-5 py-10 text-center text-[13px] italic text-fg-dim">
-              No ledger activity yet.
-            </div>
-          ) : (
-            <table className="w-full min-w-[560px] border-collapse">
+    <>
+      <Card>
+        <CardHead
+          title={
+            <>
+              Payment ledger
+              <span className="ml-1.5 text-[11px] font-normal text-fg-dim">
+                {paginated
+                  ? `${data?.total ?? 0} total entries`
+                  : `latest ${items.length} entries`}
+              </span>
+            </>
+          }
+          action={
+            <button
+              type="button"
+              onClick={exportCSV}
+              disabled={items.length === 0}
+              className="bg-transparent text-xs font-medium text-accent hover:text-accent-2 disabled:opacity-50"
+            >
+              Export {paginated ? "page" : "CSV"}
+            </button>
+          }
+        />
+        <CardBody flush>
+          <div className="overflow-x-auto">
+            {isLoading ? (
+              <div className="px-5 py-10 text-center text-[13px] italic text-fg-dim">
+                Loading…
+              </div>
+            ) : isError ? (
+              <div className="px-5 py-10 text-center text-[13px] italic text-fg-dim">
+                Could not load.{" "}
+                <button onClick={() => refetch()} className="text-accent">
+                  Retry
+                </button>
+              </div>
+            ) : items.length === 0 ? (
+              <div className="px-5 py-10 text-center text-[13px] italic text-fg-dim">
+                No ledger activity yet.
+              </div>
+            ) : (
+              <table className="w-full min-w-[560px] border-collapse">
               <thead>
                 <tr>
                   {["Time", "Entry", "User", "Action", "Amount"].map((h, i) => (
@@ -123,10 +137,19 @@ export function Ledger() {
                   </tr>
                 ))}
               </tbody>
-            </table>
-          )}
-        </div>
-      </CardBody>
-    </Card>
+              </table>
+            )}
+          </div>
+        </CardBody>
+      </Card>
+      {paginated && (
+        <PaginationControls
+          page={page}
+          pageSize={pageSize}
+          total={data?.total ?? 0}
+          onPageChange={setPage}
+        />
+      )}
+    </>
   );
 }

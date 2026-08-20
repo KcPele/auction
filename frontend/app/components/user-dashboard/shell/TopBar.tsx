@@ -11,6 +11,7 @@ const TITLE_MAP: Record<string, string> = {
   "/dashboard": "Home",
   "/dashboard/browse": "Browse auctions",
   "/dashboard/bids": "My bids",
+  "/dashboard/deliveries": "Deliveries",
   "/dashboard/wallet": "Wallet",
   "/dashboard/wallet/topup": "Top up wallet",
   "/dashboard/notifications": "Notifications",
@@ -40,7 +41,12 @@ export function TopBar() {
   return (
     <div className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-background/90 px-8 py-4 backdrop-blur-md">
       {canBack && (
-        <button className={ICON_BTN_CLASS} onClick={() => router.back()} type="button">
+        <button
+          aria-label="Go back"
+          className={ICON_BTN_CLASS}
+          onClick={() => router.back()}
+          type="button"
+        >
           <Icon name="chevron-l" size={18} />
         </button>
       )}
@@ -50,7 +56,11 @@ export function TopBar() {
       <SearchBox />
       <div className="ml-auto flex items-center gap-2">
         <ThemeToggle />
-        <Link href="/dashboard/notifications" className={ICON_BTN_CLASS}>
+        <Link
+          href="/dashboard/notifications"
+          className={ICON_BTN_CLASS}
+          aria-label={unread > 0 ? `${unread} unread notifications` : "Notifications"}
+        >
           <Icon name="bell" size={18} />
           {unread > 0 && (
             <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-bg bg-red px-1 font-mono text-[9px] font-bold text-fg">

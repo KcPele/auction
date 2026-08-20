@@ -1,15 +1,12 @@
 "use client";
 import { useState } from "react";
-import { toast } from "sonner";
 import {
   useAllAdminWithdrawals,
-  useAuthorizeWithdrawal,
   usePendingWithdrawals,
-  useResendWithdrawalOtp,
 } from "@/app/components/admin/hooks/use-admin-withdrawals";
 import type { Withdrawal } from "@/app/components/wallet/types/wallet.types";
-import { ApiError } from "@/app/lib/api/error";
 import { timeAgo } from "@/app/components/notifications/utils/relative-time";
+import { PaginationControls } from "../../ui/PaginationControls";
 import { fmtNGN } from "../utils";
 import { SectionHeader } from "./SectionHeader";
 
@@ -24,25 +21,33 @@ const TABS: { id: Tab; label: string }[] = [
 const STATUS_STYLE: Record<string, string> = {
   PENDING: "border-warning/30 bg-warning-soft text-warning",
   PROCESSING: "border-info/30 bg-info-soft text-info",
-  COMPLETED: "border-green/30 bg-green/10 text-green",
-  FAILED: "border-red/30 bg-red/10 text-red",
-  REVERSED: "border-red/30 bg-red/10 text-red",
+  COMPLETED: "border-success/30 bg-success-soft text-success",
+  FAILED: "border-danger/30 bg-danger-soft text-danger",
+  REVERSED: "border-danger/30 bg-danger-soft text-danger",
 };
 
 export function WithdrawalsScreen() {
   const [tab, setTab] = useState<Tab>("pending");
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
 
-  const pending = usePendingWithdrawals();
-  const completed = useAllAdminWithdrawals({
-    status: "COMPLETED",
-    limit: 50,
-  });
-  const failed = useAllAdminWithdrawals({ status: "FAILED", limit: 50 });
-
-  const authorize = useAuthorizeWithdrawal();
-  const resend = useResendWithdrawalOtp();
-
-  const [otpFor, setOtpFor] = useState<Record<string, string>>({});
+  const pending = usePendingWithdrawals(tab === "pending");
+  const completed = useAllAdminWithdrawals(
+    {
+      status: "COMPLETED",
+      limit: pageSize,
+      offset: page * pageSize,
+    },
+    tab === "completed",
+  );
+  const failed = useAllAdminWithdrawals(
+    {
+      status: "FAILED",
+      limit: pageSize,
+      offset: page * pageSize,
+    },
+    tab === "failed",
+  );
 
   const items: Withdrawal[] =
     tab === "pending"
@@ -57,37 +62,29 @@ export function WithdrawalsScreen() {
       : tab === "completed"
         ? completed.isLoading
         : failed.isLoading;
-
-  const onAuthorize = async (w: Withdrawal) => {
-    const code = otpFor[w.id]?.trim();
-    if (!code) {
-      toast.error("Enter the authorization code first");
-      return;
-    }
-    try {
-      await authorize.mutateAsync({ id: w.id, authorizationCode: code });
-      toast.success("Withdrawal authorized");
-    } catch (err) {
-      if (err instanceof ApiError) toast.error(err.message);
-      else toast.error("Could not authorize");
-    }
-  };
-
-  const onResend = async (w: Withdrawal) => {
-    try {
-      await resend.mutateAsync(w.id);
-      toast.success("OTP resent");
-    } catch (err) {
-      if (err instanceof ApiError) toast.error(err.message);
-      else toast.error("Could not resend OTP");
-    }
+  const isError =
+    tab === "pending"
+      ? pending.isError
+      : tab === "completed"
+        ? completed.isError
+        : failed.isError;
+  const total =
+    tab === "completed"
+      ? completed.data?.total ?? 0
+      : tab === "failed"
+        ? failed.data?.total ?? 0
+        : items.length;
+  const retry = () => {
+    if (tab === "pending") return pending.refetch();
+    if (tab === "completed") return completed.refetch();
+    return failed.refetch();
   };
 
   return (
     <>
       <SectionHeader
-        title="Withdrawal authorization"
-        sub="Pending payouts plus completed and failed history. Authorize requires OTP code provided by the operator."
+        title="Withdrawals"
+        sub="Monitor provider-processed payouts and review completed or failed history. Pending records refresh automatically."
       />
 
       <div className="mb-3 flex gap-1.5">
@@ -95,7 +92,10 @@ export function WithdrawalsScreen() {
           <button
             key={t.id}
             type="button"
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              setTab(t.id);
+              setPage(0);
+            }}
             className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
               tab === t.id
                 ? "border border-accent bg-accent/[0.12] text-accent"
@@ -109,6 +109,17 @@ export function WithdrawalsScreen() {
 
       {isLoading ? (
         <div className="py-10 text-center text-sm text-fg-dim">Loading…</div>
+      ) : isError ? (
+        <div className="py-10 text-center text-sm text-fg-dim">
+          Could not load withdrawals.{" "}
+          <button
+            type="button"
+            onClick={() => void retry()}
+            className="text-accent"
+          >
+            Retry
+          </button>
+        </div>
       ) : items.length === 0 ? (
         <div className="mt-8 text-center text-sm text-fg-muted">
           No {tab} withdrawals.
@@ -158,40 +169,22 @@ export function WithdrawalsScreen() {
               </div>
 
               {(w.status === "PENDING" || w.status === "PROCESSING") && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <input
-                    value={otpFor[w.id] ?? ""}
-                    onChange={(e) =>
-                      setOtpFor((p) => ({ ...p, [w.id]: e.target.value }))
-                    }
-                    placeholder="OTP / authorization code"
-                    className="min-w-[200px] flex-1 rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-xs outline-none focus:border-accent"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onResend(w)}
-                    disabled={resend.isPending}
-                    className="rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-medium text-fg hover:border-accent/40 disabled:opacity-60"
-                  >
-                    {resend.isPending ? "Resending…" : "Resend OTP"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onAuthorize(w)}
-                    disabled={authorize.isPending}
-                    className="rounded-lg border-none px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-60"
-                    style={{
-                      background:
-                        "linear-gradient(180deg, var(--accent-2), var(--accent))",
-                    }}
-                  >
-                    {authorize.isPending ? "Authorizing…" : "Authorize"}
-                  </button>
-                </div>
+                <p className="mt-3 text-xs text-fg-muted">
+                  Awaiting the payment provider&apos;s status update.
+                </p>
               )}
             </div>
           ))}
         </div>
+      )}
+
+      {tab !== "pending" && !isError && (
+        <PaginationControls
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+        />
       )}
     </>
   );

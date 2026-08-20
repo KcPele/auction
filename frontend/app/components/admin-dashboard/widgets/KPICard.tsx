@@ -23,12 +23,8 @@ const DELTA_SYMBOL: Record<Props["deltaDir"], string> = {
 };
 
 export function KPICard({ label, value, delta, deltaDir, spark, sparkColor, onClick }: Props) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="relative overflow-hidden rounded-[10px] border border-line bg-surface p-3.5 text-left transition-colors hover:border-line-strong sm:p-4"
-    >
+  const content = (
+    <>
       <div className="text-[11px] uppercase tracking-[0.1em] text-fg-dim">{label}</div>
       <div className="mt-2 mb-1 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
         {value}
@@ -39,6 +35,21 @@ export function KPICard({ label, value, delta, deltaDir, spark, sparkColor, onCl
       <div className="absolute right-3 bottom-3 hidden opacity-60 sm:block">
         <Sparkline points={spark} color={sparkColor} />
       </div>
+    </>
+  );
+
+  const className =
+    "relative overflow-hidden rounded-[10px] border border-line bg-surface p-3.5 text-left transition-colors sm:p-4";
+
+  return onClick ? (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${className} hover:border-line-strong`}
+    >
+      {content}
     </button>
+  ) : (
+    <div className={className}>{content}</div>
   );
 }

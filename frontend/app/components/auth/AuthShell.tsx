@@ -13,7 +13,7 @@ export function AuthShell({ variant = "bid", children }: AuthShellProps) {
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-[1.1fr_1fr]">
       <AuthBrandPanel variant={variant} />
-      <div className="relative flex min-h-screen flex-col bg-background px-6 pb-12 pt-8 md:px-14 md:py-12 xl:px-18">
+      <main className="relative flex min-h-screen flex-col bg-background px-6 pb-12 pt-8 md:px-14 md:py-12 xl:px-18">
         <Link className="mb-10 w-fit md:hidden" href="/">
           <BrandMark />
         </Link>
@@ -21,7 +21,7 @@ export function AuthShell({ variant = "bid", children }: AuthShellProps) {
           <ThemeToggle />
         </div>
         {children}
-      </div>
+      </main>
     </div>
   );
 }

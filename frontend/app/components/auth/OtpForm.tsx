@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -17,6 +17,11 @@ export function OtpForm() {
   const router = useRouter();
   const params = useSearchParams();
   const ctx = params.get("ctx") === "register" ? "register" : "login";
+  const requestedNext = params.get("next");
+  const nextPath =
+    requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
+      ? requestedNext
+      : "/dashboard";
 
   const { data: me } = useMe();
   const queryEmail = params.get("email") ?? "";
@@ -38,21 +43,18 @@ export function OtpForm() {
     mutationFn: (otp: string) => verifyEmailOtp({ email, otp }),
     onSuccess: () => {
       toast.success("Email verified");
-      router.replace(ctx === "register" ? "/dashboard" : "/verified");
+      const query = new URLSearchParams({
+        verified: "1",
+        email,
+        next: nextPath,
+      });
+      router.replace(`/login?${query.toString()}`);
     },
     onError: (err) => {
       if (err instanceof ApiError) toast.error(err.message);
       else toast.error("Could not verify");
     },
   });
-
-  // Auto-send on first mount when email is known.
-  useEffect(() => {
-    if (email && !send.data && !send.isPending) {
-      send.mutate();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email]);
 
   const full = code.join("").length === 6;
   const backTo = ctx === "register" ? "/register" : "/login";

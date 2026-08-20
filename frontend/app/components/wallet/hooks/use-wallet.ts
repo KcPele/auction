@@ -7,9 +7,12 @@ import {
   getWallet,
   initiateTopup,
   listMyWithdrawals,
+  listSupportedBanks,
+  resolveBankAccount,
   simulateTopup,
 } from "../api/wallet.api";
 import type { WithdrawalStatus } from "../types/wallet.types";
+import type { ActivityBucket } from "../utils/ledger-display";
 import { walletKeys } from "./wallet-keys";
 
 export function useWallet() {
@@ -19,12 +22,22 @@ export function useWallet() {
   });
 }
 
-export function useLedger(params: { limit?: number; offset?: number } = {}) {
+export function useLedger(
+  params: {
+    limit?: number;
+    offset?: number;
+    activity?: ActivityBucket;
+  } = {},
+) {
   const limit = params.limit ?? 20;
   const offset = params.offset ?? 0;
   return useQuery({
-    queryKey: walletKeys.ledgerPage({ limit, offset }),
-    queryFn: () => getLedger({ limit, offset }),
+    queryKey: walletKeys.ledgerPage({
+      limit,
+      offset,
+      activity: params.activity,
+    }),
+    queryFn: () => getLedger({ limit, offset, activity: params.activity }),
     placeholderData: (prev) => prev,
   });
 }
@@ -84,4 +97,16 @@ export function useCreateWithdrawal() {
       qc.invalidateQueries({ queryKey: walletKeys.withdrawals() });
     },
   });
+}
+
+export function useSupportedBanks() {
+  return useQuery({
+    queryKey: walletKeys.banks(),
+    queryFn: listSupportedBanks,
+    staleTime: 24 * 60 * 60 * 1_000,
+  });
+}
+
+export function useResolveBankAccount() {
+  return useMutation({ mutationFn: resolveBankAccount });
 }

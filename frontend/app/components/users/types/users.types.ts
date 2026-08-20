@@ -29,6 +29,13 @@ export type UserBidItemDto = {
 export type ListUserBidsResponseDto = {
   items: UserBidItemDto[];
   total: number;
+  counts: UserBidCounts;
+};
+
+export type UserBidCounts = {
+  active: number;
+  past: number;
+  won: number;
 };
 
 export type UserBid = {
@@ -130,4 +137,49 @@ export type WatchlistItem = {
   startTime: Date | null;
   endTime: Date | null;
   photoUrl: string | null;
+};
+
+export type UserDisputeStatus = "OPEN" | "INVESTIGATING" | "RESOLVED";
+
+export type UserDisputeDto = {
+  id: string;
+  auctionId: string;
+  buyerId: string;
+  sellerId: string;
+  amountKobo: string;
+  reason: string;
+  status: UserDisputeStatus;
+  resolution: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UserDispute = Omit<
+  UserDisputeDto,
+  "resolvedAt" | "createdAt" | "updatedAt"
+> & {
+  resolvedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type UserDeliveryDto = {
+  auctionId: string;
+  title: string;
+  category: "CAR" | "GADGET";
+  role: "BUYER" | "SELLER";
+  status:
+    | "PAYMENT_CONFIRMED"
+    | "SELLER_SHIPS"
+    | "INSPECTION"
+    | "DISPATCH"
+    | "DELIVERED";
+  trackingInfo: string | null;
+  updatedAt: string;
+};
+
+export type UserDelivery = Omit<UserDeliveryDto, "category" | "updatedAt"> & {
+  category: "cars" | "gadgets";
+  updatedAt: Date;
 };

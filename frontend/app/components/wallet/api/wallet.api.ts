@@ -1,11 +1,13 @@
 import { apiClient } from "@/app/lib/api/client";
 import { koboToNaira, nairaToKobo } from "@/app/lib/format/money";
 import type {
+  BankOption,
   CreateWithdrawalInput,
   FundingAccount,
   GetFundingAccountResponseDto,
   GetWalletResponseDto,
   LedgerEntry,
+  LedgerPage,
   LedgerEntryDto,
   ListLedgerResponseDto,
   ListWithdrawalsResponseDto,
@@ -13,7 +15,9 @@ import type {
   Withdrawal,
   WithdrawalDto,
   WithdrawalStatus,
+  ResolvedBankAccount,
 } from "../types/wallet.types";
+import type { ActivityBucket } from "../utils/ledger-display";
 
 const TYPE_LABEL: Record<LedgerEntryDto["type"], string> = {
   WALLET_FUNDING_CONFIRMED: "Wallet top-up",
@@ -82,15 +86,19 @@ export const getWallet = async (): Promise<Wallet> => {
 };
 
 export const getLedger = async (
-  params: { limit?: number; offset?: number } = {},
-): Promise<LedgerEntry[]> => {
-  const { ledgerEntries } = await apiClient<ListLedgerResponseDto>(
+  params: { limit?: number; offset?: number; activity?: ActivityBucket } = {},
+): Promise<LedgerPage> => {
+  const { ledgerEntries, total } = await apiClient<ListLedgerResponseDto>(
     "/wallets/me/ledger",
     {
-      query: { limit: params.limit ?? 20, offset: params.offset ?? 0 },
+      query: {
+        limit: params.limit ?? 20,
+        offset: params.offset ?? 0,
+        activity: params.activity,
+      },
     },
   );
-  return ledgerEntries.map(toLedgerEntry);
+  return { items: ledgerEntries.map(toLedgerEntry), total };
 };
 
 export const listMyWithdrawals = async (
@@ -128,7 +136,7 @@ export const getFundingAccount = async (): Promise<FundingAccount> => {
 
 export const initiateTopup = (input: {
   amountNaira: number;
-  method: "strowallet" | "bank_transfer";
+  method: "bank_transfer";
   category?: string;
 }): Promise<FundingAccount> =>
   apiClient<FundingAccount>("/wallets/topup/initiate", {
@@ -165,4 +173,17 @@ export const createWithdrawal = (input: CreateWithdrawalInput) =>
       ...(input.narration ? { narration: input.narration } : {}),
     },
     headers: { "Idempotency-Key": crypto.randomUUID() },
+  });
+
+export const listSupportedBanks = async (): Promise<BankOption[]> => {
+  const { banks } = await apiClient<{ banks: BankOption[] }>("/payments/banks");
+  return banks;
+};
+
+export const resolveBankAccount = (input: {
+  bankCode: string;
+  accountNumber: string;
+}) =>
+  apiClient<ResolvedBankAccount>("/payments/banks/account-name", {
+    query: input,
   });

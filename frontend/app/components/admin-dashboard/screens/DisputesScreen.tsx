@@ -12,6 +12,7 @@ import { koboToNaira } from "@/app/lib/format/money";
 import { timeAgo } from "@/app/components/notifications/utils/relative-time";
 import { Card, CardBody, CardHead } from "../widgets/Card";
 import { Modal } from "../../ui/Modal";
+import { PaginationControls } from "../../ui/PaginationControls";
 import { fmtNGN } from "../utils";
 import { SectionHeader } from "./SectionHeader";
 
@@ -32,8 +33,12 @@ const FILTERS: { id: Filter; label: string }[] = [
 
 export function DisputesScreen() {
   const [filter, setFilter] = useState<Filter>("all");
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
   const { data, isLoading, isError, refetch } = useAdminDisputes({
     status: filter === "all" ? undefined : filter,
+    limit: pageSize,
+    offset: page * pageSize,
   });
   const investigate = useInvestigateDispute();
   const resolve = useResolveDispute();
@@ -86,7 +91,10 @@ export function DisputesScreen() {
                 <button
                   key={f.id}
                   type="button"
-                  onClick={() => setFilter(f.id)}
+                  onClick={() => {
+                    setFilter(f.id);
+                    setPage(0);
+                  }}
                   className={`rounded-md border px-2.5 py-1 text-[11px] capitalize ${
                     filter === f.id
                       ? "border-accent/40 bg-accent/10 text-accent"
@@ -182,6 +190,13 @@ export function DisputesScreen() {
           )}
         </CardBody>
       </Card>
+
+      <PaginationControls
+        page={page}
+        pageSize={pageSize}
+        total={data?.total ?? 0}
+        onPageChange={setPage}
+      />
 
       <Modal
         open={!!resolving}

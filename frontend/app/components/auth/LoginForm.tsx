@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
@@ -17,7 +17,13 @@ import { signInSchema, type SignInForm } from "./utils/auth.schema";
 
 export function LoginForm() {
   const router = useRouter();
+  const params = useSearchParams();
   const [showPw, setShowPw] = useState(false);
+  const requestedNext = params.get("next");
+  const nextPath =
+    requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
+      ? requestedNext
+      : null;
 
   const {
     control,
@@ -26,7 +32,11 @@ export function LoginForm() {
     formState: { errors, isSubmitting },
   } = useForm<SignInForm>({
     resolver: zodResolver(signInSchema),
-    defaultValues: { email: "", password: "", remember: true },
+    defaultValues: {
+      email: params.get("email") ?? "",
+      password: "",
+      remember: true,
+    },
     mode: "onTouched",
   });
 
@@ -34,13 +44,36 @@ export function LoginForm() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await signIn({ email: data.email, password: data.password });
+      await signIn({
+        email: data.email,
+        password: data.password,
+        rememberMe: Boolean(data.remember),
+      });
       const me = await getMe();
       toast.success("Welcome back");
-      router.replace(me.role === "ADMIN" ? "/admin" : "/dashboard");
+      const roleSafeNext =
+        me.role === "ADMIN"
+          ? nextPath?.startsWith("/admin")
+            ? nextPath
+            : "/admin"
+          : nextPath?.startsWith("/admin")
+            ? "/dashboard"
+            : (nextPath ?? "/dashboard");
+      router.replace(roleSafeNext);
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 401 || err.code === "INVALID_EMAIL_OR_PASSWORD") {
+        if (err.status === 403 && err.code === "EMAIL_NOT_VERIFIED") {
+          const query = new URLSearchParams({
+            ctx: "login",
+            email: data.email,
+            next: nextPath ?? "/dashboard",
+          });
+          toast.error("Verify your email to continue");
+          router.push(`/otp?${query.toString()}`);
+        } else if (
+          err.status === 401 ||
+          err.code === "INVALID_EMAIL_OR_PASSWORD"
+        ) {
           toast.error("Invalid email or password");
         } else {
           toast.error(err.message || "Could not sign in");
@@ -69,6 +102,11 @@ export function LoginForm() {
         title="Welcome back."
         subtitle="Sign in to manage your bids, payments, and listings."
       >
+        {params.get("verified") === "1" && (
+          <div className="mb-5 rounded-lg border border-success/30 bg-success-soft px-3.5 py-3 text-sm text-success">
+            Email verified. Sign in to continue.
+          </div>
+        )}
         <Field htmlFor="login-email" label="Email address" hint={errors.email?.message}>
           <Input
             autoComplete="email"

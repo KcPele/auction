@@ -21,20 +21,12 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../users/entities/user.entity';
 import { SupportConversation } from './entities/support-conversation.entity';
 import { SupportMessage } from './entities/support-message.entity';
-import { SupportAiSetting } from './entities/support-ai-setting.entity';
-import { SupportAiTools } from './support-ai.tools';
-import {
-  DEFAULT_SUPPORT_SYSTEM_PROMPT,
-  SUPPORT_TOOLS,
-} from './support-ai.prompt';
-import {
-  OpenRouterClient,
-  type ChatMessage,
-} from './openrouter.client';
 import { SupportGateway } from './support.gateway';
-
-const MAX_TOOL_ITERATIONS = 4;
-const HISTORY_TOKEN_BUDGET = 20; // keep the last 20 turns
+import { SupportAiRunner } from './support-ai-runner.service';
+import {
+  presentSupportConversation,
+  presentSupportMessage,
+} from './support.presenter';
 
 export interface MessageView {
   id: string;
@@ -56,12 +48,9 @@ export class SupportService {
     private readonly convRepo: Repository<SupportConversation>,
     @InjectRepository(SupportMessage)
     private readonly msgRepo: Repository<SupportMessage>,
-    @InjectRepository(SupportAiSetting)
-    private readonly settingsRepo: Repository<SupportAiSetting>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
-    private readonly tools: SupportAiTools,
-    private readonly openRouter: OpenRouterClient,
+    private readonly aiRunner: SupportAiRunner,
     private readonly notificationsService: NotificationsService,
     @Inject(forwardRef(() => SupportGateway))
     private readonly gateway: SupportGateway,
@@ -79,7 +68,7 @@ export class SupportService {
         userLastReadAt: new Date(),
       }),
     );
-    return this.presentConversation(conv);
+    return presentSupportConversation(conv);
   }
 
   async listMyConversations(userId: string) {
@@ -88,15 +77,22 @@ export class SupportService {
       order: { lastMessageAt: 'DESC', createdAt: 'DESC' },
       take: 50,
     });
-    return convs.map((c) => this.presentConversation(c));
+    return convs.map((c) => presentSupportConversation(c));
   }
 
-  async listAllConversations(filter: { state?: SupportConversationState } = {}) {
+  async listAllConversations(
+    filter: {
+      state?: SupportConversationState;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ) {
     const where = filter.state ? { state: filter.state } : {};
-    const convs = await this.convRepo.find({
+    const [convs, total] = await this.convRepo.findAndCount({
       where,
       order: { lastMessageAt: 'DESC', createdAt: 'DESC' },
-      take: 100,
+      take: filter.limit ?? 25,
+      skip: filter.offset ?? 0,
     });
 
     // Batch-load the users so we can show name + email in the admin UI.
@@ -108,13 +104,18 @@ export class SupportService {
       : [];
     const userMap = new Map(users.map((u) => [u.id, u]));
 
-    return convs.map((c) => this.presentConversation(c, userMap.get(c.userId)));
+    return {
+      items: convs.map((c) =>
+        presentSupportConversation(c, userMap.get(c.userId)),
+      ),
+      total,
+    };
   }
 
   async getConversation(user: AuthenticatedUser, id: string) {
     const conv = await this.findConvForUser(user, id);
     const userEntity = await this.userRepo.findOneBy({ id: conv.userId });
-    return this.presentConversation(conv, userEntity ?? undefined);
+    return presentSupportConversation(conv, userEntity ?? undefined);
   }
 
   async listMessages(user: AuthenticatedUser, id: string): Promise<MessageView[]> {
@@ -130,7 +131,7 @@ export class SupportService {
       conv.userLastReadAt = new Date();
     }
     await this.convRepo.save(conv);
-    return messages.map((m) => this.presentMessage(m));
+    return messages.map((m) => presentSupportMessage(m));
   }
 
   async markRead(user: AuthenticatedUser, id: string) {
@@ -174,7 +175,7 @@ export class SupportService {
 
     if (
       conv.state !== SupportConversationState.AiActive ||
-      !(await this.aiEnabled())
+      !(await this.aiRunner.isEnabled())
     ) {
       // Admin is handling — no AI reply.
       return { userMessage, state: conv.state };
@@ -223,6 +224,7 @@ export class SupportService {
   ) {
     this.requireAdmin(admin);
     const conv = await this.convRepo.findOneByOrFail({ id });
+    this.assertAdminOwnsConversation(admin, conv);
     const trimmed = (content ?? '').trim();
     if (!trimmed) throw new BadRequestException('Message is required');
 
@@ -255,7 +257,7 @@ export class SupportService {
       data: { conversationId: conv.id, kind: 'support_message' },
     });
 
-    return this.presentMessage(message);
+    return presentSupportMessage(message);
   }
 
   // --- Handoff + assignment --------------------------------------------
@@ -270,7 +272,7 @@ export class SupportService {
       conv.state === SupportConversationState.AdminActive ||
       conv.state === SupportConversationState.WaitingAdmin
     ) {
-      return this.presentConversation(conv);
+      return presentSupportConversation(conv);
     }
     conv.state = SupportConversationState.WaitingAdmin;
     conv.handoffReason = reason?.slice(0, 500) ?? 'User requested human assistance';
@@ -285,12 +287,13 @@ export class SupportService {
     this.gateway.emitStateChanged(conv);
     await this.notifyAdminsOfHandoff(conv);
 
-    return this.presentConversation(conv);
+    return presentSupportConversation(conv);
   }
 
   async assignToAdmin(admin: AuthenticatedUser, id: string) {
     this.requireAdmin(admin);
     const conv = await this.convRepo.findOneByOrFail({ id });
+    this.assertAdminOwnsConversation(admin, conv);
     conv.assignedAdminId = admin.id;
     conv.state = SupportConversationState.AdminActive;
     await this.convRepo.save(conv);
@@ -300,12 +303,13 @@ export class SupportService {
       content: 'Admin took over the conversation.',
     });
     this.gateway.emitStateChanged(conv);
-    return this.presentConversation(conv);
+    return presentSupportConversation(conv);
   }
 
   async releaseToAi(admin: AuthenticatedUser, id: string) {
     this.requireAdmin(admin);
     const conv = await this.convRepo.findOneByOrFail({ id });
+    this.assertAdminOwnsConversation(admin, conv);
     conv.assignedAdminId = null;
     conv.state = SupportConversationState.AiActive;
     await this.convRepo.save(conv);
@@ -315,12 +319,13 @@ export class SupportService {
       content: 'Admin handed the conversation back to the AI assistant.',
     });
     this.gateway.emitStateChanged(conv);
-    return this.presentConversation(conv);
+    return presentSupportConversation(conv);
   }
 
   async resolve(admin: AuthenticatedUser, id: string) {
     this.requireAdmin(admin);
     const conv = await this.convRepo.findOneByOrFail({ id });
+    this.assertAdminOwnsConversation(admin, conv);
     conv.state = SupportConversationState.Resolved;
     await this.convRepo.save(conv);
     await this.saveMessage(conv, {
@@ -329,21 +334,27 @@ export class SupportService {
       content: 'Conversation marked resolved.',
     });
     this.gateway.emitStateChanged(conv);
-    return this.presentConversation(conv);
+    return presentSupportConversation(conv);
   }
 
   // --- Settings --------------------------------------------------------
 
   async getSettings() {
-    const s = await this.ensureSettings();
-    return {
-      model: s.model,
-      temperature: Number(s.temperature),
-      maxOutputTokens: s.maxOutputTokens,
-      systemPromptOverride: s.systemPromptOverride,
-      enabled: s.enabled,
-      updatedAt: s.updatedAt,
-    };
+    return this.aiRunner.getSettings();
+  }
+
+  private assertAdminOwnsConversation(
+    admin: AuthenticatedUser,
+    conversation: SupportConversation,
+  ) {
+    if (
+      conversation.assignedAdminId &&
+      conversation.assignedAdminId !== admin.id
+    ) {
+      throw new ForbiddenException(
+        'This conversation is assigned to another administrator',
+      );
+    }
   }
 
   async updateSettings(input: {
@@ -353,33 +364,7 @@ export class SupportService {
     systemPromptOverride?: string | null;
     enabled?: boolean;
   }) {
-    const s = await this.ensureSettings();
-    if (input.model !== undefined) {
-      if (!input.model.trim()) {
-        throw new BadRequestException('model must not be empty');
-      }
-      s.model = input.model.trim().slice(0, 200);
-    }
-    if (input.temperature !== undefined) {
-      if (input.temperature < 0 || input.temperature > 2) {
-        throw new BadRequestException('temperature must be between 0 and 2');
-      }
-      s.temperature = String(input.temperature);
-    }
-    if (input.maxOutputTokens !== undefined) {
-      if (input.maxOutputTokens < 64 || input.maxOutputTokens > 4000) {
-        throw new BadRequestException('maxOutputTokens must be between 64 and 4000');
-      }
-      s.maxOutputTokens = input.maxOutputTokens;
-    }
-    if (input.systemPromptOverride !== undefined) {
-      s.systemPromptOverride = input.systemPromptOverride?.trim() || null;
-    }
-    if (input.enabled !== undefined) {
-      s.enabled = input.enabled;
-    }
-    await this.settingsRepo.save(s);
-    return this.getSettings();
+    return this.aiRunner.updateSettings(input);
   }
 
   // --- Internal helpers ------------------------------------------------
@@ -421,28 +406,7 @@ export class SupportService {
     );
     conv.lastMessageAt = saved.createdAt;
     await this.convRepo.save(conv);
-    return this.presentMessage(saved);
-  }
-
-  private async ensureSettings(): Promise<SupportAiSetting> {
-    let s = await this.settingsRepo.findOneBy({ id: 'default' });
-    if (!s) {
-      s = await this.settingsRepo.save(
-        this.settingsRepo.create({
-          id: 'default',
-          model: 'xiaomi/mimo-v2-flash',
-          temperature: '0.2',
-          maxOutputTokens: 800,
-          enabled: true,
-        }),
-      );
-    }
-    return s;
-  }
-
-  private async aiEnabled() {
-    const s = await this.ensureSettings();
-    return s.enabled;
+    return presentSupportMessage(saved);
   }
 
   // --- AI turn --------------------------------------------------------
@@ -450,86 +414,26 @@ export class SupportService {
   private async runAssistantTurn(
     conv: SupportConversation,
   ): Promise<MessageView | null> {
-    const settings = await this.ensureSettings();
-    const history = await this.buildHistory(conv);
-    const systemPrompt =
-      settings.systemPromptOverride?.trim() || DEFAULT_SUPPORT_SYSTEM_PROMPT;
-
-    const messages: ChatMessage[] = [
-      { role: 'system', content: systemPrompt },
-      ...history,
-    ];
-
-    let toolCallsCollected: SupportMessage['toolCalls'] = [];
-    let assistantText = '';
-    let handoffReason: string | null = null;
-
-    for (let i = 0; i < MAX_TOOL_ITERATIONS; i += 1) {
-      const response = await this.openRouter.chat({
-        model: settings.model,
-        messages,
-        tools: SUPPORT_TOOLS,
-        temperature: Number(settings.temperature),
-        max_tokens: settings.maxOutputTokens,
-        tool_choice: 'auto',
-      });
-      const choice = response.choices[0];
-      if (!choice) break;
-      const reply = choice.message;
-      messages.push({
-        role: 'assistant',
-        content: reply.content ?? '',
-        tool_calls: reply.tool_calls,
-      });
-      assistantText = reply.content ?? '';
-
-      if (!reply.tool_calls || reply.tool_calls.length === 0) {
-        break;
-      }
-
-      // Execute tools, append tool messages, loop.
-      for (const call of reply.tool_calls) {
-        const args = this.safeParseJson(call.function.arguments);
-        const result = await this.tools.run(call.function.name, args, conv.userId);
-        toolCallsCollected = [
-          ...(toolCallsCollected ?? []),
-          { name: call.function.name, args, result },
-        ];
-        if (
-          call.function.name === 'request_human_handoff' &&
-          typeof (result as Record<string, unknown>).handoffRequested === 'boolean'
-        ) {
-          handoffReason =
-            String((result as Record<string, unknown>).reason ?? 'Handoff requested');
-        }
-        messages.push({
-          role: 'tool',
-          tool_call_id: call.id,
-          name: call.function.name,
-          content: JSON.stringify(result),
-        });
-      }
-    }
+    const generated = await this.aiRunner.generate(conv);
 
     const aiMessage = await this.saveMessage(conv, {
       role: SupportMessageRole.Ai,
       authorId: null,
       content:
-        assistantText.trim() ||
-        'Sorry — I could not generate a reply. Try rephrasing, or ask me to bring in a human.',
-      toolCalls: toolCallsCollected.length ? toolCallsCollected : null,
-      model: settings.model,
+        generated.content,
+      toolCalls: generated.toolCalls,
+      model: generated.model,
     });
     this.gateway.emitMessage(conv.id, aiMessage);
 
     // If the model used the handoff tool, flip state + notify admins. We do
     // this AFTER persisting the assistant text so the user sees the reply
     // confirming the handoff.
-    if (handoffReason) {
+    if (generated.handoffReason) {
       const fresh = await this.convRepo.findOneByOrFail({ id: conv.id });
       if (fresh.state === SupportConversationState.AiActive) {
         fresh.state = SupportConversationState.WaitingAdmin;
-        fresh.handoffReason = handoffReason;
+        fresh.handoffReason = generated.handoffReason;
         await this.convRepo.save(fresh);
         this.gateway.emitStateChanged(fresh);
         await this.notifyAdminsOfHandoff(fresh);
@@ -540,41 +444,6 @@ export class SupportService {
     await this.maybeNotifyUserOfReply(conv.userId, conv.id, aiMessage.content);
 
     return aiMessage;
-  }
-
-  private async buildHistory(conv: SupportConversation): Promise<ChatMessage[]> {
-    const recent = await this.msgRepo.find({
-      where: { conversationId: conv.id },
-      order: { createdAt: 'DESC' },
-      take: HISTORY_TOKEN_BUDGET,
-    });
-    return recent
-      .reverse()
-      .filter((m) => m.role !== SupportMessageRole.System)
-      .map<ChatMessage>((m) => {
-        if (m.role === SupportMessageRole.User) {
-          return { role: 'user', content: m.content };
-        }
-        if (m.role === SupportMessageRole.Admin) {
-          // Admin messages are visible to the model so it can take over after
-          // a handback gracefully. Prefix to make the source obvious.
-          return { role: 'user', content: `[Human admin replied]: ${m.content}` };
-        }
-        if (m.role === SupportMessageRole.Ai) {
-          return { role: 'assistant', content: m.content };
-        }
-        return { role: 'user', content: m.content };
-      });
-  }
-
-  private safeParseJson(value: string): Record<string, unknown> {
-    if (!value) return {};
-    try {
-      const parsed = JSON.parse(value);
-      return typeof parsed === 'object' && parsed ? (parsed as Record<string, unknown>) : {};
-    } catch {
-      return {};
-    }
   }
 
   private async notifyAdminsOfHandoff(conv: SupportConversation) {
@@ -619,44 +488,4 @@ export class SupportService {
     });
   }
 
-  // --- Presenters ------------------------------------------------------
-
-  private presentConversation(conv: SupportConversation, user?: User) {
-    const unreadForUser =
-      conv.lastMessageAt &&
-      (!conv.userLastReadAt || conv.lastMessageAt > conv.userLastReadAt);
-    const unreadForAdmin =
-      conv.lastMessageAt &&
-      (!conv.adminLastReadAt || conv.lastMessageAt > conv.adminLastReadAt);
-    return {
-      id: conv.id,
-      userId: conv.userId,
-      userName: user ? `${user.firstName} ${user.lastName}`.trim() : null,
-      userEmail: user?.email ?? null,
-      state: conv.state,
-      subject: conv.subject,
-      assignedAdminId: conv.assignedAdminId,
-      handoffReason: conv.handoffReason,
-      lastMessageAt: conv.lastMessageAt,
-      userLastReadAt: conv.userLastReadAt,
-      adminLastReadAt: conv.adminLastReadAt,
-      unreadForUser: Boolean(unreadForUser),
-      unreadForAdmin: Boolean(unreadForAdmin),
-      createdAt: conv.createdAt,
-      updatedAt: conv.updatedAt,
-    };
-  }
-
-  private presentMessage(m: SupportMessage): MessageView {
-    return {
-      id: m.id,
-      conversationId: m.conversationId,
-      role: m.role,
-      authorId: m.authorId,
-      content: m.content,
-      toolCalls: m.toolCalls,
-      model: m.model,
-      createdAt: m.createdAt,
-    };
-  }
 }

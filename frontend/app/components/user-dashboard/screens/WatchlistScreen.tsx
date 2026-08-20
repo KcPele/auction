@@ -116,6 +116,7 @@ function Card({
         </div>
         <button
           type="button"
+          aria-label={`Remove ${w.title} from watchlist`}
           onClick={() => onRemove(w.auctionId)}
           className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-fg-dim hover:bg-red/[0.08] hover:text-red"
         >

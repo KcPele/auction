@@ -17,6 +17,7 @@ import { BidsGateway } from './bids.gateway';
 import { PlaceBidDto } from './dto/place-bid.dto';
 import { Bid } from './entities/bid.entity';
 import { presentBid } from './presenters/bid.presenter';
+import { KycRequirementService } from '../kyc/kyc-requirement.service';
 
 @Injectable()
 export class BidsService {
@@ -31,9 +32,11 @@ export class BidsService {
     private readonly walletsService: WalletsService,
     private readonly bidsGateway: BidsGateway,
     private readonly notificationsService: NotificationsService,
+    private readonly kycRequirement: KycRequirementService,
   ) {}
 
   async placeBid(userId: string, auctionId: string, dto: PlaceBidDto) {
+    await this.kycRequirement.assertCanBid(userId);
     const result = await this.dataSource.transaction(async (manager) => {
       const auction = await this.findAuctionForUpdate(manager, auctionId);
 
@@ -46,7 +49,7 @@ export class BidsService {
         dto.amountKobo,
       );
       const requiredBalanceKobo = this.calculateRequiredBalance(
-        auction.basePriceKobo,
+        dto.amountKobo,
         auction.holdPercent,
       );
       await this.walletsService.assertBidQualification(manager, {
@@ -164,8 +167,8 @@ export class BidsService {
     return true;
   }
 
-  private calculateRequiredBalance(basePriceKobo: number, holdPercent: number) {
-    return Math.ceil((basePriceKobo * holdPercent) / 100);
+  private calculateRequiredBalance(bidAmountKobo: number, holdPercent: number) {
+    return Math.ceil((bidAmountKobo * holdPercent) / 100);
   }
 
   private async replaceTopBid(

@@ -7,9 +7,13 @@ const AbilityContext = createContext<AppAbility | null>(null);
 
 export function AbilityProvider({ children }: { children: ReactNode }) {
   const { data } = useMe();
+  const listingCategories = useMemo(
+    () => data?.listingPermissions.map((permission) => permission.category) ?? [],
+    [data?.listingPermissions],
+  );
   const ability = useMemo(
-    () => buildAbilityFor(data?.role),
-    [data?.role],
+    () => buildAbilityFor(data?.role, listingCategories),
+    [data?.role, listingCategories],
   );
   return (
     <AbilityContext.Provider value={ability}>{children}</AbilityContext.Provider>

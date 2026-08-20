@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +15,7 @@ import {
   assertHoldPercent,
 } from '../../common/utils/listing-validation';
 import { UserListingPermission } from '../users/entities/user-listing-permission.entity';
+import { PlatformToggle } from '../admin/entities/platform-toggle.entity';
 import { CreateGadgetListingDto } from './dto/create-gadget-listing.dto';
 import { UpdateGadgetListingDto } from './dto/update-gadget-listing.dto';
 import { GadgetListing } from './entities/gadget-listing.entity';
@@ -25,6 +27,8 @@ export class GadgetsService {
     private readonly gadgetListingsRepository: Repository<GadgetListing>,
     @InjectRepository(UserListingPermission)
     private readonly permissionsRepository: Repository<UserListingPermission>,
+    @InjectRepository(PlatformToggle)
+    private readonly platformTogglesRepository: Repository<PlatformToggle>,
   ) {}
 
   async create(userId: string, dto: CreateGadgetListingDto) {
@@ -58,7 +62,7 @@ export class GadgetsService {
   }
 
   async update(userId: string, id: string, dto: UpdateGadgetListingDto) {
-    const listing = await this.findOwnDraft(userId, id);
+    const listing = await this.findOwnEditable(userId, id);
 
     if (dto.holdPercent || dto.startTime) {
       this.validateSchedule(
@@ -67,6 +71,14 @@ export class GadgetsService {
       );
     }
 
+    if (listing.status === ListingStatus.Rejected) {
+      Object.assign(listing, {
+        status: ListingStatus.Draft,
+        reviewedById: null,
+        reviewNote: null,
+        reviewedAt: null,
+      });
+    }
     Object.assign(listing, this.mapPartialDto(dto));
 
     return {
@@ -75,6 +87,7 @@ export class GadgetsService {
   }
 
   async submit(userId: string, id: string) {
+    await this.ensureSubmissionsOpen();
     const listing = await this.findOwnDraft(userId, id);
     assertFutureStartTime(listing.startTime);
     listing.status = ListingStatus.PendingApproval;
@@ -82,6 +95,18 @@ export class GadgetsService {
     return {
       gadgetListing: await this.gadgetListingsRepository.save(listing),
     };
+  }
+
+  private async ensureSubmissionsOpen() {
+    const toggles = await this.platformTogglesRepository.findOneBy({
+      id: 'default',
+    });
+
+    if (toggles?.pauseNewListings) {
+      throw new ServiceUnavailableException(
+        'New listing submissions are temporarily paused',
+      );
+    }
   }
 
   private async ensureListingAccess(userId: string) {
@@ -106,14 +131,28 @@ export class GadgetsService {
   }
 
   private async findOwnDraft(userId: string, id: string) {
+    const listing = await this.findOwnEditable(userId, id);
+
+    if (listing.status !== ListingStatus.Draft) {
+      throw new BadRequestException('Edit a rejected listing before resubmitting');
+    }
+
+    return listing;
+  }
+
+  private async findOwnEditable(userId: string, id: string) {
     const listing = await this.findListing(id);
 
     if (listing.listerId !== userId) {
       throw new NotFoundException('Gadget listing not found');
     }
 
-    if (listing.status !== ListingStatus.Draft) {
-      throw new BadRequestException('Only draft listings can be changed');
+    if (
+      ![ListingStatus.Draft, ListingStatus.Rejected].includes(listing.status)
+    ) {
+      throw new BadRequestException(
+        'Only draft or rejected listings can be changed',
+      );
     }
 
     return listing;

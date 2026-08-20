@@ -9,6 +9,10 @@ import { Wallet } from '../wallets/entities/wallet.entity';
 import { Bid } from '../bids/entities/bid.entity';
 import type { WalletsService } from '../wallets/wallets.service';
 import { AuctionSettlementService } from './auction-settlement.service';
+import { AuctionDelivery } from './entities/auction-delivery.entity';
+import { WalletHold } from '../wallets/entities/wallet-hold.entity';
+import { WalletHoldStatus } from '../../common/enums/wallet-hold-status.enum';
+import { DeliveryStatus } from '../../common/enums/delivery-status.enum';
 
 describe('AuctionSettlementService', () => {
   let dataSource: { transaction: jest.Mock };
@@ -16,8 +20,9 @@ describe('AuctionSettlementService', () => {
   let bidsRepository: { findOneBy: jest.Mock };
   let paymentAccountsRepository: { findOneBy: jest.Mock };
   let deliveryRepository: { findOneBy: jest.Mock; save: jest.Mock };
+  let walletHoldsRepository: { findOneBy: jest.Mock };
   let notificationsService: { create: jest.Mock };
-  let walletsService: { releaseBidHold: jest.Mock; forfeitBidHold: jest.Mock };
+  let walletsService: { applyBidHold: jest.Mock; forfeitBidHold: jest.Mock };
   let service: AuctionSettlementService;
 
   beforeEach(() => {
@@ -26,9 +31,10 @@ describe('AuctionSettlementService', () => {
     bidsRepository = { findOneBy: jest.fn() };
     paymentAccountsRepository = { findOneBy: jest.fn() };
     deliveryRepository = { findOneBy: jest.fn(), save: jest.fn() };
+    walletHoldsRepository = { findOneBy: jest.fn() };
     notificationsService = { create: jest.fn() };
     walletsService = {
-      releaseBidHold: jest.fn(),
+      applyBidHold: jest.fn(),
       forfeitBidHold: jest.fn(),
     };
     service = new AuctionSettlementService(
@@ -37,6 +43,7 @@ describe('AuctionSettlementService', () => {
       bidsRepository as never,
       paymentAccountsRepository as never,
       deliveryRepository as never,
+      walletHoldsRepository as never,
       notificationsService as unknown as NotificationsService,
       walletsService as unknown as WalletsService,
     );
@@ -58,6 +65,7 @@ describe('AuctionSettlementService', () => {
       accountNumber: '3635734512',
       accountName: 'KcPele Auctions',
     });
+    walletHoldsRepository.findOneBy.mockResolvedValue({ amountKobo: 700000 });
 
     await expect(
       service.getPaymentInstructions(
@@ -71,7 +79,12 @@ describe('AuctionSettlementService', () => {
       ),
     ).resolves.toEqual({
       auction: expect.objectContaining({ id: auction.id }),
-      winningBid: { id: 'winning-bid-id', amountKobo: 7000000 },
+      winningBid: {
+        id: 'winning-bid-id',
+        amountKobo: 7000000,
+        holdAppliedKobo: 700000,
+        amountDueKobo: 6300000,
+      },
       paymentDeadlineAt: auction.paymentDeadlineAt,
       paymentAccount: {
         bankName: 'Providus Bank',
@@ -93,21 +106,28 @@ describe('AuctionSettlementService', () => {
       amountKobo: 7000000,
     });
     const wallet = createWallet({ userId: 'winner-id', balanceKobo: 2000000 });
-    const manager = createManager({ auction, bids: [winningBid], wallet });
+    const hold = createHold({ amountKobo: 700000 });
+    const manager = createManager({ auction, bids: [winningBid], wallet, hold });
     dataSource.transaction.mockImplementation((callback) => callback(manager));
 
     await expect(
       service.settleAuctionPayment('admin-id', auction.id, {
-        externalPaymentKobo: 6000000,
+        externalPaymentKobo: 5300000,
         walletPaymentKobo: 1000000,
       }),
     ).resolves.toEqual({
       auction: expect.objectContaining({
         status: AuctionStatus.Settled,
-        externalPaymentKobo: 6000000,
+        externalPaymentKobo: 5300000,
         walletPaymentKobo: 1000000,
       }),
       winningBid,
+      delivery: expect.objectContaining({
+        auctionId: auction.id,
+        winnerId: 'winner-id',
+        sellerId: 'seller-id',
+        status: 'PAYMENT_CONFIRMED',
+      }),
     });
     expect(wallet.balanceKobo).toBe(1000000);
     expect(manager.save).toHaveBeenCalledWith(
@@ -115,6 +135,10 @@ describe('AuctionSettlementService', () => {
         type: WalletLedgerType.FinalPaymentConfirmed,
         amountKobo: -1000000,
       }),
+    );
+    expect(walletsService.applyBidHold).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({ holdId: winningBid.walletHoldId }),
     );
   });
 
@@ -135,6 +159,27 @@ describe('AuctionSettlementService', () => {
     await expect(
       service.settleAuctionPayment('admin-id', auction.id, {
         externalPaymentKobo: 6000000,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects settlement above the winning bid amount', async () => {
+    const auction = createAuction({
+      status: AuctionStatus.AwaitingPayment,
+      winnerId: 'winner-id',
+      currentWinningBidId: 'winning-bid-id',
+    });
+    const winningBid = createBid({
+      id: 'winning-bid-id',
+      bidderId: 'winner-id',
+      amountKobo: 7000000,
+    });
+    const manager = createManager({ auction, bids: [winningBid] });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await expect(
+      service.settleAuctionPayment('admin-id', auction.id, {
+        externalPaymentKobo: 7000001,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
@@ -164,7 +209,99 @@ describe('AuctionSettlementService', () => {
       expect.objectContaining({ holdId: winningBid.walletHoldId }),
     );
   });
+
+  it('persists a winner payment confirmation and notifies administrators', async () => {
+    const auction = createAuction({
+      status: AuctionStatus.AwaitingPayment,
+      winnerId: 'winner-id',
+    });
+    const manager = createManager({ auction });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await expect(
+      service.confirmWinnerPayment(
+        authenticatedUser('winner-id', UserRole.IndividualBidder),
+        auction.id,
+        'Transfer reference QA-123',
+      ),
+    ).resolves.toEqual(expect.objectContaining({ changed: true }));
+    expect(auction.winnerPaymentConfirmedAt).toBeInstanceOf(Date);
+    expect(auction.winnerPaymentNote).toBe('Transfer reference QA-123');
+    expect(notificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ audience: 'ADMIN', data: { auctionId: auction.id, winnerId: 'winner-id' } }),
+    );
+  });
+
+  it('does not send duplicate winner payment confirmations', async () => {
+    const auction = createAuction({
+      status: AuctionStatus.AwaitingPayment,
+      winnerId: 'winner-id',
+      winnerPaymentConfirmedAt: new Date(),
+    });
+    const manager = createManager({ auction });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await expect(
+      service.confirmWinnerPayment(
+        authenticatedUser('winner-id', UserRole.IndividualBidder),
+        auction.id,
+      ),
+    ).resolves.toEqual(expect.objectContaining({ changed: false }));
+    expect(notificationsService.create).not.toHaveBeenCalled();
+  });
+
+  it('lets the seller progress delivery until dispatch but not confirm receipt', async () => {
+    auctionsRepository.findOneBy.mockResolvedValue(
+      createAuction({ status: AuctionStatus.Settled, winnerId: 'winner-id' }),
+    );
+    deliveryRepository.findOneBy.mockResolvedValue({
+      auctionId: 'auction-id',
+      sellerId: 'seller-id',
+      winnerId: 'winner-id',
+      status: DeliveryStatus.Dispatch,
+    });
+
+    await expect(
+      service.updateDeliveryStatus(
+        authenticatedUser('seller-id', UserRole.CarDealer),
+        'auction-id',
+        DeliveryStatus.Delivered,
+      ),
+    ).rejects.toThrow('Only the buyer or admin can confirm delivery');
+    expect(deliveryRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('lets the winning buyer confirm a dispatched delivery', async () => {
+    const delivery = {
+      auctionId: 'auction-id',
+      sellerId: 'seller-id',
+      winnerId: 'winner-id',
+      status: DeliveryStatus.Dispatch,
+    };
+    auctionsRepository.findOneBy.mockResolvedValue(
+      createAuction({ status: AuctionStatus.Settled, winnerId: 'winner-id' }),
+    );
+    deliveryRepository.findOneBy.mockResolvedValue(delivery);
+    deliveryRepository.save.mockImplementation((value) => Promise.resolve(value));
+
+    await expect(
+      service.updateDeliveryStatus(
+        authenticatedUser('winner-id', UserRole.IndividualBidder),
+        'auction-id',
+        DeliveryStatus.Delivered,
+      ),
+    ).resolves.toEqual({
+      delivery: expect.objectContaining({ status: DeliveryStatus.Delivered }),
+    });
+    expect(notificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ recipientId: 'seller-id' }),
+    );
+  });
 });
+
+function authenticatedUser(id: string, role: UserRole) {
+  return { id, role, authRole: 'user' as const, sessionId: 'session-id' };
+}
 
 function createAuction(overrides: Record<string, unknown> = {}) {
   return {
@@ -184,6 +321,8 @@ function createAuction(overrides: Record<string, unknown> = {}) {
     currentWinningBidId: null,
     winnerId: null,
     paymentDeadlineAt: null,
+    winnerPaymentConfirmedAt: null,
+    winnerPaymentNote: null,
     externalPaymentKobo: null,
     walletPaymentKobo: null,
     settledById: null,
@@ -223,10 +362,21 @@ function createWallet(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function createHold(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'hold-id',
+    walletId: 'wallet-id',
+    amountKobo: 0,
+    status: WalletHoldStatus.Active,
+    ...overrides,
+  };
+}
+
 function createManager(input?: {
   auction?: ReturnType<typeof createAuction>;
   bids?: ReturnType<typeof createBid>[];
   wallet?: ReturnType<typeof createWallet> | null;
+  hold?: ReturnType<typeof createHold> | null;
 }) {
   return {
     findOne: jest.fn((entity) => {
@@ -240,6 +390,14 @@ function createManager(input?: {
 
       if (entity === Wallet || entity.name === 'Wallet') {
         return Promise.resolve(input?.wallet ?? null);
+      }
+
+      if (entity === AuctionDelivery || entity.name === 'AuctionDelivery') {
+        return Promise.resolve(null);
+      }
+
+      if (entity === WalletHold || entity.name === 'WalletHold') {
+        return Promise.resolve(input?.hold ?? null);
       }
 
       return Promise.resolve(null);

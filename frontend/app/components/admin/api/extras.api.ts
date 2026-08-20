@@ -10,16 +10,31 @@ export type AdminMechanicDto = {
   inspectionCount: number;
   rating: number;
   status: string;
+  isActive: boolean;
+  isBanned: boolean;
 };
 
 export const listAdminMechanics = async (
-  params: { search?: string; status?: string } = {},
-): Promise<AdminMechanicDto[]> => {
-  const dto = await apiClient<{ items: AdminMechanicDto[] }>(
+  params: {
+    mechanicId?: string;
+    search?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<{ items: AdminMechanicDto[]; total: number }> => {
+  return apiClient<{ items: AdminMechanicDto[]; total: number }>(
     "/admin/mechanics",
-    { query: params },
+    {
+      query: {
+        mechanicId: params.mechanicId,
+        search: params.search,
+        status: params.status,
+        limit: params.limit ?? 20,
+        offset: params.offset ?? 0,
+      },
+    },
   );
-  return dto.items;
 };
 
 export const verifyMechanic = (id: string) =>
@@ -44,11 +59,17 @@ export type AdminDisputeDto = {
 };
 
 export const listAdminDisputes = async (
-  params: { status?: string } = {},
+  params: { status?: string; limit?: number; offset?: number } = {},
 ): Promise<{ items: AdminDisputeDto[]; total: number }> => {
   return apiClient<{ items: AdminDisputeDto[]; total: number }>(
     "/admin/disputes",
-    { query: params },
+    {
+      query: {
+        status: params.status,
+        limit: params.limit ?? 20,
+        offset: params.offset ?? 0,
+      },
+    },
   );
 };
 
@@ -72,13 +93,24 @@ export type AdminNotificationLogDto = {
 };
 
 export const listNotificationLogs = async (
-  params: { channel?: string; status?: string } = {},
-): Promise<AdminNotificationLogDto[]> => {
-  const dto = await apiClient<{ items: AdminNotificationLogDto[] }>(
+  params: {
+    channel?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<{ items: AdminNotificationLogDto[]; total: number }> => {
+  return apiClient<{ items: AdminNotificationLogDto[]; total: number }>(
     "/admin/notification-logs",
-    { query: params },
+    {
+      query: {
+        channel: params.channel,
+        status: params.status,
+        limit: params.limit ?? 20,
+        offset: params.offset ?? 0,
+      },
+    },
   );
-  return dto.items;
 };
 
 export type AdminInAppNotificationDto = {
@@ -92,11 +124,15 @@ export type AdminInAppNotificationDto = {
   createdAt: string;
 };
 
-export const listInAppNotifications = async (): Promise<
-  AdminInAppNotificationDto[]
-> => {
-  const dto = await apiClient<{ items: AdminInAppNotificationDto[] }>(
+export const listInAppNotifications = async (
+  params: { limit?: number; offset?: number } = {},
+): Promise<{ items: AdminInAppNotificationDto[]; total: number }> =>
+  apiClient<{ items: AdminInAppNotificationDto[]; total: number }>(
     "/admin/in-app-notifications",
+    {
+      query: {
+        limit: params.limit ?? 20,
+        offset: params.offset ?? 0,
+      },
+    },
   );
-  return dto.items;
-};

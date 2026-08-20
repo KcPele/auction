@@ -7,6 +7,7 @@ import {
 } from "@/app/components/users/hooks/use-users";
 import type { ListingAccessApplication } from "@/app/components/users/types/users.types";
 import { ApiError } from "@/app/lib/api/error";
+import { useMe } from "@/app/components/auth/hooks/use-me";
 import { Icon } from "../primitives/Icon";
 
 type Category = "cars" | "gadgets";
@@ -21,6 +22,7 @@ function statusStyle(status: ListingAccessApplication["status"]) {
 }
 
 export function ListingAccessScreen() {
+  const { data: me } = useMe();
   const { data, isLoading, isError, refetch } = useApplications();
   const apply = useApplyForListingAccess();
 
@@ -45,6 +47,20 @@ export function ListingAccessScreen() {
   };
 
   const apps = data ?? [];
+  const isUnavailable = (item: Category) => {
+    const wire = item === "cars" ? "CAR" : "GADGET";
+    return (
+      me?.listingPermissions.some((permission) => permission.category === wire) ||
+      apps.some(
+        (application) =>
+          application.category === item &&
+          (application.status === "PENDING" || application.status === "APPROVED"),
+      )
+    );
+  };
+  const availableCategories = (["cars", "gadgets"] as Category[]).filter(
+    (item) => !isUnavailable(item),
+  );
 
   return (
     <>
@@ -54,10 +70,15 @@ export function ListingAccessScreen() {
         </h1>
         <button
           type="button"
-          onClick={() => setShowApply((v) => !v)}
-          className="rounded-lg border-none px-3 py-2 text-xs font-bold text-primary-foreground accent-gradient-bg"
+          disabled={availableCategories.length === 0}
+          onClick={() => {
+            const nextCategory = availableCategories[0];
+            if (nextCategory) setCategory(nextCategory);
+            setShowApply((value) => !value);
+          }}
+          className="rounded-lg border-none bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
         >
-          + Apply
+          {availableCategories.length === 0 ? "No categories available" : "+ Apply"}
         </button>
       </div>
 
@@ -67,6 +88,7 @@ export function ListingAccessScreen() {
             <div className="text-[15px] font-semibold">Apply for listing access</div>
             <button
               type="button"
+              aria-label="Close listing access application"
               onClick={() => setShowApply(false)}
               className="rounded-lg p-1.5 text-fg-muted hover:bg-surface-2"
             >
@@ -74,17 +96,19 @@ export function ListingAccessScreen() {
             </button>
           </div>
           <div className="flex flex-col gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-fg-muted">
+            <fieldset>
+              <legend className="mb-1 block text-xs font-medium text-fg-muted">
                 Category
-              </label>
+              </legend>
               <div className="flex gap-2">
                 {(["cars", "gadgets"] as Category[]).map((cat) => (
                   <button
                     key={cat}
                     type="button"
+                    disabled={isUnavailable(cat)}
+                    aria-pressed={category === cat}
                     onClick={() => setCategory(cat)}
-                    className={`flex-1 rounded-lg border p-2.5 text-sm font-medium capitalize ${
+                    className={`flex-1 rounded-lg border p-2.5 text-sm font-medium capitalize disabled:cursor-not-allowed disabled:opacity-45 ${
                       category === cat
                         ? "border-accent bg-accent/10 text-accent"
                         : "border-line text-fg"
@@ -94,12 +118,13 @@ export function ListingAccessScreen() {
                   </button>
                 ))}
               </div>
-            </div>
+            </fieldset>
             <div>
-              <label className="mb-1 block text-xs font-medium text-fg-muted">
+              <label htmlFor="listing-access-reason" className="mb-1 block text-xs font-medium text-fg-muted">
                 Why do you want to list? (min 10 chars)
               </label>
               <textarea
+                id="listing-access-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Brief reason or qualification…"
@@ -111,7 +136,7 @@ export function ListingAccessScreen() {
               type="button"
               disabled={apply.isPending}
               onClick={onSubmit}
-              className="rounded-lg border-none p-2.5 text-sm font-bold text-primary-foreground accent-gradient-bg disabled:opacity-60"
+              className="rounded-lg border-none bg-primary p-2.5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
             >
               {apply.isPending ? "Submitting…" : "Submit application"}
             </button>

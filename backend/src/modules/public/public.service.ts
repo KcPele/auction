@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { Auction } from '../auctions/entities/auction.entity';
@@ -8,6 +8,8 @@ import { Bid } from '../bids/entities/bid.entity';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { User } from '../users/entities/user.entity';
+import { MechanicVerificationStatus } from '../../common/enums/mechanic-verification-status.enum';
+import { MechanicProfile } from '../admin/entities/mechanic-profile.entity';
 
 @Injectable()
 export class PublicService {
@@ -20,7 +22,34 @@ export class PublicService {
     @InjectRepository(GadgetListing)
     private readonly gadgetListingsRepository: Repository<GadgetListing>,
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
+    @InjectRepository(MechanicProfile)
+    private readonly mechanicProfilesRepository: Repository<MechanicProfile>,
   ) {}
+
+  async listVerifiedMechanics() {
+    const profiles = await this.mechanicProfilesRepository.find({
+      where: {
+        status: MechanicVerificationStatus.Verified,
+        user: { isActive: true, isBanned: false },
+      },
+      relations: { user: true },
+      order: { inspectionCount: 'DESC', createdAt: 'ASC' },
+    });
+
+    return {
+      items: profiles.map((profile) => ({
+        id: profile.id,
+        name: `${profile.user.firstName} ${profile.user.lastName}`.trim(),
+        shopName: profile.shopName,
+        city: profile.city,
+        inspectionCount: profile.inspectionCount,
+        rating:
+          profile.ratingCount > 0
+            ? Math.round((profile.ratingSum / profile.ratingCount) * 10) / 10
+            : null,
+      })),
+    };
+  }
 
   async listRecentBids(limit: number) {
     const bids = await this.bidsRepository.find({
@@ -106,7 +135,13 @@ export class PublicService {
           where: { status: AuctionStatus.Settled },
           select: ['id', 'externalPaymentKobo', 'walletPaymentKobo', 'settledAt'],
         }),
-        this.usersRepository.count(),
+        this.usersRepository.count({
+          where: {
+            ninVerifiedAt: Not(IsNull()),
+            isActive: true,
+            isBanned: false,
+          },
+        }),
         this.auctionsRepository
           .createQueryBuilder('a')
           .where('a.status = :status', { status: AuctionStatus.Settled })
@@ -129,7 +164,7 @@ export class PublicService {
     const settlementRate =
       settledTotal > 0
         ? Math.round((settledAuctions.length / settledTotal) * 1000) / 10
-        : 100;
+        : 0;
 
     return {
       tradedVolumeKobo: tradedKobo,

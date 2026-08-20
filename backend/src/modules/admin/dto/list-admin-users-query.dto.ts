@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class ListAdminUsersQueryDto {
   @ApiPropertyOptional({ description: 'Search by name, email or phone' })
@@ -8,9 +8,9 @@ export class ListAdminUsersQueryDto {
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by status: active, banned' })
+  @ApiPropertyOptional({ description: 'Filter by status', enum: ['active', 'inactive', 'banned'] })
   @IsOptional()
-  @IsString()
+  @IsIn(['active', 'inactive', 'banned'])
   status?: string;
 
   @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })

@@ -51,6 +51,7 @@ export function BidBar({ auctionId, topBidNaira, minIncrementNaira, hasBids }: P
             ₦
           </span>
           <input
+            aria-label="Bid amount"
             className="min-w-0 flex-1 bg-transparent font-mono text-base font-semibold text-fg outline-none"
             type="text"
             inputMode="numeric"

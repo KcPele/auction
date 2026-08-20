@@ -16,6 +16,7 @@ export type CarDetailsValues = {
   mileage: string;
   condition: string;
   faults: string;
+  mechanicId: string;
 };
 
 export type GadgetDetailsValues = {

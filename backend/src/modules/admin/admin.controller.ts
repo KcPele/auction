@@ -23,7 +23,6 @@ import { AdminListingsService } from './admin-listings.service';
 import { AdminMechanicsService } from './admin-mechanics.service';
 import { AdminSettingsService } from './admin-settings.service';
 import { AdminUsersService } from './admin-users.service';
-import { AuthorizeWithdrawalDto } from './dto/authorize-withdrawal.dto';
 import { BanUserDto } from './dto/ban-user.dto';
 import { CreateAccessCodeDto } from './dto/create-access-code.dto';
 import { DefaultAuctionPaymentDto } from './dto/default-auction-payment.dto';
@@ -35,6 +34,7 @@ import { ListAdminUsersQueryDto } from './dto/list-admin-users-query.dto';
 import { ListDisputesQueryDto } from './dto/list-disputes-query.dto';
 import { ListMechanicsQueryDto } from './dto/list-mechanics-query.dto';
 import { ListNotificationLogsQueryDto } from './dto/list-notification-logs-query.dto';
+import { ListInAppNotificationsQueryDto } from './dto/list-in-app-notifications-query.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { ReviewListingApplicationDto } from './dto/review-listing-application.dto';
 import { ReviewListingDto } from './dto/review-listing.dto';
@@ -96,8 +96,8 @@ export class AdminController {
   @Post('users/:id/ban')
   @ApiOperation({ summary: 'Ban a user' })
   @ApiOkResponse({ description: 'User banned.' })
-  banUser(@Param('id') id: string, @Body() dto: BanUserDto) {
-    return this.usersService.banUser(id, dto);
+  banUser(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: BanUserDto) {
+    return this.usersService.banUser(user.id, id, dto);
   }
 
   @Post('users/:id/unban')
@@ -173,8 +173,8 @@ export class AdminController {
   @Get('in-app-notifications')
   @ApiOperation({ summary: 'Recent in-app notifications' })
   @ApiOkResponse({ description: 'In-app notifications returned.' })
-  listInAppNotifications() {
-    return this.dashboardService.listInAppNotifications();
+  listInAppNotifications(@Query() query: ListInAppNotificationsQueryDto) {
+    return this.dashboardService.listInAppNotifications(query);
   }
 
   @Get('settings/escrow')
@@ -224,6 +224,13 @@ export class AdminController {
   @ApiCreatedResponse({ description: 'Access code created.' })
   createAccessCode(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateAccessCodeDto) {
     return this.listingsService.createAccessCode(user.id, dto);
+  }
+
+  @Patch('access-codes/:id/deactivate')
+  @ApiOperation({ summary: 'Deactivate an unused listing access code' })
+  @ApiOkResponse({ description: 'Access code deactivated.' })
+  deactivateAccessCode(@Param('id') id: string) {
+    return this.listingsService.deactivateAccessCode(id);
   }
 
   @Post('listing-permissions')
@@ -318,7 +325,7 @@ export class AdminController {
   }
 
   @Get('wallet-withdrawals/pending')
-  @ApiOperation({ summary: 'List wallet withdrawals awaiting authorization' })
+  @ApiOperation({ summary: 'List wallet withdrawals awaiting provider completion' })
   @ApiOkResponse({ description: 'Pending withdrawals returned.' })
   listPendingWithdrawals() {
     return this.walletWithdrawalsService.listPendingWithdrawals();
@@ -329,20 +336,6 @@ export class AdminController {
   @ApiOkResponse({ description: 'Withdrawals returned.' })
   listAllWithdrawals(@Query() query: ListWithdrawalsQueryDto) {
     return this.walletWithdrawalsService.listAllWithdrawals(query);
-  }
-
-  @Post('wallet-withdrawals/:id/authorize')
-  @ApiOperation({ summary: 'Authorize a wallet withdrawal when provider requires OTP' })
-  @ApiCreatedResponse({ description: 'Withdrawal authorization submitted.' })
-  authorizeWithdrawal(@Param('id') id: string, @Body() dto: AuthorizeWithdrawalDto) {
-    return this.walletWithdrawalsService.authorizeWithdrawal(id, dto.authorizationCode);
-  }
-
-  @Post('wallet-withdrawals/:id/resend-otp')
-  @ApiOperation({ summary: 'Resend wallet withdrawal authorization OTP' })
-  @ApiCreatedResponse({ description: 'Withdrawal OTP resend requested.' })
-  resendWithdrawalOtp(@Param('id') id: string) {
-    return this.walletWithdrawalsService.resendWithdrawalOtp(id);
   }
 
   @Post('auctions/:id/settle-payment')

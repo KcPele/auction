@@ -20,6 +20,7 @@ export function Chips<T extends string>({ options, value, onChange }: ChipsProps
           <button
             key={o.id}
             type="button"
+            aria-pressed={active}
             onClick={() => onChange(o.id)}
             className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium ${
               active

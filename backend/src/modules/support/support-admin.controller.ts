@@ -23,6 +23,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { PostSupportMessageDto } from './dto/post-support-message.dto';
 import { UpdateSupportSettingsDto } from './dto/update-support-settings.dto';
+import { ListSupportConversationsQueryDto } from './dto/list-support-conversations-query.dto';
 import { SupportService } from './support.service';
 
 @ApiTags('admin-support')
@@ -36,16 +37,20 @@ export class SupportAdminController {
   @Get('conversations')
   @ApiOperation({ summary: 'List every support conversation' })
   @ApiOkResponse({ description: 'Conversations returned.' })
-  list(@Query('state') state?: SupportConversationState) {
-    return this.service.listAllConversations({ state });
+  list(@Query() query: ListSupportConversationsQueryDto) {
+    return this.service.listAllConversations(query);
   }
 
   @Get('conversations/:id')
+  @ApiOperation({ summary: 'Get one support conversation' })
+  @ApiOkResponse({ description: 'Conversation returned.' })
   getOne(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
     return this.service.getConversation(admin, id);
   }
 
   @Get('conversations/:id/messages')
+  @ApiOperation({ summary: 'List messages in a support conversation' })
+  @ApiOkResponse({ description: 'Conversation messages returned.' })
   messages(
     @CurrentUser() admin: AuthenticatedUser,
     @Param('id') id: string,
@@ -84,11 +89,15 @@ export class SupportAdminController {
   }
 
   @Get('settings')
+  @ApiOperation({ summary: 'Get support AI settings' })
+  @ApiOkResponse({ description: 'Support AI settings returned.' })
   getSettings() {
     return this.service.getSettings();
   }
 
   @Patch('settings')
+  @ApiOperation({ summary: 'Update support AI settings' })
+  @ApiOkResponse({ description: 'Support AI settings updated.' })
   updateSettings(@Body() dto: UpdateSupportSettingsDto) {
     return this.service.updateSettings(dto);
   }

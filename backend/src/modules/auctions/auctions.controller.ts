@@ -126,7 +126,10 @@ export class AuctionsController {
   @Patch(':id/delivery')
   @ApiCookieAuth('better-auth.session_token')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Update delivery status (seller or admin)' })
+  @ApiOperation({
+    summary:
+      'Progress delivery (seller/admin) or confirm receipt (winner/admin)',
+  })
   @ApiOkResponse({ description: 'Delivery status updated.' })
   updateDelivery(
     @CurrentUser() user: AuthenticatedUser,

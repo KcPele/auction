@@ -15,14 +15,17 @@ export class AdminMechanicsService {
   async listMechanics(query: ListMechanicsQueryDto) {
     const qb = this.mechanicProfilesRepository.createQueryBuilder('mp').leftJoinAndSelect('mp.user', 'u').where('u.role = :role', { role: UserRole.Mechanic });
 
+    if (query.mechanicId) {
+      qb.andWhere('mp.id = :mechanicId', { mechanicId: query.mechanicId });
+    }
     if (query.search) {
       const term = `%${query.search}%`;
       qb.andWhere(new Brackets((b) => b.where('u.firstName ILIKE :term', { term }).orWhere('u.lastName ILIKE :term', { term }).orWhere('mp.shopName ILIKE :term', { term })));
     }
     if (query.status) qb.andWhere('mp.status = :status', { status: query.status });
 
-    qb.orderBy('mp.createdAt', 'DESC');
-    const profiles = await qb.getMany();
+    qb.orderBy('mp.createdAt', 'DESC').take(query.limit).skip(query.offset);
+    const [profiles, total] = await qb.getManyAndCount();
 
     return {
       items: profiles.map((mp) => ({
@@ -30,12 +33,20 @@ export class AdminMechanicsService {
         shopName: mp.shopName, city: mp.city, inspectionCount: mp.inspectionCount,
         rating: mp.ratingCount > 0 ? Math.round((mp.ratingSum / mp.ratingCount) * 10) / 10 : 0,
         status: mp.status,
+        isActive: mp.user.isActive,
+        isBanned: mp.user.isBanned,
       })),
+      total,
     };
   }
 
   async verifyMechanic(adminId: string, mechanicId: string) {
     const profile = await this.findMechanicProfile(mechanicId);
+    if (!profile.user.isActive || profile.user.isBanned) {
+      throw new BadRequestException(
+        'Unban and activate the mechanic account before verification',
+      );
+    }
     if (profile.status === MechanicVerificationStatus.Verified) throw new BadRequestException('Mechanic is already verified');
     profile.status = MechanicVerificationStatus.Verified;
     profile.verifiedById = adminId;
@@ -53,7 +64,10 @@ export class AdminMechanicsService {
   }
 
   private async findMechanicProfile(mechanicId: string) {
-    const profile = await this.mechanicProfilesRepository.findOneBy({ id: mechanicId });
+    const profile = await this.mechanicProfilesRepository.findOne({
+      where: { id: mechanicId },
+      relations: { user: true },
+    });
     if (!profile) throw new NotFoundException('Mechanic profile not found');
     return profile;
   }

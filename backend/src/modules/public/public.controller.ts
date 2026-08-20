@@ -8,6 +8,13 @@ import { PublicService } from './public.service';
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
 
+  @Get('mechanics')
+  @ApiOperation({ summary: 'List verified mechanics available for car inspections' })
+  @ApiOkResponse({ description: 'Verified mechanics returned.' })
+  listVerifiedMechanics() {
+    return this.publicService.listVerifiedMechanics();
+  }
+
   @Get('recent-bids')
   @ApiOperation({
     summary:

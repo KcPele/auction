@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLedger } from "@/app/components/wallet/hooks/use-wallet";
 import {
   BUCKET_FOR,
@@ -13,6 +13,7 @@ import { Icon } from "../primitives/Icon";
 import { Chips, type ChipOption } from "../widgets/Chips";
 import { WalletHero } from "../widgets/WalletHero";
 import { fmtNaira } from "../utils";
+import { PaginationControls } from "../../ui/PaginationControls";
 
 type Filter = "all" | ActivityBucket;
 const FILTERS: ChipOption<Filter>[] = [
@@ -25,13 +26,14 @@ const FILTERS: ChipOption<Filter>[] = [
 
 export function WalletScreen() {
   const [filter, setFilter] = useState<Filter>("all");
-  const { data, isLoading, isError, refetch } = useLedger({ limit: 50 });
-
-  const filtered = useMemo(() => {
-    if (!data) return [];
-    if (filter === "all") return data;
-    return data.filter((e) => BUCKET_FOR[e.type] === filter);
-  }, [data, filter]);
+  const [page, setPage] = useState(0);
+  const pageSize = 25;
+  const { data, isLoading, isError, refetch } = useLedger({
+    limit: pageSize,
+    offset: page * pageSize,
+    activity: filter === "all" ? undefined : filter,
+  });
+  const filtered = data?.items ?? [];
 
   return (
     <>
@@ -57,7 +59,14 @@ export function WalletScreen() {
       </div>
 
       <div className="mt-4">
-        <Chips options={FILTERS} value={filter} onChange={setFilter} />
+        <Chips
+          options={FILTERS}
+          value={filter}
+          onChange={(value) => {
+            setFilter(value);
+            setPage(0);
+          }}
+        />
       </div>
 
       <div className="mt-3">
@@ -111,6 +120,13 @@ export function WalletScreen() {
           })
         )}
       </div>
+
+      <PaginationControls
+        page={page}
+        pageSize={pageSize}
+        total={data?.total ?? 0}
+        onPageChange={setPage}
+      />
 
       <Link
         href="/dashboard/wallet/topup"

@@ -1,7 +1,13 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { NotificationAudience } from '../../common/enums/notification-audience.enum';
+import { NotificationType } from '../../common/enums/notification-type.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import type { CreateNotificationDto } from './dto/create-notification.dto';
 import type { ListNotificationsQueryDto } from './dto/list-notifications-query.dto';
@@ -9,15 +15,34 @@ import { NotificationRead } from './entities/notification-read.entity';
 import { Notification } from './entities/notification.entity';
 import { NotificationsGateway } from './notifications.gateway';
 import { presentNotification } from './presenters/notification.presenter';
+import { NotificationDeliveryService } from './notification-delivery.service';
+
+const NOTIFICATION_TYPES_BY_KIND = {
+  bid: [
+    NotificationType.AuctionStarted,
+    NotificationType.Outbid,
+    NotificationType.AuctionWon,
+  ],
+  listing: [
+    NotificationType.ListingSubmitted,
+    NotificationType.ListingApproved,
+    NotificationType.ListingRejected,
+  ],
+  payment: [NotificationType.PaymentDue],
+  system: [NotificationType.System],
+} as const;
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     @InjectRepository(Notification)
     private readonly notificationsRepository: Repository<Notification>,
     @InjectRepository(NotificationRead)
     private readonly readsRepository: Repository<NotificationRead>,
     private readonly gateway: NotificationsGateway,
+    private readonly deliveryService: NotificationDeliveryService,
   ) {}
 
   async create(dto: CreateNotificationDto) {
@@ -37,12 +62,18 @@ export class NotificationsService {
     );
 
     this.gateway.emitCreated(notification);
+    void this.deliveryService.deliver(notification).catch((error) => {
+      this.logger.error(
+        `External notification delivery failed for ${notification.id}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    });
 
     return { notification: presentNotification(notification) };
   }
 
   async listForUser(user: AuthenticatedUser, query: ListNotificationsQueryDto) {
-    const rows = await this.visibleQuery(user)
+    const queryBuilder = this.visibleQuery(user)
       .leftJoin(
         NotificationRead,
         'read',
@@ -54,7 +85,14 @@ export class NotificationsService {
         query.unreadOnly
           ? new Brackets((qb) => qb.where('read.id IS NULL'))
           : '1 = 1',
-      )
+      );
+    if (query.kind) {
+      queryBuilder.andWhere('notification.type IN (:...notificationTypes)', {
+        notificationTypes: [...NOTIFICATION_TYPES_BY_KIND[query.kind]],
+      });
+    }
+    const total = await queryBuilder.clone().getCount();
+    const rows = await queryBuilder
       .orderBy('notification.createdAt', 'DESC')
       .limit(query.limit)
       .offset(query.offset)
@@ -67,6 +105,7 @@ export class NotificationsService {
           rows.raw[index]?.readAt ? new Date(rows.raw[index].readAt) : null,
         ),
       ),
+      total,
     };
   }
 
@@ -114,6 +153,20 @@ export class NotificationsService {
       notificationReads,
       updatedCount: notificationReads.length,
     };
+  }
+
+  async getUnreadCount(user: AuthenticatedUser) {
+    const count = await this.visibleQuery(user)
+      .leftJoin(
+        NotificationRead,
+        'read',
+        'read."notificationId" = notification.id AND read."userId" = :userId',
+        { userId: user.id },
+      )
+      .andWhere('read.id IS NULL')
+      .getCount();
+
+    return { count };
   }
 
   private async ensureVisible(user: AuthenticatedUser, notificationId: string) {

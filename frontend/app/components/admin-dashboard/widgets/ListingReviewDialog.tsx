@@ -5,6 +5,7 @@ import type {
   CarListingDto,
   GadgetListingDto,
 } from "@/app/components/listings/types/listing.types";
+import { useAdminMechanics } from "@/app/components/admin/hooks/use-admin-extras";
 import { Modal } from "../../ui/Modal";
 import { AdminIcon } from "../primitives/Icon";
 import { fmtNGN } from "../utils";
@@ -48,14 +49,23 @@ export function ListingReviewDialog({
   isPending,
 }: Props) {
   const [note, setNote] = useState("");
+  const carListing =
+    listing?.category === "cars" ? (listing.raw as CarListingDto) : null;
+  const mechanicId = carListing?.mechanicId;
+  const mechanics = useAdminMechanics(
+    { mechanicId: mechanicId ?? undefined, limit: 1, offset: 0 },
+    Boolean(mechanicId),
+  );
 
   if (!listing) return null;
 
   const a = listing;
-  const car =
-    a.category === "cars" ? (a.raw as CarListingDto) : null;
+  const car = carListing;
   const gadget =
     a.category === "gadgets" ? (a.raw as GadgetListingDto) : null;
+  const mechanic = car?.mechanicId
+    ? mechanics.data?.items.find((item) => item.id === car.mechanicId)
+    : null;
 
   return (
     <Modal
@@ -172,6 +182,16 @@ export function ListingReviewDialog({
             <DetailRow label="Registration" value={car.registrationNumber} />
             <DetailRow label="Condition" value={car.condition} />
             <DetailRow label="Faults" value={car.knownFaults} />
+            <DetailRow
+              label="Mechanic"
+              value={
+                mechanic
+                  ? `${mechanic.name} · ${mechanic.status.toLowerCase()}`
+                  : car.mechanicId
+                    ? "Assigned mechanic is not currently verified"
+                    : "No mechanic assigned"
+              }
+            />
           </>
         )}
 

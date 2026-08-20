@@ -19,6 +19,7 @@ const MAIN: NavItem[] = [
   { href: "/dashboard/browse", label: "Browse auctions", icon: "search" },
   { href: "/dashboard/bids", label: "My bids", icon: "gavel" },
   { href: "/dashboard/won", label: "Won auctions", icon: "trophy" },
+  { href: "/dashboard/deliveries", label: "Deliveries", icon: "truck" },
   { href: "/dashboard/wallet", label: "Wallet", icon: "wallet" },
   { href: "/dashboard/listings", label: "My listings", icon: "tag" },
   { href: "/dashboard/listing-access", label: "Listing access", icon: "key" },

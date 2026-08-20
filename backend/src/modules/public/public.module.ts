@@ -7,10 +7,18 @@ import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { User } from '../users/entities/user.entity';
 import { PublicController } from './public.controller';
 import { PublicService } from './public.service';
+import { MechanicProfile } from '../admin/entities/mechanic-profile.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Bid, Auction, CarListing, GadgetListing, User]),
+    TypeOrmModule.forFeature([
+      Bid,
+      Auction,
+      CarListing,
+      GadgetListing,
+      User,
+      MechanicProfile,
+    ]),
   ],
   controllers: [PublicController],
   providers: [PublicService],

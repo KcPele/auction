@@ -155,8 +155,10 @@ export const listAccessCodes = async (
   params: {
     category?: "cars" | "gadgets";
     active?: boolean;
+    limit?: number;
+    offset?: number;
   } = {},
-): Promise<AccessCode[]> => {
+): Promise<{ items: AccessCode[]; total: number }> => {
   const dto = await apiClient<ListAccessCodesResponseDto>(
     "/admin/access-codes",
     {
@@ -173,10 +175,12 @@ export const listAccessCodes = async (
             : params.active
               ? "true"
               : "false",
+        limit: params.limit ?? 20,
+        offset: params.offset ?? 0,
       },
     },
   );
-  return dto.items.map(toAccessCode);
+  return { items: dto.items.map(toAccessCode), total: dto.total };
 };
 
 export const createAccessCode = (input: CreateAccessCodeInput) =>
@@ -188,3 +192,9 @@ export const createAccessCode = (input: CreateAccessCodeInput) =>
       ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
     },
   });
+
+export const deactivateAccessCode = (id: string) =>
+  apiClient<{ accessCode: AccessCodeDto }>(
+    `/admin/access-codes/${id}/deactivate`,
+    { method: "PATCH" },
+  );

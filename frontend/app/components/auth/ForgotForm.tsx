@@ -34,7 +34,12 @@ export function ForgotForm() {
   });
 
   return (
-    <>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (email && !send.isPending) send.mutate();
+      }}
+    >
       <AuthFormTop
         left={
           <Link
@@ -48,7 +53,7 @@ export function ForgotForm() {
       <AuthFormBody
         eyebrow="Password reset"
         title="Forgot your password?"
-        subtitle="Enter the email tied to your BidNaija account and we'll send a reset link valid for 30 minutes."
+        subtitle="Enter the email tied to your BidNaija account and we'll send a reset link valid for one hour."
       >
         {sent ? (
           <div className="rounded-[10px] border border-green/30 bg-green/[0.06] p-4 text-sm text-fg-muted">
@@ -68,9 +73,8 @@ export function ForgotForm() {
             </Field>
 
             <AuthButton
-              type="button"
+              type="submit"
               disabled={!email || send.isPending}
-              onClick={() => send.mutate()}
             >
               {send.isPending ? "Sending…" : "Send reset link"}{" "}
               <Icon name="arrow-r" size={16} strokeWidth={2} />
@@ -78,6 +82,6 @@ export function ForgotForm() {
           </>
         )}
       </AuthFormBody>
-    </>
+    </form>
   );
 }

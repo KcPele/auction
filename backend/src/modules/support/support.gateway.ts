@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -8,9 +9,10 @@ import {
 } from '@nestjs/websockets';
 import type { IncomingHttpHeaders } from 'http';
 import type { Server, Socket } from 'socket.io';
+import { Repository } from 'typeorm';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { AuthService } from '../auth/auth.service';
-import type { SupportConversation } from './entities/support-conversation.entity';
+import { SupportConversation } from './entities/support-conversation.entity';
 
 type AuthedSocket = Socket & {
   data: Socket['data'] & {
@@ -45,7 +47,11 @@ export class SupportGateway
   @WebSocketServer()
   private server!: Server;
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    @InjectRepository(SupportConversation)
+    private readonly conversationsRepository: Repository<SupportConversation>,
+  ) {}
 
   async handleConnection(client: AuthedSocket) {
     try {
@@ -87,6 +93,16 @@ export class SupportGateway
     }
     if (!client.data.user) {
       client.emit('support.error', { message: 'Not authenticated' });
+      return;
+    }
+    const isAdmin =
+      client.data.user.authRole === 'admin' ||
+      client.data.user.role === UserRole.Admin;
+    const conversation = await this.conversationsRepository.findOneBy(
+      isAdmin ? { id } : { id, userId: client.data.user.id },
+    );
+    if (!conversation) {
+      client.emit('support.error', { message: 'Conversation not found' });
       return;
     }
     await client.join(conversationRoom(id));

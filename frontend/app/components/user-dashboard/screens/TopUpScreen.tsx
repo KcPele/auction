@@ -7,7 +7,7 @@ import {
 } from "@/app/components/wallet/hooks/use-wallet";
 import { ApiError } from "@/app/lib/api/error";
 import type { FundingAccount } from "@/app/components/wallet/types/wallet.types";
-import { Icon, type IconName } from "../primitives/Icon";
+import { Icon } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
 
 // True in dev/staging — backend ALSO gates the endpoint behind
@@ -15,40 +15,10 @@ import { fmtNaira } from "../utils";
 const IS_SANDBOX =
   (process.env.NEXT_PUBLIC_PAYMENTS_MODE ?? "sandbox") !== "live";
 
-type MethodId = "strowallet" | "bank_transfer";
-
-interface Method {
-  id: MethodId;
-  title: string;
-  sub: string;
-  icon: IconName;
-}
-
-const METHODS: Method[] = [
-  {
-    id: "strowallet",
-    title: "Strowallet · Card / USSD",
-    sub: "Instant · provider fees may apply",
-    icon: "zap",
-  },
-  {
-    id: "bank_transfer",
-    title: "Bank transfer",
-    sub: "Dedicated virtual account · Free",
-    icon: "wallet",
-  },
-];
-
 const QUICK = [100_000, 250_000, 500_000, 1_000_000];
-
-function feeFor(method: MethodId, amt: number) {
-  if (method === "bank_transfer") return "Free";
-  return fmtNaira(Math.min(amt * 0.015, 2_000));
-}
 
 export function TopUpScreen() {
   const [amt, setAmt] = useState(500_000);
-  const [method, setMethod] = useState<MethodId>("strowallet");
   const [account, setAccount] = useState<FundingAccount | null>(null);
 
   const initiate = useInitiateTopup();
@@ -57,7 +27,7 @@ export function TopUpScreen() {
     try {
       const res = await initiate.mutateAsync({
         amountNaira: amt,
-        method,
+        method: "bank_transfer",
       });
       setAccount(res);
       toast.success("Funding account ready");
@@ -101,37 +71,17 @@ export function TopUpScreen() {
       <div className="my-3 mt-5 text-[15px] font-semibold tracking-tight">
         Payment method
       </div>
-      <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
-        {METHODS.map((m) => {
-          const active = method === m.id;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setMethod(m.id)}
-              className="flex w-full cursor-pointer items-center gap-3 border-b border-line px-4 py-3.5 text-left text-sm last:border-b-0"
-            >
-              <div
-                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${
-                  active
-                    ? "bg-accent/[0.12] text-accent"
-                    : "bg-surface-subtle text-fg-muted"
-                }`}
-              >
-                <Icon name={m.icon} size={16} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">{m.title}</div>
-                <div className="mt-0.5 text-xs text-fg-dim">{m.sub}</div>
-              </div>
-              {active ? (
-                <Icon name="check-c" size={18} className="text-accent" />
-              ) : (
-                <div className="h-[18px] w-[18px] rounded-full border-[1.5px] border-line-strong" />
-              )}
-            </button>
-          );
-        })}
+      <div className="flex items-center gap-3 rounded-[14px] border border-line bg-surface px-4 py-3.5 text-sm">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-accent/[0.12] text-accent">
+          <Icon name="wallet" size={16} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">Bank transfer</div>
+          <div className="mt-0.5 text-xs text-fg-dim">
+            Dedicated Strowallet virtual account · Free
+          </div>
+        </div>
+        <Icon name="check-c" size={18} className="text-accent" />
       </div>
 
       <div className="mt-4 rounded-xl border border-line bg-surface p-3.5">
@@ -141,7 +91,7 @@ export function TopUpScreen() {
         </div>
         <div className="mb-1.5 flex justify-between text-[13px]">
           <span className="text-fg-muted">Processing fee</span>
-          <span>{feeFor(method, amt)}</span>
+          <span>Free</span>
         </div>
         <div className="flex justify-between border-t border-line pt-2 text-sm font-semibold">
           <span>Wallet credit</span>
@@ -275,6 +225,7 @@ function Row({
       </div>
       <button
         type="button"
+        aria-label={`Copy ${label.toLowerCase()}`}
         onClick={onCopy}
         className="rounded-md border border-line bg-surface-2 p-2 text-fg-muted hover:text-fg"
       >

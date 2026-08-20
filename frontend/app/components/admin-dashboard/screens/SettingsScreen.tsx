@@ -19,10 +19,6 @@ import { Card, CardBody, CardHead } from "../widgets/Card";
 import { NumberInput } from "../../ui/NumberInput";
 import { SectionHeader } from "./SectionHeader";
 
-const PRIMARY_BTN = {
-  background: "linear-gradient(180deg, var(--accent-2), var(--accent))",
-};
-
 const wrap = (err: unknown, fallback: string) => {
   if (err instanceof ApiError) toast.error(err.message);
   else toast.error(fallback);
@@ -169,8 +165,7 @@ function FeesCard({
             type="button"
             disabled={update.isPending || !fee}
             onClick={save}
-            className="rounded-md px-3 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-            style={PRIMARY_BTN}
+            className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
           >
             {update.isPending ? "Saving…" : "Save"}
           </button>
@@ -228,8 +223,7 @@ function BiddingCard() {
             type="button"
             disabled={update.isPending || !bidding.data}
             onClick={save}
-            className="rounded-md px-3 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-            style={PRIMARY_BTN}
+            className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
           >
             {update.isPending ? "Saving…" : "Save"}
           </button>
@@ -284,10 +278,14 @@ function PaymentAccountCard() {
         action={
           <button
             type="button"
-            disabled={update.isPending || !account.data}
+            disabled={
+              update.isPending ||
+              !bankName.trim() ||
+              !accountNumber.trim() ||
+              !accountName.trim()
+            }
             onClick={save}
-            className="rounded-md px-3 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-            style={PRIMARY_BTN}
+            className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
           >
             {update.isPending ? "Saving…" : "Save"}
           </button>
@@ -380,8 +378,7 @@ function EscrowCard() {
             type="button"
             disabled={update.isPending || !escrow.data}
             onClick={save}
-            className="rounded-md px-3 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-            style={PRIMARY_BTN}
+            className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
           >
             {update.isPending ? "Saving…" : "Save"}
           </button>

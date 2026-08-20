@@ -40,10 +40,10 @@ export function Auctions() {
   });
 
   const auctions: LandingAuction[] = [
-    ...(live.data ?? []).map(adapt),
-    ...(upcoming.data ?? []).map(adapt),
+    ...(live.data?.items ?? []).map(adapt),
+    ...(upcoming.data?.items ?? []).map(adapt),
   ].slice(0, 6);
-  const liveCount = live.data?.length ?? 0;
+  const liveCount = live.data?.total ?? 0;
 
   return (
     <Section id="auctions">
@@ -72,6 +72,23 @@ export function Auctions() {
       {live.isLoading && upcoming.isLoading ? (
         <div className="rounded-xl border border-border bg-surface py-16 text-center text-sm text-muted-foreground">
           Loading auctions…
+        </div>
+      ) : live.isError && upcoming.isError ? (
+        <div className="rounded-xl border border-border bg-surface px-6 py-14 text-center">
+          <h3 className="text-lg font-bold text-foreground">Auctions are temporarily unavailable</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            We could not load the marketplace. Please try again in a moment.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              void live.refetch();
+              void upcoming.refetch();
+            }}
+            className="mt-5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
+          >
+            Try again
+          </button>
         </div>
       ) : auctions.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface px-6 py-14 text-center">

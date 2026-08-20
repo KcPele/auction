@@ -1,7 +1,7 @@
 export const SECTION_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   auctions: "Live auctions",
-  "access-codes": "Access code requests",
+  "access-codes": "Access codes",
   listings: "Listing approvals",
   disputes: "Disputes",
   users: "Users & wallets",

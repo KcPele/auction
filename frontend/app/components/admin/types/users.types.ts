@@ -1,4 +1,4 @@
-export type AdminUserStatus = "active" | "banned";
+export type AdminUserStatus = "active" | "inactive" | "banned";
 
 export type AdminUserItemDto = {
   id: string;

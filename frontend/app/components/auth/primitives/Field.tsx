@@ -1,4 +1,10 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useId,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from "react";
 
 interface FieldProps {
   label: ReactNode;
@@ -10,13 +16,19 @@ interface FieldProps {
 }
 
 export function Field({ label, htmlFor, hint, meta, className = "", children }: FieldProps) {
+  const generatedId = useId();
+  const controlId = htmlFor ?? generatedId;
+  const control = isValidElement<{ id?: string }>(children)
+    ? cloneElement(children, { id: children.props.id ?? controlId })
+    : children;
+
   return (
     <div className={`mb-[18px] ${className}`}>
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1 text-xs font-medium text-fg-muted">
-        <label htmlFor={htmlFor}>{label}</label>
+        <label htmlFor={controlId}>{label}</label>
         {hint && <span className="font-mono text-[11px] text-fg-dim">{hint}</span>}
       </div>
-      {children}
+      {control}
       {meta && <div className="mt-1.5 text-[11px] text-fg-dim">{meta}</div>}
     </div>
   );

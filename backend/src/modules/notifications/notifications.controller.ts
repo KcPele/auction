@@ -18,6 +18,13 @@ import { NotificationsService } from './notifications.service';
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
+  @Get('unread-count')
+  @ApiOperation({ summary: 'Count unread notifications for current user' })
+  @ApiOkResponse({ description: 'Unread notification count returned.' })
+  unreadCount(@CurrentUser() user: AuthenticatedUser) {
+    return this.notificationsService.getUnreadCount(user);
+  }
+
   @Get()
   @ApiOperation({ summary: 'List dashboard notifications for current user' })
   @ApiOkResponse({ description: 'Notifications returned.' })

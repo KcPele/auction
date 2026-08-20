@@ -4,9 +4,12 @@ import { authKeys } from "@/app/components/auth/hooks/auth-keys";
 import {
   addToWatchlist,
   applyForListingAccess,
+  createDispute,
   getStats,
   listApplications,
   listMyBids,
+  listMyDisputes,
+  listMyDeliveries,
   listWatchlist,
   listWonAuctions,
   redeemAccessCode,
@@ -19,11 +22,12 @@ import { usersKeys } from "./users-keys";
 export function useMyBids(params: {
   limit?: number;
   offset?: number;
-  status?: "ACTIVE" | "SCHEDULED" | "WON";
+  status?: "ACTIVE" | "PAST" | "WON";
 } = {}) {
   return useQuery({
     queryKey: usersKeys.bids(params),
     queryFn: () => listMyBids(params),
+    placeholderData: (previous) => previous,
   });
 }
 
@@ -94,5 +98,28 @@ export function useRemoveFromWatchlist() {
   return useMutation({
     mutationFn: removeFromWatchlist,
     onSuccess: () => qc.invalidateQueries({ queryKey: usersKeys.watchlist() }),
+  });
+}
+
+export function useMyDisputes() {
+  return useQuery({
+    queryKey: usersKeys.disputes(),
+    queryFn: listMyDisputes,
+  });
+}
+
+export function useCreateDispute() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createDispute,
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: usersKeys.disputes() }),
+  });
+}
+
+export function useMyDeliveries() {
+  return useQuery({
+    queryKey: usersKeys.deliveries(),
+    queryFn: listMyDeliveries,
   });
 }

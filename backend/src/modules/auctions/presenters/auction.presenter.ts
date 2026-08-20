@@ -18,6 +18,8 @@ export function presentAuction(auction: Auction) {
     currentWinningBidId: auction.currentWinningBidId,
     winnerId: auction.winnerId,
     paymentDeadlineAt: auction.paymentDeadlineAt,
+    winnerPaymentConfirmedAt: auction.winnerPaymentConfirmedAt,
+    winnerPaymentNote: auction.winnerPaymentNote,
     externalPaymentKobo: auction.externalPaymentKobo,
     walletPaymentKobo: auction.walletPaymentKobo,
     settledById: auction.settledById,

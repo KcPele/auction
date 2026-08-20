@@ -7,6 +7,9 @@ import { WalletLedgerEntry } from '../wallets/entities/wallet-ledger-entry.entit
 import { BanUserDto } from './dto/ban-user.dto';
 import { ListAdminUsersQueryDto } from './dto/list-admin-users-query.dto';
 import { Brackets } from 'typeorm';
+import { UserRole } from '../../common/enums/user-role.enum';
+import { MechanicVerificationStatus } from '../../common/enums/mechanic-verification-status.enum';
+import { MechanicProfile } from './entities/mechanic-profile.entity';
 
 @Injectable()
 export class AdminUsersService {
@@ -27,6 +30,7 @@ export class AdminUsersService {
 
     if (query.status === 'active') qb.andWhere('u.isActive = true AND u.isBanned = false');
     else if (query.status === 'banned') qb.andWhere('u.isBanned = true');
+    else if (query.status === 'inactive') qb.andWhere('u.isActive = false AND u.isBanned = false');
 
     qb.orderBy('u.createdAt', 'DESC').take(query.limit).skip(query.offset);
     const [users, total] = await qb.getManyAndCount();
@@ -47,11 +51,28 @@ export class AdminUsersService {
     return { items, total };
   }
 
-  async banUser(userId: string, dto: BanUserDto) {
+  async banUser(adminId: string, userId: string, dto: BanUserDto) {
+    if (adminId === userId) {
+      throw new BadRequestException('You cannot ban your own account');
+    }
+
     return this.dataSource.transaction(async (manager) => {
       const users = manager.getRepository(User);
       const user = await this.findUser(userId, users);
       if (user.isBanned) throw new BadRequestException('User is already banned');
+
+      if (user.role === UserRole.Admin) {
+        const remainingAdmins = await users.count({
+          where: {
+            role: UserRole.Admin,
+            isActive: true,
+            isBanned: false,
+          },
+        });
+        if (remainingAdmins <= 1) {
+          throw new BadRequestException('The last active administrator cannot be banned');
+        }
+      }
 
       const reason = dto.reason.trim();
       user.isBanned = true;
@@ -68,6 +89,17 @@ export class AdminUsersService {
       if (affectedAuthUsers !== 1) throw new NotFoundException('Linked auth user not found');
 
       await manager.query('DELETE FROM auth_sessions WHERE user_id = $1', [userId]);
+      if (user.role === UserRole.Mechanic) {
+        await manager.update(
+          MechanicProfile,
+          { userId },
+          {
+            status: MechanicVerificationStatus.Revoked,
+            verifiedById: null,
+            verifiedAt: null,
+          },
+        );
+      }
       return { user: await users.save(user) };
     });
   }

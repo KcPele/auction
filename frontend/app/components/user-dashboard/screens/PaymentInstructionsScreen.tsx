@@ -99,7 +99,7 @@ export function PaymentInstructionsScreen({
 
       <button
         type="button"
-        disabled={confirm.isPending}
+        disabled={confirm.isPending || Boolean(data.auction.winnerPaymentConfirmedAt)}
         onClick={async () => {
           try {
             await confirm.mutateAsync(undefined);
@@ -111,7 +111,11 @@ export function PaymentInstructionsScreen({
         }}
         className="mt-6 w-full cursor-pointer rounded-xl border-none bg-primary p-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
       >
-        {confirm.isPending ? "Sending…" : "I've made the transfer"}
+        {confirm.isPending
+          ? "Sending…"
+          : data.auction.winnerPaymentConfirmedAt
+            ? "Payment confirmation sent"
+            : "I've made the transfer"}
       </button>
     </>
   );
@@ -135,6 +139,7 @@ function Row({
         <span className={`font-medium ${mono ? "font-mono" : ""}`}>{value}</span>
         <button
           type="button"
+          aria-label={`Copy ${label.toLowerCase()}`}
           onClick={onCopy}
           className="rounded-md border border-line bg-surface-2 p-1.5 text-fg-muted hover:text-fg"
         >

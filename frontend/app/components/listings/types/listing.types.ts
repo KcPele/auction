@@ -92,9 +92,19 @@ export type CarListing = Listing & {
   mileage: number;
   condition: string;
   knownFaults: string | null;
+  mechanicId: string | null;
   videoUrls: string[];
   holdPercent: number;
   minimumBidIncrement: number;
+};
+
+export type VerifiedMechanic = {
+  id: string;
+  name: string;
+  shopName: string | null;
+  city: string | null;
+  inspectionCount: number;
+  rating: number | null;
 };
 
 export type GadgetListing = Listing & {

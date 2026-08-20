@@ -5,6 +5,7 @@ import type { EmailService } from '../../common/email/email.service';
 import { UserRole } from '../../common/enums/user-role.enum';
 import type { NotificationPreference } from '../users/entities/notification-preference.entity';
 import type { User } from '../users/entities/user.entity';
+import type { MechanicProfile } from '../admin/entities/mechanic-profile.entity';
 import { AuthService } from './auth.service';
 
 type AuthTestSurface = {
@@ -14,6 +15,17 @@ type AuthTestSurface = {
   getNodeHelpers: () => Promise<{
     fromNodeHeaders: (headers: object) => Headers;
   }>;
+};
+
+type AuthProfileSurface = {
+  createAppProfile: (user: {
+    id: string;
+    email: string;
+    phone: string;
+    firstName: string;
+    lastName: string;
+    appRole: string;
+  }) => Promise<void>;
 };
 
 describe('AuthService access enforcement', () => {
@@ -27,6 +39,7 @@ describe('AuthService access enforcement', () => {
       {} as ConfigService,
       { findOneBy } as unknown as Repository<User>,
       {} as Repository<NotificationPreference>,
+      {} as Repository<MechanicProfile>,
       {} as EmailService,
     );
 
@@ -70,4 +83,42 @@ describe('AuthService access enforcement', () => {
       sessionId: 'session-id',
     });
   });
+
+  it('creates a pending mechanic profile for mechanic registration', async () => {
+    const users = createSavingRepository();
+    const preferences = createSavingRepository();
+    const mechanics = createSavingRepository();
+    const profileService = new AuthService(
+      {} as ConfigService,
+      users as unknown as Repository<User>,
+      preferences as unknown as Repository<NotificationPreference>,
+      mechanics as unknown as Repository<MechanicProfile>,
+      {} as EmailService,
+    );
+
+    await (
+      profileService as unknown as AuthProfileSurface
+    ).createAppProfile({
+      id: 'mechanic-user-id',
+      email: 'mechanic@example.com',
+      phone: '+2348012345678',
+      firstName: 'Tunde',
+      lastName: 'Mechanic',
+      appRole: UserRole.Mechanic,
+    });
+
+    expect(users.save).toHaveBeenCalledWith(
+      expect.objectContaining({ role: UserRole.Mechanic }),
+    );
+    expect(mechanics.save).toHaveBeenCalledWith({
+      userId: 'mechanic-user-id',
+    });
+  });
 });
+
+function createSavingRepository() {
+  return {
+    create: jest.fn((value) => value),
+    save: jest.fn(async (value) => value),
+  };
+}

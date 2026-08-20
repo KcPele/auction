@@ -14,7 +14,7 @@ const TRUST_POINTS = [
 ];
 
 export function Hero() {
-  const { data: stats } = useQuery({
+  const { data: stats, isError } = useQuery({
     queryKey: ["public", "stats"],
     queryFn: getPublicStats,
     staleTime: 60_000,
@@ -22,8 +22,8 @@ export function Hero() {
 
   const number = new Intl.NumberFormat("en-NG");
   const summary = [
-    { value: stats ? fmtCompactNaira(stats.tradedVolume) : "₦0", label: "Auction volume" },
-    { value: stats ? number.format(stats.verifiedBidders) : "0", label: "Verified bidders" },
+    { value: stats ? fmtCompactNaira(stats.tradedVolume) : isError ? "—" : "₦0", label: "Auction volume" },
+    { value: stats ? number.format(stats.verifiedBidders) : isError ? "—" : "0", label: "Verified bidders" },
     { value: stats ? `${stats.settlementRate}%` : "—", label: "Settlement rate" },
   ];
 
@@ -63,7 +63,7 @@ export function Hero() {
         <div className="relative">
           <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-surface-subtle shadow-[var(--shadow-md)]">
             <Image
-              src="/images/landing/car-showroom.jpg"
+              src="/images/landing/car-showroom.jpg?variant=hero"
               alt="A verified car presented outside a modern showroom"
               fill
               loading="eager"

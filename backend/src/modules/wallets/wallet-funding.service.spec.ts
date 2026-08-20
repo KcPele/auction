@@ -2,6 +2,7 @@ import { PaymentProvider } from '../../common/enums/payment-provider.enum';
 import { WalletFundingAccountStatus } from '../../common/enums/wallet-funding-account-status.enum';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
 import type { StrowalletProvider } from '../payments/providers/strowallet.provider';
+import type { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../users/entities/user.entity';
 import { WalletFundingAccount } from './entities/wallet-funding-account.entity';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
@@ -23,6 +24,8 @@ describe('WalletFundingService', () => {
   };
   let usersRepository: { findOneBy: jest.Mock };
   let strowalletProvider: { createVirtualAccount: jest.Mock };
+  let config: { get: jest.Mock };
+  let notificationsService: { create: jest.Mock };
 
   beforeEach(() => {
     dataSource = { transaction: jest.fn((callback) => callback(createManager())) };
@@ -43,12 +46,16 @@ describe('WalletFundingService', () => {
     };
     usersRepository = { findOneBy: jest.fn() };
     strowalletProvider = { createVirtualAccount: jest.fn() };
+    config = { get: jest.fn().mockReturnValue('live') };
+    notificationsService = { create: jest.fn() };
     service = new WalletFundingService(
       dataSource as never,
       walletsRepository as never,
       fundingAccountsRepository as never,
       usersRepository as never,
       strowalletProvider as unknown as StrowalletProvider,
+      config as never,
+      notificationsService as unknown as NotificationsService,
     );
   });
 
@@ -105,6 +112,34 @@ describe('WalletFundingService', () => {
         amountKobo: 50000,
       }),
     );
+    expect(notificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: wallet.userId,
+        title: 'Wallet funded',
+      }),
+    );
+  });
+
+  it('creates a deterministic local funding account in sandbox mode', async () => {
+    config.get.mockReturnValue('sandbox');
+    fundingAccountsRepository.findOneBy.mockResolvedValue(null);
+    walletsRepository.findOneBy.mockResolvedValue(createWallet());
+    usersRepository.findOneBy.mockResolvedValue({
+      id: 'user-id',
+      email: 'ada@example.com',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      phone: '08123456789',
+    });
+
+    await expect(service.getFundingAccount('user-id')).resolves.toEqual({
+      fundingAccount: expect.objectContaining({
+        accountName: 'Ada Lovelace',
+        bankName: 'BidNaija Sandbox Bank',
+      }),
+      created: true,
+    });
+    expect(strowalletProvider.createVirtualAccount).not.toHaveBeenCalled();
   });
 });
 

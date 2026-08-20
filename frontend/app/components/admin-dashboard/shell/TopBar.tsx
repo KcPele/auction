@@ -3,8 +3,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAdminAuctions, useSystemHealth } from "@/app/components/admin/hooks/use-admin-dashboard";
 import { useAdminDisputes } from "@/app/components/admin/hooks/use-admin-extras";
-import { usePendingWithdrawals } from "@/app/components/admin/hooks/use-admin-withdrawals";
-import { usePendingApplications, usePendingListings } from "@/app/components/admin/hooks/use-admin-listings";
 import { SearchBox } from "@/app/components/search/SearchBox";
 import { ThemeToggle } from "@/app/components/theme/ThemeToggle";
 import { AdminIcon } from "../primitives/Icon";
@@ -26,20 +24,13 @@ export function TopBar({ onBurgerClick, menuOpen }: Props) {
   const sectionId = deriveSectionId(pathname);
   const crumb = SECTION_LABELS[sectionId] ?? "Dashboard";
 
-  // Aggregate "needs attention" badge: open disputes + pending withdrawals +
-  // pending applications + pending listings.
+  // This control routes to disputes, so its badge represents disputes only.
+  // Other pending queues expose their own counts on the dashboard and pages.
   const disputes = useAdminDisputes({ status: "OPEN" });
-  const withdrawals = usePendingWithdrawals();
-  const applications = usePendingApplications();
-  const listings = usePendingListings();
   const liveAuctions = useAdminAuctions({ status: "LIVE", limit: 1 });
   const health = useSystemHealth();
   const hasHealthIssue = health.data?.some((service) => service.status !== "ok");
-  const alertCount =
-    (disputes.data?.total ?? 0) +
-    (withdrawals.data?.length ?? 0) +
-    (applications.data?.length ?? 0) +
-    (listings.data?.length ?? 0);
+  const alertCount = disputes.data?.total ?? 0;
 
   return (
     <header className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-border bg-background/90 px-3 backdrop-blur-md md:gap-4 md:px-5">
@@ -61,7 +52,11 @@ export function TopBar({ onBurgerClick, menuOpen }: Props) {
       </div>
 
       <div className="ml-5 hidden flex-1 md:flex">
-        <SearchBox getResultHref={() => "/admin/auctions"} />
+        <SearchBox
+          getResultHref={(auctionId) =>
+            `/admin/auctions?auctionId=${encodeURIComponent(auctionId)}`
+          }
+        />
       </div>
 
       <div className="ml-auto flex items-center gap-2">

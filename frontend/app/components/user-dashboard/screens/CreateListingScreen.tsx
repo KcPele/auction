@@ -23,17 +23,28 @@ import type {
 } from "../create-listing/types";
 import { parseSpecs } from "../create-listing/utils";
 import {
+  validateCarDetails,
+  validateGadgetDetails,
+  validatePricing,
+} from "../create-listing/form-validation";
+import {
   useCreateCar,
   useCreateGadget,
   useUploadBatch,
   useUploadOne,
+  useVerifiedMechanics,
 } from "@/app/components/listings/hooks/use-listings";
 import { ApiError } from "@/app/lib/api/error";
+import { useMe } from "@/app/components/auth/hooks/use-me";
+import { useAbility } from "@/app/lib/permissions/provider";
+import { subject } from "@casl/ability";
 
 const STEPS: Step[] = ["category", "details", "pricing", "preview"];
 
 export function CreateListingScreen() {
   const router = useRouter();
+  const { data: me } = useMe();
+  const ability = useAbility();
   const [step, setStep] = useState<Step>("category");
   const [category, setCategory] = useState<ListingCategory | null>(null);
 
@@ -45,6 +56,7 @@ export function CreateListingScreen() {
   const [mileage, setMileage] = useState("");
   const [condition, setCondition] = useState("");
   const [faults, setFaults] = useState("");
+  const [mechanicId, setMechanicId] = useState("");
 
   const [gadgetType, setGadgetType] = useState("");
   const [brand, setBrand] = useState("");
@@ -69,6 +81,7 @@ export function CreateListingScreen() {
   const uploadOne = useUploadOne();
   const createCar = useCreateCar();
   const createGadget = useCreateGadget();
+  const mechanics = useVerifiedMechanics();
 
   const onPhotos = async (files: FileList | null) => {
     if (!files || !files.length || !category) return;
@@ -167,6 +180,7 @@ export function CreateListingScreen() {
           mileage: Number(mileage),
           condition,
           knownFaults: faults || undefined,
+          mechanicId,
           photoUrls,
           videoUrls: videos.map((video) => video.url),
           basePriceNaira: basePrice,
@@ -219,6 +233,59 @@ export function CreateListingScreen() {
     isPending: uploadBatch.isPending,
   };
   const isCreating = createCar.isPending || createGadget.isPending;
+  const allowedCategories =
+    me?.listingPermissions
+      .map((permission) => permission.category)
+      .filter((permittedCategory) =>
+        ability.can("create", subject("Listing", { category: permittedCategory })),
+      ) ?? [];
+
+  const goToPricing = () => {
+    const error =
+      category === "CAR"
+        ? validateCarDetails(
+            {
+              make,
+              model,
+              year,
+              colour,
+              registration,
+              mileage,
+              condition,
+              faults,
+              mechanicId,
+            },
+            photoUrls.length,
+          )
+        : validateGadgetDetails(
+            {
+              type: gadgetType,
+              brand,
+              model: gadgetModel,
+              colour: gadgetColour,
+              battery,
+              specs,
+              usage,
+              defects,
+            },
+            proofUrl,
+            photoUrls.length,
+          );
+    if (error) return toast.error(error);
+    setStep("pricing");
+  };
+
+  const goToPreview = () => {
+    const error = validatePricing({
+      basePrice,
+      holdPercent,
+      bidIncrement,
+      startTime,
+      duration,
+    });
+    if (error) return toast.error(error);
+    setStep("preview");
+  };
 
   return (
     <>
@@ -244,6 +311,7 @@ export function CreateListingScreen() {
       {step === "category" && (
         <CategoryStep
           category={category}
+          allowedCategories={allowedCategories}
           onSelect={setCategory}
           onContinue={() => setStep("details")}
         />
@@ -260,6 +328,7 @@ export function CreateListingScreen() {
             mileage,
             condition,
             faults,
+            mechanicId,
           }}
           onChange={{
             make: setMake,
@@ -270,10 +339,14 @@ export function CreateListingScreen() {
             mileage: setMileage,
             condition: setCondition,
             faults: setFaults,
+            mechanicId: setMechanicId,
           }}
+          mechanics={mechanics.data ?? []}
+          mechanicsLoading={mechanics.isLoading}
+          mechanicsError={mechanics.isError}
           media={media}
           onBack={() => setStep("category")}
-          onNext={() => setStep("pricing")}
+          onNext={goToPricing}
         />
       )}
 
@@ -303,7 +376,7 @@ export function CreateListingScreen() {
           onProof={onProof}
           media={media}
           onBack={() => setStep("category")}
-          onNext={() => setStep("pricing")}
+          onNext={goToPricing}
         />
       )}
 
@@ -320,7 +393,7 @@ export function CreateListingScreen() {
           onStartTimeChange={setStartTime}
           onDurationChange={setDuration}
           onBack={() => setStep("details")}
-          onNext={() => setStep("preview")}
+          onNext={goToPreview}
         />
       )}
 

@@ -72,9 +72,9 @@ export function DetailScreen({ id }: { id: string }) {
   const minIncrement = Math.max(auction.minimumBidIncrement, 1_000);
 
   const isWinner = me && auction.winnerId === me.id;
-  const showWinnerActions =
-    isWinner &&
-    (auction.status === "AWAITING_PAYMENT" || auction.status === "ENDED");
+  const isSeller = me && auction.sellerId === me.id;
+  const showWinnerActions = isWinner && auction.status === "AWAITING_PAYMENT";
+  const paymentAlreadyConfirmed = Boolean(auction.winnerPaymentConfirmedAt);
 
   const countdownTarget = (
     auction.isLive ? auction.endTime : auction.startTime
@@ -151,7 +151,7 @@ export function DetailScreen({ id }: { id: string }) {
         <div className="my-4 flex flex-col gap-2">
           <button
             type="button"
-            disabled={confirmPayment.isPending}
+            disabled={confirmPayment.isPending || paymentAlreadyConfirmed}
             onClick={async () => {
               try {
                 await confirmPayment.mutateAsync(undefined);
@@ -163,7 +163,11 @@ export function DetailScreen({ id }: { id: string }) {
             }}
             className="w-full rounded-xl border-none bg-primary p-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
-            {confirmPayment.isPending ? "Sending…" : "Confirm payment"}
+            {confirmPayment.isPending
+              ? "Sending…"
+              : paymentAlreadyConfirmed
+                ? "Payment confirmation sent"
+                : "Confirm payment"}
           </button>
           <button
             type="button"
@@ -179,12 +183,19 @@ export function DetailScreen({ id }: { id: string }) {
       )}
 
       {auction.isLive ? (
-        <BidBar
-          auctionId={id}
-          hasBids={bids.length > 0}
-          topBidNaira={topBid}
-          minIncrementNaira={minIncrement}
-        />
+        isSeller ? (
+          <div className="sticky bottom-0 -mx-4 -mb-6 border-t border-line bg-background px-4 py-4 text-center text-sm text-fg-muted">
+            This is your auction. You can follow bids here, but sellers cannot bid.
+          </div>
+        ) : (
+          <BidBar
+            key={`${topBid}-${bids.length}`}
+            auctionId={id}
+            hasBids={bids.length > 0}
+            topBidNaira={topBid}
+            minIncrementNaira={minIncrement}
+          />
+        )
       ) : auction.isUpcoming ? (
         <div className="sticky bottom-0 -mx-[18px] -mb-6 px-[18px] pt-3.5">
           <button

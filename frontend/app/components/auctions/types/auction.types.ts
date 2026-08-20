@@ -29,6 +29,8 @@ export type AuctionDto = {
   currentWinningBidId: string | null;
   winnerId: string | null;
   paymentDeadlineAt: string | null;
+  winnerPaymentConfirmedAt: string | null;
+  winnerPaymentNote: string | null;
   externalPaymentKobo: number | null;
   walletPaymentKobo: number | null;
   settledById: string | null;
@@ -103,7 +105,10 @@ export type AuctionListItemDto = AuctionDto & {
   currentBidKobo?: number;
 };
 
-export type ListAuctionsResponseDto = { auctions: AuctionListItemDto[] };
+export type ListAuctionsResponseDto = {
+  auctions: AuctionListItemDto[];
+  total: number;
+};
 export type GetAuctionResponseDto = {
   auction: AuctionDto;
   listing: ListingDto | null;
@@ -138,7 +143,12 @@ export type PlaceBidResponseDto = {
 
 export type PaymentInstructionsDto = {
   auction: AuctionDto;
-  winningBid: { id: string; amountKobo: number };
+  winningBid: {
+    id: string;
+    amountKobo: number;
+    holdAppliedKobo: number;
+    amountDueKobo: number;
+  };
   paymentDeadlineAt: string | null;
   paymentAccount: {
     bankName: string;
@@ -165,6 +175,8 @@ export type Auction = {
   startTime: Date;
   endTime: Date;
   paymentDeadlineAt: Date | null;
+  winnerPaymentConfirmedAt: Date | null;
+  winnerPaymentNote: string | null;
   winnerId: string | null;
   sellerId: string;
   listingId: string;

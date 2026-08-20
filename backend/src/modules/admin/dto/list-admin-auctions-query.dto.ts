@@ -1,8 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class ListAdminAuctionsQueryDto {
+  @ApiPropertyOptional({ description: 'Return one exact auction by id' })
+  @IsOptional()
+  @IsUUID()
+  auctionId?: string;
+
   @ApiPropertyOptional({ description: 'Filter by auction status' })
   @IsOptional()
   @IsString()

@@ -6,6 +6,18 @@ const API_PREFIX = "/api/v1";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  images: {
+    localPatterns: [
+      {
+        pathname: "/images/**",
+        search: "",
+      },
+      {
+        pathname: "/images/landing/car-showroom.jpg",
+        search: "?variant=hero",
+      },
+    ],
+  },
   async rewrites() {
     // Browser hits /api/v1/* on its own origin; Next forwards to the backend.
     // Keeps cookies first-party, removes CORS preflight, hides the backend

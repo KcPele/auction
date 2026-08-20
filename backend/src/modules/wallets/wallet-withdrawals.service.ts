@@ -1,10 +1,18 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { PaymentProvider } from '../../common/enums/payment-provider.enum';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
 import { WalletWithdrawalStatus } from '../../common/enums/wallet-withdrawal-status.enum';
+import { NotificationAudience } from '../../common/enums/notification-audience.enum';
+import { NotificationType } from '../../common/enums/notification-type.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 import { StrowalletProvider } from '../payments/providers/strowallet.provider';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { ListWithdrawalsQueryDto } from './dto/list-withdrawals-query.dto';
@@ -12,17 +20,23 @@ import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
 import { WalletWithdrawal } from './entities/wallet-withdrawal.entity';
 import { Wallet } from './entities/wallet.entity';
 import { presentWithdrawal } from './presenters/withdrawal.presenter';
+import { KycRequirementService } from '../kyc/kyc-requirement.service';
 
 @Injectable()
 export class WalletWithdrawalsService {
+  private readonly logger = new Logger(WalletWithdrawalsService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(WalletWithdrawal)
     private readonly withdrawalsRepository: Repository<WalletWithdrawal>,
     private readonly strowalletProvider: StrowalletProvider,
+    private readonly notificationsService: NotificationsService,
+    private readonly kycRequirement: KycRequirementService,
   ) {}
 
   async createWithdrawal(userId: string, dto: CreateWithdrawalDto) {
+    await this.kycRequirement.assertCanWithdraw(userId);
     const withdrawal = await this.createPendingWithdrawal(userId, dto);
 
     try {
@@ -130,23 +144,6 @@ export class WalletWithdrawalsService {
     return { items: items.map(presentWithdrawal), total };
   }
 
-  async authorizeWithdrawal(withdrawalId: string, authorizationCode: string) {
-    await this.findAuthorizableWithdrawal(withdrawalId);
-    throw new BadRequestException(
-      `Strowallet bank transfers do not require withdrawal OTP authorization: ${authorizationCode}`,
-    );
-  }
-
-  async resendWithdrawalOtp(withdrawalId: string) {
-    const withdrawal = await this.findAuthorizableWithdrawal(withdrawalId);
-    return {
-      withdrawal: presentWithdrawal(withdrawal),
-      providerResponse: {
-        message: 'Strowallet bank transfers do not require withdrawal OTP resend',
-      },
-    };
-  }
-
   async updateWithdrawalFromProvider(
     providerReference: string,
     status: string,
@@ -154,21 +151,28 @@ export class WalletWithdrawalsService {
   ) {
     const normalizedStatus = this.toWithdrawalStatus(status);
 
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const withdrawal = await this.findWithdrawalForUpdate(
         manager,
         providerReference,
       );
 
-      if (withdrawal.status === WalletWithdrawalStatus.Completed) {
-        return withdrawal;
+      if (
+        [
+          WalletWithdrawalStatus.Completed,
+          WalletWithdrawalStatus.Failed,
+          WalletWithdrawalStatus.Reversed,
+        ].includes(withdrawal.status)
+      ) {
+        return { withdrawal, changed: false };
       }
 
       if (normalizedStatus === WalletWithdrawalStatus.Failed) {
-        return (await this.refundWithdrawal(manager, withdrawal, payload))
-          .withdrawal;
+        const failed = await this.refundWithdrawal(manager, withdrawal, payload);
+        return { withdrawal: failed.withdrawal, changed: failed.refunded };
       }
 
+      const previousStatus = withdrawal.status;
       withdrawal.status = normalizedStatus;
       withdrawal.providerPayload = payload;
       withdrawal.completedAt =
@@ -187,15 +191,21 @@ export class WalletWithdrawalsService {
         });
       }
 
-      return withdrawal;
+      return { withdrawal, changed: previousStatus !== normalizedStatus };
     });
+
+    if (result.changed) {
+      await this.notifyTerminalStatus(result.withdrawal);
+    }
+
+    return result.withdrawal;
   }
 
   async failWithdrawalByReference(
     providerReference: string,
     payload: Record<string, unknown>,
   ) {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const withdrawal = await this.findWithdrawalForUpdate(
         manager,
         providerReference,
@@ -203,6 +213,42 @@ export class WalletWithdrawalsService {
 
       return this.refundWithdrawal(manager, withdrawal, payload);
     });
+
+    if (result.refunded) {
+      await this.notifyTerminalStatus(result.withdrawal);
+    }
+
+    return result;
+  }
+
+  private async notifyTerminalStatus(withdrawal: WalletWithdrawal) {
+    const completed = withdrawal.status === WalletWithdrawalStatus.Completed;
+    const failed = withdrawal.status === WalletWithdrawalStatus.Failed;
+    if (!completed && !failed) return;
+
+    try {
+      await this.notificationsService.create({
+        audience: NotificationAudience.User,
+        recipientId: withdrawal.userId,
+        type: NotificationType.System,
+        title: completed ? 'Withdrawal completed' : 'Withdrawal failed',
+        message: completed
+          ? 'Your withdrawal was sent successfully.'
+          : 'Your withdrawal could not be completed and the funds were returned to your wallet.',
+        data: {
+          withdrawalId: withdrawal.id,
+          amountKobo: withdrawal.amountKobo,
+          status: withdrawal.status,
+          href: '/dashboard/wallet/withdrawals',
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to create withdrawal notification',
+      );
+    }
   }
 
   private async createPendingWithdrawal(
@@ -324,32 +370,14 @@ export class WalletWithdrawalsService {
     return withdrawal;
   }
 
-  private async findAuthorizableWithdrawal(withdrawalId: string) {
-    const withdrawal = await this.withdrawalsRepository.findOneBy({
-      id: withdrawalId,
-    });
-
-    if (!withdrawal) {
-      throw new NotFoundException('Withdrawal not found');
-    }
-
-    if (
-      [WalletWithdrawalStatus.Completed, WalletWithdrawalStatus.Failed].includes(
-        withdrawal.status,
-      )
-    ) {
-      throw new BadRequestException('Withdrawal cannot be authorized');
-    }
-
-    return withdrawal;
-  }
-
   private toWithdrawalStatus(status: string) {
-    if (['SUCCESS', 'COMPLETED', 'SUCCESSFUL'].includes(status)) {
+    const normalized = status.trim().toUpperCase();
+
+    if (['SUCCESS', 'COMPLETED', 'SUCCESSFUL'].includes(normalized)) {
       return WalletWithdrawalStatus.Completed;
     }
 
-    if (['FAILED', 'REVERSED'].includes(status)) {
+    if (['FAILED', 'REVERSED'].includes(normalized)) {
       return WalletWithdrawalStatus.Failed;
     }
 

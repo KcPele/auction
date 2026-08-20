@@ -58,7 +58,7 @@ export function WalletHero({ showActions = true }: WalletHeroProps) {
         <div className="relative z-10 mt-3.5 flex gap-2">
           <Link
             href="/dashboard/wallet/topup"
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 py-2.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+            className="button-primary inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 py-2.5 text-[13px] font-semibold transition-colors"
           >
             <Icon name="plus" size={14} /> Top up
           </Link>

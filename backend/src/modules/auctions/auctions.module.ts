@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PlatformFeeSetting } from '../admin/entities/platform-fee-setting.entity';
 import { PaymentAccountSetting } from '../admin/entities/payment-account-setting.entity';
 import { BiddingSetting } from '../admin/entities/bidding-setting.entity';
+import { EscrowSetting } from '../admin/entities/escrow-setting.entity';
 import { Bid } from '../bids/entities/bid.entity';
 import { BidsModule } from '../bids/bids.module';
 import { CarListing } from '../cars/entities/car-listing.entity';
@@ -11,6 +12,7 @@ import { JobsModule } from '../jobs/jobs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { User } from '../users/entities/user.entity';
 import { WalletsModule } from '../wallets/wallets.module';
+import { WalletHold } from '../wallets/entities/wallet-hold.entity';
 import { AuctionLifecycleProcessor } from './auction-lifecycle.processor';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { AuctionPaymentDeadlineProcessor } from './auction-payment-deadline.processor';
@@ -19,6 +21,7 @@ import { AuctionsController } from './auctions.controller';
 import { AuctionsService } from './auctions.service';
 import { Auction } from './entities/auction.entity';
 import { AuctionDelivery } from './entities/auction-delivery.entity';
+import { AuctionCatalogQuery } from './auction-catalog.query';
 
 @Module({
   imports: [
@@ -30,8 +33,10 @@ import { AuctionDelivery } from './entities/auction-delivery.entity';
       PlatformFeeSetting,
       PaymentAccountSetting,
       BiddingSetting,
+      EscrowSetting,
       User,
       AuctionDelivery,
+      WalletHold,
     ]),
     JobsModule,
     NotificationsModule,
@@ -41,6 +46,7 @@ import { AuctionDelivery } from './entities/auction-delivery.entity';
   controllers: [AuctionsController],
   providers: [
     AuctionsService,
+    AuctionCatalogQuery,
     AuctionSettlementService,
     AuctionLifecycleProcessor,
     AuctionPaymentDeadlineProcessor,

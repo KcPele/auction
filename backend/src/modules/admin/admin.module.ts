@@ -10,6 +10,7 @@ import { Bid } from '../bids/entities/bid.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { WalletLedgerEntry } from '../wallets/entities/wallet-ledger-entry.entity';
 import { Notification } from '../notifications/entities/notification.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AuctionsModule } from '../auctions/auctions.module';
 import { WalletsModule } from '../wallets/wallets.module';
 import { AdminController } from './admin.controller';
@@ -33,6 +34,7 @@ import { PlatformFeeSetting } from './entities/platform-fee-setting.entity';
   imports: [
     AuctionsModule,
     WalletsModule,
+    NotificationsModule,
     TypeOrmModule.forFeature([
       User,
       AccessCode,

@@ -25,8 +25,11 @@ export class EmailService {
       'EMAIL_FROM',
       'no-reply@bidnaija.local',
     );
+    const isDevelopmentTestAddress =
+      this.config.get<string>('NODE_ENV') !== 'production' &&
+      message.to.toLowerCase().endsWith('@bidnaija.local');
 
-    if (!apiKey) {
+    if (!apiKey || isDevelopmentTestAddress) {
       this.logger.log(
         `[dev-email] to=${message.to} subject="${message.subject}"\n${message.text ?? message.html}`,
       );

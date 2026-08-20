@@ -9,6 +9,7 @@ import { TypingIndicator } from "@/app/components/support/widgets/TypingIndicato
 import {
   useAdminAssign,
   useAdminConversations,
+  useAdminConversation,
   useAdminMessages,
   useAdminPostMessage,
   useAdminRelease,
@@ -45,12 +46,20 @@ function stateBadge(state: SupportState) {
 export function SupportScreen() {
   const router = useRouter();
   const params = useSearchParams();
-  const activeId = params.get("c");
+  const requestedConversationId = params.get("c");
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("all");
+  const [page, setPage] = useState(0);
 
   const conversations = useAdminConversations(
     tab === "all" ? undefined : tab,
+    page,
   );
+  const list = useMemo(
+    () => conversations.data?.items ?? [],
+    [conversations.data],
+  );
+  const activeId = requestedConversationId ?? list[0]?.id ?? null;
+  const activeConversation = useAdminConversation(activeId);
   const messages = useAdminMessages(activeId);
   const postMsg = useAdminPostMessage(activeId ?? "");
   const assign = useAdminAssign();
@@ -59,18 +68,14 @@ export function SupportScreen() {
   useAdminSupportListStream();
   useSupportStream(activeId, true);
 
-  const list = useMemo(() => conversations.data ?? [], [conversations.data]);
+  const total = conversations.data?.total ?? 0;
   const active = useMemo(
-    () => list.find((c) => c.id === activeId) ?? null,
-    [list, activeId],
+    () =>
+      list.find((conversation) => conversation.id === activeId) ??
+      activeConversation.data ??
+      null,
+    [activeConversation.data, list, activeId],
   );
-
-  // Auto-select first conversation when arriving without a query param.
-  useEffect(() => {
-    if (!activeId && list.length > 0) {
-      router.replace(`/admin/support?c=${list[0].id}`);
-    }
-  }, [activeId, list, router]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -104,7 +109,10 @@ export function SupportScreen() {
           <button
             key={t.id}
             type="button"
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              setTab(t.id);
+              setPage(0);
+            }}
             className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${tab === t.id
                 ? "border-accent bg-accent/[0.1] text-accent"
                 : "border-line text-fg-muted hover:text-fg"
@@ -118,7 +126,9 @@ export function SupportScreen() {
       <div className="grid h-[calc(100vh-13rem)] grid-cols-1 gap-3 md:grid-cols-[300px_1fr]">
         <aside className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface">
           <div className="border-b border-line px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-fg-dim">
-            {list.length} conversation{list.length === 1 ? "" : "s"}
+            {total === 0
+              ? "0 conversations"
+              : `${page * 25 + 1}–${Math.min((page + 1) * 25, total)} of ${total}`}
           </div>
           <div className="flex-1 overflow-y-auto">
             {list.map((c) => {
@@ -163,6 +173,26 @@ export function SupportScreen() {
               </div>
             )}
           </div>
+          {total > 25 && (
+            <div className="flex items-center justify-between border-t border-line p-2">
+              <button
+                type="button"
+                disabled={page === 0}
+                onClick={() => setPage((current) => Math.max(0, current - 1))}
+                className="rounded-md border border-line px-2 py-1 text-xs text-fg-muted disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={(page + 1) * 25 >= total}
+                onClick={() => setPage((current) => current + 1)}
+                className="rounded-md border border-line px-2 py-1 text-xs text-fg-muted disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </aside>
 
         <section className="flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface">

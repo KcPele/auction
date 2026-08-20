@@ -1,10 +1,12 @@
 "use client";
 import { useState, type ReactNode } from "react";
+import { useNotificationsStream } from "@/app/components/notifications/hooks/use-notifications";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  useNotificationsStream();
 
   return (
     <div className="grid h-screen overflow-hidden bg-bg text-fg lg:grid-cols-[240px_1fr]">
