@@ -1,6 +1,7 @@
 import {
   AbilityBuilder,
   createMongoAbility,
+  type ForcedSubject,
   type MongoAbility,
 } from "@casl/ability";
 
@@ -17,7 +18,7 @@ export type Actions =
   | "authorize";
 
 // Domain subjects we gate.
-export type Subjects =
+type SubjectName =
   | "Auction"
   | "Listing"
   | "ListingApplication"
@@ -32,6 +33,10 @@ export type Subjects =
   | "Health"
   | "all";
 
+export type Subjects =
+  | SubjectName
+  | (ForcedSubject<"Listing"> & { category: string });
+
 export type AppAbility = MongoAbility<[Actions, Subjects]>;
 
 /**
@@ -39,7 +44,10 @@ export type AppAbility = MongoAbility<[Actions, Subjects]>;
  * Backend role values come from `UserRole` enum (`ADMIN`, `INDIVIDUAL_BIDDER`,
  * `CAR_DEALER`, `MECHANIC`).
  */
-export function buildAbilityFor(role: string | undefined | null): AppAbility {
+export function buildAbilityFor(
+  role: string | undefined | null,
+  listingCategories: string[] = [],
+): AppAbility {
   const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
   if (role === "ADMIN") {
@@ -51,5 +59,7 @@ export function buildAbilityFor(role: string | undefined | null): AppAbility {
   can("read", "Auction");
   can("create", "Wallet");
   can("create", "Withdrawal");
+  if (listingCategories.length)
+    can("create", "Listing", { category: { $in: listingCategories } });
   return build();
 }

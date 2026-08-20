@@ -1,8 +1,26 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  Max,
+  Min,
+} from 'class-validator';
+
+export type NotificationKindFilter =
+  | 'bid'
+  | 'listing'
+  | 'payment'
+  | 'system';
 
 export class ListNotificationsQueryDto {
+  @ApiPropertyOptional({ enum: ['bid', 'listing', 'payment', 'system'] })
+  @IsOptional()
+  @IsIn(['bid', 'listing', 'payment', 'system'])
+  kind?: NotificationKindFilter;
+
   @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
   @IsOptional()
   @Transform(({ value }) => Number(value))

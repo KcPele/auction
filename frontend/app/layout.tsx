@@ -9,6 +9,19 @@ export const metadata: Metadata = {
   title: "BidNaija — Verified auctions for cars and gadgets",
   description:
     "Buy and sell verified cars and gadgets through transparent online auctions across Nigeria.",
+  authors: [{ name: "Kcpele" }],
+  creator: "Kcpele",
+  publisher: "BidNaija Ltd",
+  other: {
+    "built-by": "Kcpele",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/bidnaija-mark.svg?v=5", type: "image/svg+xml" },
+    ],
+    shortcut: ["/icons/bidnaija-mark.svg?v=5"],
+    apple: ["/icons/bidnaija-mark.svg?v=5"],
+  },
 };
 
 export default function RootLayout({
@@ -19,6 +32,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
       className="h-full antialiased"
     >

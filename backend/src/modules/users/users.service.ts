@@ -33,7 +33,9 @@ import {
   deriveUserBidStatus,
   isExpired,
 } from './users-display.utils';
-import { queryUserBidPage } from './user-bids.query';
+import { queryUserBidCounts, queryUserBidPage } from './user-bids.query';
+import { loadAuctionListings } from './users-listings.query';
+import { presentWatchlistItems } from './users-watchlist.presenter';
 
 @Injectable()
 export class UsersService {
@@ -88,6 +90,15 @@ export class UsersService {
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     const user = await this.findActiveUser(userId);
+    const firstName = dto.firstName?.trim();
+    const lastName = dto.lastName?.trim();
+
+    if (dto.firstName !== undefined && !firstName) {
+      throw new BadRequestException('First name is required');
+    }
+    if (dto.lastName !== undefined && !lastName) {
+      throw new BadRequestException('Last name is required');
+    }
 
     if (dto.phone && dto.phone !== user.phone) {
       const existing = await this.usersRepository.findOneBy({
@@ -100,8 +111,8 @@ export class UsersService {
     }
 
     Object.assign(user, {
-      firstName: dto.firstName?.trim() ?? user.firstName,
-      lastName: dto.lastName?.trim() ?? user.lastName,
+      firstName: firstName ?? user.firstName,
+      lastName: lastName ?? user.lastName,
       phone: dto.phone ?? user.phone,
     });
 
@@ -200,10 +211,13 @@ export class UsersService {
   }
 
   async listMyBids(userId: string, query: ListUserBidsQueryDto) {
-    const page = await queryUserBidPage(this.bidsRepository, userId, query);
+    const [page, counts] = await Promise.all([
+      queryUserBidPage(this.bidsRepository, userId, query),
+      queryUserBidCounts(this.bidsRepository, userId),
+    ]);
     const auctionIds = page.rows.map((row) => row.auctionId);
     if (page.total === 0 || auctionIds.length === 0) {
-      return { items: [], total: 0 };
+      return { items: [], total: 0, counts };
     }
 
     const auctions = await this.auctionsRepository.find({
@@ -261,6 +275,7 @@ export class UsersService {
     return {
       items: items.filter(Boolean) as NonNullable<(typeof items)[0]>[],
       total: page.total,
+      counts,
     };
   }
 
@@ -308,6 +323,40 @@ export class UsersService {
     });
 
     return { items };
+  }
+
+  async listDeliveries(userId: string) {
+    const deliveries = await this.deliveryRepository.find({
+      where: [{ winnerId: userId }, { sellerId: userId }],
+      order: { updatedAt: 'DESC' },
+    });
+    if (deliveries.length === 0) return { items: [] };
+
+    const auctions = await this.auctionsRepository.find({
+      where: { id: In(deliveries.map((delivery) => delivery.auctionId)) },
+    });
+    const auctionMap = new Map(auctions.map((auction) => [auction.id, auction]));
+    const listings = await this.loadListings(auctions);
+    const listingMap = new Map(listings.map((listing) => [listing.id, listing]));
+
+    return {
+      items: deliveries.flatMap((delivery) => {
+        const auction = auctionMap.get(delivery.auctionId);
+        if (!auction) return [];
+        const listing = listingMap.get(auction.listingId);
+        return [{
+          auctionId: auction.id,
+          title: listing
+            ? buildListingTitle(auction.category, listing)
+            : 'Untitled',
+          category: auction.category,
+          role: delivery.sellerId === userId ? 'SELLER' : 'BUYER',
+          status: delivery.status,
+          trackingInfo: delivery.trackingInfo,
+          updatedAt: delivery.updatedAt,
+        }];
+      }),
+    };
   }
 
   async getStats(userId: string) {
@@ -398,31 +447,9 @@ export class UsersService {
     const auctions = await this.auctionsRepository.find({
       where: { id: In(auctionIds) },
     });
-    const auctionMap = new Map(auctions.map((a) => [a.id, a]));
-
     const listings = await this.loadListings(auctions);
-    const listingMap = new Map(listings.map((l) => [l.id, l]));
 
-    const items = entries.map((entry) => {
-      const auction = auctionMap.get(entry.auctionId);
-      const listing = auction ? listingMap.get(auction.listingId) : null;
-
-      return {
-        id: entry.id,
-        auctionId: entry.auctionId,
-        auctionTitle: listing
-          ? buildListingTitle(auction!.category, listing)
-          : 'Untitled',
-        category: auction?.category ?? null,
-        status: auction?.status ?? null,
-        startTime: auction?.startTime ?? null,
-        endTime: auction?.endTime ?? null,
-        photoUrl: listing?.photoUrls?.[0] ?? null,
-        createdAt: entry.createdAt,
-      };
-    });
-
-    return { items };
+    return { items: presentWatchlistItems({ entries, auctions, listings }) };
   }
 
   private async findActiveUser(userId: string) {
@@ -452,28 +479,12 @@ export class UsersService {
 
   private async loadListings(
     auctions: Auction[],
-  ): Promise<(CarListing | GadgetListing & { id: string })[]> {
-    const carAuctionIds = auctions
-      .filter((a) => a.category === ListingCategory.Car)
-      .map((a) => a.listingId);
-    const gadgetAuctionIds = auctions
-      .filter((a) => a.category === ListingCategory.Gadget)
-      .map((a) => a.listingId);
-
-    const [cars, gadgets] = await Promise.all([
-      carAuctionIds.length > 0
-        ? this.carListingsRepository.find({ where: { id: In(carAuctionIds) } })
-        : [],
-      gadgetAuctionIds.length > 0
-        ? this.gadgetListingsRepository.find({
-            where: { id: In(gadgetAuctionIds) },
-          })
-        : [],
-    ]);
-
-    return [...cars, ...gadgets] as (CarListing | GadgetListing & {
-      id: string;
-    })[];
+  ): Promise<(CarListing | GadgetListing)[]> {
+    return loadAuctionListings({
+      auctions,
+      carListingsRepository: this.carListingsRepository,
+      gadgetListingsRepository: this.gadgetListingsRepository,
+    });
   }
 
 }

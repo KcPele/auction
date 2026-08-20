@@ -6,6 +6,7 @@ import {
   getCarListing,
   getGadgetListing,
   listMyListings,
+  listVerifiedMechanics,
   submitCarListing,
   submitGadgetListing,
   updateCarListing,
@@ -23,6 +24,14 @@ import { listingKeys } from "./listing-keys";
 
 export function useMyListings() {
   return useQuery({ queryKey: listingKeys.mine(), queryFn: listMyListings });
+}
+
+export function useVerifiedMechanics() {
+  return useQuery({
+    queryKey: listingKeys.mechanics(),
+    queryFn: listVerifiedMechanics,
+    staleTime: 5 * 60_000,
+  });
 }
 
 export function useCarListing(id: string | undefined) {

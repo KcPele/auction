@@ -22,6 +22,8 @@
 
   --success: #18794e;
   --danger: #c23b3b;
+  --danger-hover: #a92f2f;
+  --danger-foreground: #ffffff;
   --warning: #a75b08;
   --info: #2563a8;
   --status-foreground: #ffffff;
@@ -71,6 +73,8 @@
   --sidebar-w: 15rem;
   --desktop-content-max: 56.25rem;
   --nav-h: 4.25rem;
+  --otp-input-max: 22.5rem;
+  --otp-tracking: 0.45em;
 }
 
 [data-theme="dark"] {
@@ -90,6 +94,8 @@
   --primary-soft: #1b315f;
   --success: #65d59a;
   --danger: #ff8c8c;
+  --danger-hover: #ffaaaa;
+  --danger-foreground: #2b1114;
   --warning: #f6c76b;
   --info: #82b7ed;
   --contrast: #f2f6fb;
@@ -123,6 +129,8 @@
   --color-border-strong: var(--border-strong);
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-foreground: var(--danger-foreground);
   --color-warning: var(--warning);
   --color-info: var(--info);
   --color-status-foreground: var(--status-foreground);
@@ -229,6 +237,18 @@
   color: var(--primary);
 }
 
-.accent-gradient-bg {
-  background: var(--primary);
+@layer components {
+  .button-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .button-primary:hover {
+    background: var(--primary-hover);
+  }
+
+  .otp-code-input {
+    max-width: var(--otp-input-max);
+    letter-spacing: var(--otp-tracking);
+  }
 }

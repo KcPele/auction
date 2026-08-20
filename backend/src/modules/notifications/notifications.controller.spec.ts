@@ -18,6 +18,7 @@ describe('NotificationsController', () => {
     listForUser: jest.Mock;
     markRead: jest.Mock;
     markAllRead: jest.Mock;
+    getUnreadCount: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -25,6 +26,7 @@ describe('NotificationsController', () => {
       listForUser: jest.fn(),
       markRead: jest.fn(),
       markAllRead: jest.fn(),
+      getUnreadCount: jest.fn(),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -36,6 +38,13 @@ describe('NotificationsController', () => {
     }).compile();
 
     controller = moduleRef.get(NotificationsController);
+  });
+
+  it('returns the lightweight unread count', async () => {
+    service.getUnreadCount.mockResolvedValue({ count: 3 });
+
+    await expect(controller.unreadCount(user)).resolves.toEqual({ count: 3 });
+    expect(service.getUnreadCount).toHaveBeenCalledWith(user);
   });
 
   it('lists current user notifications', async () => {

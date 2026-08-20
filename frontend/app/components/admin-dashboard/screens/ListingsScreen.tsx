@@ -35,12 +35,22 @@ export function ListingsScreen() {
     else toast.error(fallback);
   };
 
-  const onApprove = async (a: AdminListingApplication) => {
+  const closeReview = () => {
+    setReviewing(null);
+    setNote("");
+  };
+
+  const onApprove = async (
+    a: AdminListingApplication,
+    reviewNote?: string,
+  ) => {
     try {
-      await approve.mutateAsync({ id: a.id, reviewNote: note || undefined });
+      await approve.mutateAsync({
+        id: a.id,
+        reviewNote: reviewNote?.trim() || undefined,
+      });
       toast.success("Application approved");
-      setReviewing(null);
-      setNote("");
+      closeReview();
     } catch (err) {
       wrapErr(err, "Could not approve");
     }
@@ -50,8 +60,7 @@ export function ListingsScreen() {
     try {
       await reject.mutateAsync({ id: a.id, reviewNote: note || undefined });
       toast.success("Application rejected");
-      setReviewing(null);
-      setNote("");
+      closeReview();
     } catch (err) {
       wrapErr(err, "Could not reject");
     }
@@ -164,21 +173,25 @@ export function ListingsScreen() {
 
       {reviewing && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="access-review-title"
           className="fixed inset-0 z-40 flex items-center justify-center bg-scrim p-4"
-          onClick={() => setReviewing(null)}
+          onClick={closeReview}
         >
           <div
             className="w-full max-w-md rounded-xl border border-line-strong bg-surface p-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-3 text-[15px] font-semibold">
+            <div id="access-review-title" className="mb-3 text-[15px] font-semibold">
               Review · {reviewing.category === "cars" ? "Car" : "Gadget"} access
             </div>
             <p className="mb-3 text-[12px] text-fg-muted">{reviewing.reason}</p>
-            <label className="mb-1 block text-[11px] uppercase tracking-[0.08em] text-fg-dim">
+            <label htmlFor="access-review-note" className="mb-1 block text-[11px] uppercase tracking-[0.08em] text-fg-dim">
               Review note (optional)
             </label>
             <textarea
+              id="access-review-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
@@ -187,7 +200,7 @@ export function ListingsScreen() {
             <div className="mt-3 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setReviewing(null)}
+                onClick={closeReview}
                 className="rounded-md border border-line px-3 py-1.5 text-xs text-fg-muted hover:bg-surface-2"
               >
                 Close
@@ -203,7 +216,7 @@ export function ListingsScreen() {
               <button
                 type="button"
                 disabled={isPending}
-                onClick={() => onApprove(reviewing)}
+                onClick={() => onApprove(reviewing, note)}
                 className="rounded-md border border-green/30 bg-green/[0.08] px-3 py-1.5 text-xs font-semibold text-green hover:bg-green/15 disabled:opacity-60"
               >
                 Approve

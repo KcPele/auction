@@ -12,7 +12,7 @@ describe('WalletsService', () => {
     create: jest.Mock;
     save: jest.Mock;
   };
-  let ledgerRepository: { find: jest.Mock };
+  let ledgerRepository: { findAndCount: jest.Mock };
   let service: WalletsService;
 
   beforeEach(() => {
@@ -22,7 +22,7 @@ describe('WalletsService', () => {
       create: jest.fn((value) => value),
       save: jest.fn(async (value) => createWallet(value)),
     };
-    ledgerRepository = { find: jest.fn() };
+    ledgerRepository = { findAndCount: jest.fn() };
     service = new WalletsService(
       dataSource as never,
       walletsRepository as never,
@@ -45,11 +45,33 @@ describe('WalletsService', () => {
 
   it('lists ledger entries for the user wallet', async () => {
     walletsRepository.findOneBy.mockResolvedValue({ id: 'wallet-id' });
-    ledgerRepository.find.mockResolvedValue([{ id: 'entry-id' }]);
+    ledgerRepository.findAndCount.mockResolvedValue([[{ id: 'entry-id' }], 12]);
 
     await expect(
       service.listLedger('user-id', { limit: 10, offset: 5 }),
-    ).resolves.toEqual({ ledgerEntries: [{ id: 'entry-id' }] });
+    ).resolves.toEqual({ ledgerEntries: [{ id: 'entry-id' }], total: 12 });
+  });
+
+  it('filters the paginated ledger by the requested activity bucket', async () => {
+    walletsRepository.findOneBy.mockResolvedValue({ id: 'wallet-id' });
+    ledgerRepository.findAndCount.mockResolvedValue([[{ id: 'hold-entry' }], 3]);
+
+    await expect(
+      service.listLedger('user-id', {
+        activity: 'hold',
+        limit: 20,
+        offset: 0,
+      }),
+    ).resolves.toEqual({ ledgerEntries: [{ id: 'hold-entry' }], total: 3 });
+
+    expect(ledgerRepository.findAndCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          walletId: 'wallet-id',
+          type: expect.anything(),
+        }),
+      }),
+    );
   });
 
   it('creates bid holds against available balance', async () => {
@@ -113,6 +135,34 @@ describe('WalletsService', () => {
       released: true,
     });
     expect(wallet.heldKobo).toBe(0);
+  });
+
+  it('applies an active winning hold toward settlement', async () => {
+    const wallet = createWallet({ balanceKobo: 100000, heldKobo: 50000 });
+    const hold = {
+      id: 'hold-id',
+      walletId: wallet.id,
+      amountKobo: 50000,
+      status: WalletHoldStatus.Active,
+    };
+    const manager = createManager({ wallet, hold });
+
+    await expect(
+      service.applyBidHold(manager as never, {
+        holdId: 'hold-id',
+        reference: 'settlement-reference',
+        metadata: {},
+      }),
+    ).resolves.toEqual({
+      hold: expect.objectContaining({ status: WalletHoldStatus.Applied }),
+      applied: true,
+      amountKobo: 50000,
+    });
+    expect(wallet.balanceKobo).toBe(50000);
+    expect(wallet.heldKobo).toBe(0);
+    expect(manager.save).toHaveBeenCalledWith(
+      expect.objectContaining({ type: WalletLedgerType.BidHoldApplied }),
+    );
   });
 });
 

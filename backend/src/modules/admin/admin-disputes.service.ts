@@ -5,17 +5,26 @@ import { DisputeStatus } from '../../common/enums/dispute-status.enum';
 import { ListDisputesQueryDto } from './dto/list-disputes-query.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { Dispute } from './entities/dispute.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationAudience } from '../../common/enums/notification-audience.enum';
+import { NotificationType } from '../../common/enums/notification-type.enum';
 
 @Injectable()
 export class AdminDisputesService {
   constructor(
     @InjectRepository(Dispute) private readonly disputesRepository: Repository<Dispute>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async listDisputes(query: ListDisputesQueryDto) {
     const where: Record<string, unknown> = {};
     if (query.status) where.status = query.status;
-    const [items, total] = await this.disputesRepository.findAndCount({ where, order: { createdAt: 'DESC' } });
+    const [items, total] = await this.disputesRepository.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      take: query.limit,
+      skip: query.offset,
+    });
     return { items, total };
   }
 
@@ -33,7 +42,20 @@ export class AdminDisputesService {
     dispute.resolution = dto.resolution.trim();
     dispute.resolvedById = adminId;
     dispute.resolvedAt = new Date();
-    return { dispute: await this.disputesRepository.save(dispute) };
+    const saved = await this.disputesRepository.save(dispute);
+    await Promise.all(
+      [...new Set([saved.buyerId, saved.sellerId])].map((recipientId) =>
+        this.notificationsService.create({
+          audience: NotificationAudience.User,
+          recipientId,
+          type: NotificationType.System,
+          title: 'Dispute resolved',
+          message: saved.resolution ?? dto.resolution.trim(),
+          data: { disputeId: saved.id, auctionId: saved.auctionId },
+        }),
+      ),
+    );
+    return { dispute: saved };
   }
 
   private async findDispute(disputeId: string) {

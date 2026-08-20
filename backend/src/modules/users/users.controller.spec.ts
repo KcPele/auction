@@ -8,6 +8,7 @@ import type { UpdateNotificationPreferencesDto } from './dto/update-notification
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { UserDisputesService } from './user-disputes.service';
 
 describe('UsersController', () => {
   const currentUser: AuthenticatedUser = {
@@ -23,7 +24,9 @@ describe('UsersController', () => {
     updateNotificationPreferences: jest.Mock;
     applyForListingAccess: jest.Mock;
     redeemAccessCode: jest.Mock;
+    listDeliveries: jest.Mock;
   };
+  let disputes: { listForUser: jest.Mock; create: jest.Mock };
 
   beforeEach(async () => {
     service = {
@@ -32,12 +35,15 @@ describe('UsersController', () => {
       updateNotificationPreferences: jest.fn(),
       applyForListingAccess: jest.fn(),
       redeemAccessCode: jest.fn(),
+      listDeliveries: jest.fn(),
     };
+    disputes = { listForUser: jest.fn(), create: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       controllers: [UsersController],
       providers: [
         { provide: UsersService, useValue: service },
+        { provide: UserDisputesService, useValue: disputes },
         { provide: AuthService, useValue: { getAuthenticatedUser: jest.fn() } },
       ],
     }).compile();
@@ -103,5 +109,36 @@ describe('UsersController', () => {
       controller.redeemAccessCode(currentUser, dto),
     ).resolves.toEqual({ listingPermission: dto });
     expect(service.redeemAccessCode).toHaveBeenCalledWith(currentUser.id, dto);
+  });
+
+  it('lists the current user disputes', async () => {
+    disputes.listForUser.mockResolvedValue({ items: [] });
+
+    await expect(controller.listDisputes(currentUser)).resolves.toEqual({
+      items: [],
+    });
+    expect(disputes.listForUser).toHaveBeenCalledWith(currentUser.id);
+  });
+
+  it('opens a dispute for a settled auction', async () => {
+    const dto = {
+      auctionId: '22222222-2222-2222-2222-222222222222',
+      reason: 'The item did not match the listing.',
+    };
+    disputes.create.mockResolvedValue({ dispute: dto });
+
+    await expect(controller.createDispute(currentUser, dto)).resolves.toEqual({
+      dispute: dto,
+    });
+    expect(disputes.create).toHaveBeenCalledWith(currentUser.id, dto);
+  });
+
+  it('lists buyer and seller deliveries for the current user', async () => {
+    service.listDeliveries.mockResolvedValue({ items: [] });
+
+    await expect(controller.listDeliveries(currentUser)).resolves.toEqual({
+      items: [],
+    });
+    expect(service.listDeliveries).toHaveBeenCalledWith(currentUser.id);
   });
 });

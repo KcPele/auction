@@ -1,6 +1,5 @@
 import { fmtNaira } from "../utils";
-import { inputClass, labelClass } from "./constants";
-import { Field, NavRow } from "./FormPrimitives";
+import { DateTimeField, Field, NavRow } from "./FormPrimitives";
 
 export function PricingStep({
   basePrice,
@@ -54,15 +53,11 @@ export function PricingStep({
           placeholder="50000"
         />
       </div>
-      <div>
-        <label className={labelClass}>Start time</label>
-        <input
-          className={inputClass}
-          type="datetime-local"
-          value={startTime}
-          onChange={(event) => onStartTimeChange(event.target.value)}
-        />
-      </div>
+      <DateTimeField
+        label="Start time"
+        value={startTime}
+        onChange={onStartTimeChange}
+      />
       <Field
         label="Duration (minutes)"
         value={String(duration)}

@@ -13,6 +13,7 @@ import { ApiError } from "@/app/lib/api/error";
 import { ThemeToggle } from "@/app/components/theme/ThemeToggle";
 import { Icon, type IconName } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
+import { profileSchema } from "../utils/profile.schema";
 
 interface NotifPref {
   id: "whatsappEnabled" | "readyToBid";
@@ -86,12 +87,13 @@ export function ProfileScreen() {
   }, [me]);
 
   const onSaveProfile = async () => {
+    const parsed = profileSchema.safeParse({ firstName, lastName, phone });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Check your details");
+      return;
+    }
     try {
-      await updateProfile.mutateAsync({
-        firstName,
-        lastName,
-        phone,
-      });
+      await updateProfile.mutateAsync(parsed.data);
       toast.success("Profile updated");
       setShowEditDetails(false);
     } catch (err) {
@@ -119,6 +121,12 @@ export function ProfileScreen() {
       sub: `${watchlistCount} ${watchlistCount === 1 ? "auction" : "auctions"}`,
       icon: "heart",
       href: "/dashboard/watchlist",
+    },
+    {
+      label: "Deliveries",
+      sub: "Track purchases and sales",
+      icon: "truck",
+      href: "/dashboard/deliveries",
     },
     {
       label: "Listing access",
@@ -164,6 +172,7 @@ export function ProfileScreen() {
             <div className="text-[15px] font-semibold tracking-tight">Edit personal details</div>
             <button
               type="button"
+              aria-label="Close personal details editor"
               onClick={() => setShowEditDetails(false)}
               className="rounded-lg p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg"
             >
@@ -172,8 +181,10 @@ export function ProfileScreen() {
           </div>
           <div className="flex flex-col gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-fg-muted">First name</label>
+              <label htmlFor="profile-first-name" className="mb-1 block text-xs font-medium text-fg-muted">First name</label>
               <input
+                id="profile-first-name"
+                autoComplete="given-name"
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
@@ -181,8 +192,10 @@ export function ProfileScreen() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-fg-muted">Last name</label>
+              <label htmlFor="profile-last-name" className="mb-1 block text-xs font-medium text-fg-muted">Last name</label>
               <input
+                id="profile-last-name"
+                autoComplete="family-name"
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
@@ -190,9 +203,12 @@ export function ProfileScreen() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-fg-muted">Phone</label>
+              <label htmlFor="profile-phone" className="mb-1 block text-xs font-medium text-fg-muted">Phone</label>
               <input
-                type="text"
+                id="profile-phone"
+                autoComplete="tel"
+                inputMode="tel"
+                type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
@@ -225,7 +241,7 @@ export function ProfileScreen() {
         <div className="relative z-10 mt-3.5 flex gap-2">
           <Link
             href="/dashboard/listing-access"
-            className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-none px-2.5 py-2.5 text-[13px] font-semibold text-primary-foreground"
+            className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-none bg-primary px-2.5 py-2.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary-hover"
           >
             <Icon name="key" size={14} /> Apply
           </Link>

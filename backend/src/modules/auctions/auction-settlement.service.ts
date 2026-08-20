@@ -13,6 +13,7 @@ import { NotificationAudience } from '../../common/enums/notification-audience.e
 import { NotificationType } from '../../common/enums/notification-type.enum';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
+import { WalletHoldStatus } from '../../common/enums/wallet-hold-status.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { PaymentAccountSetting } from '../admin/entities/payment-account-setting.entity';
 import { Bid } from '../bids/entities/bid.entity';
@@ -20,9 +21,14 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { WalletsService } from '../wallets/wallets.service';
 import { WalletLedgerEntry } from '../wallets/entities/wallet-ledger-entry.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
+import { WalletHold } from '../wallets/entities/wallet-hold.entity';
 import { Auction } from './entities/auction.entity';
 import { AuctionDelivery } from './entities/auction-delivery.entity';
 import { presentAuction } from './presenters/auction.presenter';
+import {
+  createLifecycleNotifications,
+  type LifecycleNotification,
+} from './auction-lifecycle.helpers';
 
 type SettleAuctionPaymentInput = {
   externalPaymentKobo?: number;
@@ -32,14 +38,6 @@ type SettleAuctionPaymentInput = {
 type DefaultAuctionPaymentInput = {
   reason?: string;
 };
-type LifecycleNotification = {
-  recipientId: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  data: Record<string, unknown>;
-};
-
 @Injectable()
 export class AuctionSettlementService {
   private readonly logger = new Logger(AuctionSettlementService.name);
@@ -54,6 +52,8 @@ export class AuctionSettlementService {
     private readonly paymentAccountsRepository: Repository<PaymentAccountSetting>,
     @InjectRepository(AuctionDelivery)
     private readonly deliveryRepository: Repository<AuctionDelivery>,
+    @InjectRepository(WalletHold)
+    private readonly walletHoldsRepository: Repository<WalletHold>,
     private readonly notificationsService: NotificationsService,
     private readonly walletsService: WalletsService,
   ) {}
@@ -86,9 +86,22 @@ export class AuctionSettlementService {
       throw new NotFoundException('Payment account is not configured');
     }
 
+    const winningHold = winningBid.walletHoldId
+      ? await this.walletHoldsRepository.findOneBy({
+          id: winningBid.walletHoldId,
+          status: WalletHoldStatus.Active,
+        })
+      : null;
+    const holdAppliedKobo = winningHold?.amountKobo ?? 0;
+
     return {
       auction: presentAuction(auction),
-      winningBid: { id: winningBid.id, amountKobo: winningBid.amountKobo },
+      winningBid: {
+        id: winningBid.id,
+        amountKobo: winningBid.amountKobo,
+        holdAppliedKobo,
+        amountDueKobo: winningBid.amountKobo - holdAppliedKobo,
+      },
       paymentDeadlineAt: auction.paymentDeadlineAt,
       paymentAccount: {
         bankName: paymentAccount.bankName,
@@ -120,10 +133,27 @@ export class AuctionSettlementService {
       );
       const externalPaymentKobo = input.externalPaymentKobo ?? 0;
       const walletPaymentKobo = input.walletPaymentKobo ?? 0;
+      const winningHold = winningBid.walletHoldId
+        ? await manager.findOne(WalletHold, {
+            where: {
+              id: winningBid.walletHoldId,
+              status: WalletHoldStatus.Active,
+            },
+            lock: { mode: 'pessimistic_write' },
+          })
+        : null;
+      const holdAppliedKobo = winningHold?.amountKobo ?? 0;
 
-      if (externalPaymentKobo + walletPaymentKobo < winningBid.amountKobo) {
+      const totalPaymentKobo =
+        externalPaymentKobo + walletPaymentKobo + holdAppliedKobo;
+      if (totalPaymentKobo < winningBid.amountKobo) {
         throw new BadRequestException(
           'Payment amount is below the winning bid amount',
+        );
+      }
+      if (totalPaymentKobo > winningBid.amountKobo) {
+        throw new BadRequestException(
+          'Payment amount exceeds the winning bid amount',
         );
       }
 
@@ -135,16 +165,14 @@ export class AuctionSettlementService {
         });
       }
 
-      // Release the winner's bid hold — they've now paid externally and/or
-      // from the wallet, so the held funds should be freed.
       if (winningBid.walletHoldId) {
-        await this.walletsService.releaseBidHold(manager, {
+        await this.walletsService.applyBidHold(manager, {
           holdId: winningBid.walletHoldId,
           reference: `auction_settle_${auction.id}_bid_${winningBid.id}`,
           metadata: {
             auctionId: auction.id,
             bidId: winningBid.id,
-            reason: 'auction_settled',
+            reason: 'applied_to_winning_payment',
           },
         });
       }
@@ -158,10 +186,19 @@ export class AuctionSettlementService {
       });
 
       await manager.save(auction);
-      return { auction, winningBid };
+      const delivery = await manager.save(
+        manager.create(AuctionDelivery, {
+          auctionId: auction.id,
+          winnerId: auction.winnerId,
+          sellerId: auction.sellerId,
+          status: DeliveryStatus.PaymentConfirmed,
+          trackingInfo: null,
+        }),
+      );
+      return { auction, winningBid, delivery };
     });
 
-    await this.createLifecycleNotifications([
+    await createLifecycleNotifications(this.notificationsService, this.logger, [
       {
         recipientId: result.auction.winnerId as string,
         type: NotificationType.System,
@@ -181,6 +218,7 @@ export class AuctionSettlementService {
     return {
       auction: presentAuction(result.auction),
       winningBid: result.winningBid,
+      delivery: result.delivery,
     };
   }
 
@@ -232,7 +270,7 @@ export class AuctionSettlementService {
     });
 
     if (result.changed) {
-      await this.createLifecycleNotifications([
+      await createLifecycleNotifications(this.notificationsService, this.logger, [
         {
           recipientId: result.auction.winnerId as string,
           type: NotificationType.System,
@@ -258,27 +296,50 @@ export class AuctionSettlementService {
     auctionId: string,
     note?: string,
   ) {
-    const auction = await this.findAuction(auctionId);
+    const result = await this.dataSource.transaction(async (manager) => {
+      const auction = await this.findAuctionForUpdate(manager, auctionId);
+      if (auction.status !== AuctionStatus.AwaitingPayment)
+        throw new BadRequestException('Auction is not awaiting payment');
+      if (auction.winnerId !== user.id)
+        throw new BadRequestException('Only the winner can confirm payment');
+      if (auction.winnerPaymentConfirmedAt)
+        return { auction, changed: false };
+      auction.winnerPaymentConfirmedAt = new Date();
+      auction.winnerPaymentNote = note?.trim().slice(0, 1000) || null;
+      await manager.save(auction);
+      return { auction, changed: true };
+    });
 
-    if (auction.status !== AuctionStatus.AwaitingPayment) {
-      throw new BadRequestException('Auction is not awaiting payment');
+    if (!result.changed) {
+      return {
+        message: 'Payment confirmation was already sent.',
+        changed: false,
+        auction: presentAuction(result.auction),
+      };
     }
 
-    if (auction.winnerId !== user.id) {
-      throw new BadRequestException('Only the winner can confirm payment');
-    }
-
-    await this.createLifecycleNotifications([
+    await createLifecycleNotifications(this.notificationsService, this.logger, [
       {
-        recipientId: auction.sellerId,
+        recipientId: result.auction.sellerId,
         type: NotificationType.System,
         title: 'Winner payment notification',
         message: `The winner has confirmed they made the transfer.${note ? ` Note: ${note}` : ''}`,
-        data: { auctionId: auction.id, winnerConfirmed: true },
+        data: { auctionId: result.auction.id, winnerConfirmed: true },
       },
     ]);
+    await this.notificationsService.create({
+      audience: NotificationAudience.Admin,
+      type: NotificationType.PaymentDue,
+      title: 'Payment verification required',
+      message: 'An auction winner reported payment. Verify it before settlement.',
+      data: { auctionId: result.auction.id, winnerId: user.id },
+    });
 
-    return { message: 'Payment confirmation sent. Admin will verify and settle.' };
+    return {
+      message: 'Payment confirmation sent. Admin will verify and settle.',
+      changed: true,
+      auction: presentAuction(result.auction),
+    };
   }
 
   async updateDeliveryStatus(
@@ -297,8 +358,15 @@ export class AuctionSettlementService {
       throw new NotFoundException('Delivery record not found');
     }
 
-    if (delivery.sellerId !== user.id && user.role !== UserRole.Admin) {
-      throw new BadRequestException('Only the seller or admin can update delivery status');
+    const isAdmin = user.role === UserRole.Admin;
+    const confirmsReceipt = status === DeliveryStatus.Delivered;
+    if (confirmsReceipt && delivery.winnerId !== user.id && !isAdmin) {
+      throw new BadRequestException('Only the buyer or admin can confirm delivery');
+    }
+    if (!confirmsReceipt && delivery.sellerId !== user.id && !isAdmin) {
+      throw new BadRequestException(
+        'Only the seller or admin can progress delivery',
+      );
     }
 
     const validTransitions: Record<string, string[]> = {
@@ -318,17 +386,21 @@ export class AuctionSettlementService {
     delivery.status = status;
     await this.deliveryRepository.save(delivery);
 
-    const recipientId =
-      delivery.sellerId === user.id ? delivery.winnerId : delivery.sellerId;
-    await this.createLifecycleNotifications([
-      {
+    const recipientIds =
+      user.role === UserRole.Admin
+        ? [...new Set([delivery.sellerId, delivery.winnerId])]
+        : [delivery.sellerId === user.id ? delivery.winnerId : delivery.sellerId];
+    await createLifecycleNotifications(
+      this.notificationsService,
+      this.logger,
+      recipientIds.map((recipientId) => ({
         recipientId,
         type: NotificationType.System,
         title: 'Delivery update',
         message: `Delivery status updated to ${status.replace(/_/g, ' ').toLowerCase()}.`,
         data: { auctionId, deliveryStatus: status },
-      },
-    ]);
+      })),
+    );
 
     return { delivery };
   }
@@ -401,7 +473,7 @@ export class AuctionSettlementService {
       throw new NotFoundException('Winner wallet not found');
     }
 
-    if (wallet.balanceKobo < input.amountKobo) {
+    if (wallet.balanceKobo - wallet.heldKobo < input.amountKobo) {
       throw new BadRequestException('Winner wallet balance is insufficient');
     }
 
@@ -424,22 +496,4 @@ export class AuctionSettlementService {
     );
   }
 
-  private async createLifecycleNotifications(
-    notifications: LifecycleNotification[],
-  ) {
-    for (const notification of notifications) {
-      try {
-        await this.notificationsService.create({
-          audience: NotificationAudience.User,
-          ...notification,
-        });
-      } catch (error) {
-        this.logger.error(
-          error instanceof Error
-            ? error.message
-            : 'Failed to create settlement notification',
-        );
-      }
-    }
-  }
 }

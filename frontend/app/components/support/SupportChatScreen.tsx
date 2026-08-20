@@ -56,15 +56,6 @@ export function SupportChatScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
-  // Auto-create the first conversation if the user has none yet.
-  useEffect(() => {
-    if (!activeId && conversations.isSuccess && list.length === 0) {
-      void createConv.mutateAsync(undefined).then((c) => {
-        router.replace(`/dashboard/support?c=${c.id}`);
-      });
-    }
-  }, [activeId, conversations.isSuccess, list.length, createConv, router]);
-
   // Pick the most recent conversation when nothing is selected.
   useEffect(() => {
     if (!activeId && list.length > 0) {
@@ -91,8 +82,14 @@ export function SupportChatScreen() {
   };
 
   const onNew = async () => {
-    const conv = await createConv.mutateAsync(undefined);
-    router.push(`/dashboard/support?c=${conv.id}`);
+    try {
+      const conv = await createConv.mutateAsync(undefined);
+      router.push(`/dashboard/support?c=${conv.id}`);
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Could not start conversation",
+      );
+    }
   };
 
   const badge = active ? stateBadge(active.state) : null;
@@ -108,9 +105,10 @@ export function SupportChatScreen() {
           <button
             type="button"
             onClick={() => void onNew()}
-            className="rounded-md border border-line px-2 py-1 text-[11px] text-fg-muted hover:text-fg"
+            disabled={createConv.isPending}
+            className="rounded-md border border-line px-2 py-1 text-[11px] text-fg-muted hover:text-fg disabled:opacity-60"
           >
-            + New
+            {createConv.isPending ? "Starting…" : "+ New"}
           </button>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -151,6 +149,31 @@ export function SupportChatScreen() {
 
       {/* Chat panel */}
       <section className="flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface">
+        <div className="flex gap-2 border-b border-line p-2 md:hidden">
+          <select
+            aria-label="Support conversation"
+            value={activeId ?? ""}
+            onChange={(event) =>
+              router.replace(`/dashboard/support?c=${event.target.value}`)
+            }
+            className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-fg"
+          >
+            {list.length === 0 && <option value="">No conversations</option>}
+            {list.map((conversation) => (
+              <option key={conversation.id} value={conversation.id}>
+                {conversation.subject || "Support conversation"}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => void onNew()}
+            disabled={createConv.isPending}
+            className="rounded-md border border-line px-3 py-1.5 text-sm font-medium text-fg disabled:opacity-60"
+          >
+            New
+          </button>
+        </div>
         <header className="flex items-center justify-between border-b border-line px-3.5 py-2.5">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-fg">
@@ -178,8 +201,27 @@ export function SupportChatScreen() {
           {messagesQuery.isLoading ? (
             <div className="py-8 text-center text-sm text-fg-dim">Loading…</div>
           ) : (messagesQuery.data ?? []).length === 0 ? (
-            <div className="py-8 text-center text-sm text-fg-dim">
-              Ask the assistant anything about your BidNaija account.
+            <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+              <div className="text-sm font-medium text-fg">
+                {activeId
+                  ? "Ask the assistant anything about your BidNaija account."
+                  : "Start a support conversation"}
+              </div>
+              {!activeId && (
+                <>
+                  <p className="mt-1 max-w-sm text-xs text-fg-dim">
+                    Get help with auctions, wallet holds, payments, listings, or delivery.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void onNew()}
+                    disabled={createConv.isPending}
+                    className="mt-4 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+                  >
+                    {createConv.isPending ? "Starting…" : "Start conversation"}
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <>

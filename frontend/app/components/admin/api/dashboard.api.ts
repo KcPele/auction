@@ -86,11 +86,15 @@ export const cancelAuction = (input: { id: string; reason?: string }) =>
     body: input.reason ? { reason: input.reason } : {},
   });
 
+export const forceCloseAuction = (id: string) =>
+  apiClient<unknown>(`/auctions/${id}/force-close`, { method: "POST" });
+
 export const listAdminAuctions = async (
-  params: { status?: string; limit?: number; offset?: number } = {},
+  params: { auctionId?: string; status?: string; limit?: number; offset?: number } = {},
 ): Promise<{ items: AdminAuctionItem[]; total: number }> => {
   const dto = await apiClient<ListAdminAuctionsResponseDto>("/admin/auctions", {
     query: {
+      auctionId: params.auctionId,
       status: params.status,
       limit: params.limit ?? 20,
       offset: params.offset ?? 0,
@@ -108,6 +112,10 @@ export const listAdminAuctions = async (
       bidderCount: a.bidderCount,
       holdPercent: a.holdPercent,
       endsAt: new Date(a.endsAt),
+      winnerPaymentConfirmedAt: a.winnerPaymentConfirmedAt
+        ? new Date(a.winnerPaymentConfirmedAt)
+        : null,
+      winnerPaymentNote: a.winnerPaymentNote,
     })),
   };
 };

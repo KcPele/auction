@@ -83,4 +83,5 @@ export type SignUpInput = {
 export type SignInInput = {
   email: string;
   password: string;
+  rememberMe?: boolean;
 };

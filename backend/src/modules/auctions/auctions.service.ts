@@ -12,36 +12,34 @@ import { AuctionStatus } from '../../common/enums/auction-status.enum';
 import { BidStatus } from '../../common/enums/bid-status.enum';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { ListingStatus } from '../../common/enums/listing-status.enum';
-import { NotificationAudience } from '../../common/enums/notification-audience.enum';
 import { NotificationType } from '../../common/enums/notification-type.enum';
 import { PlatformFeeSetting } from '../admin/entities/platform-fee-setting.entity';
 import { BiddingSetting } from '../admin/entities/bidding-setting.entity';
+import { EscrowSetting } from '../admin/entities/escrow-setting.entity';
 import { Bid } from '../bids/entities/bid.entity';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { NotificationsService } from '../notifications/notifications.service';
-import { User } from '../users/entities/user.entity';
 import { BidsGateway } from '../bids/bids.gateway';
 import { WalletsService } from '../wallets/wallets.service';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
+import { AuctionCatalogQuery } from './auction-catalog.query';
 import { CancelAuctionDto } from './dto/cancel-auction.dto';
 import { ListAuctionsQueryDto } from './dto/list-auctions-query.dto';
 import { Auction } from './entities/auction.entity';
 import { presentAuction } from './presenters/auction.presenter';
+import {
+  createLifecycleNotifications,
+  findClosableBids,
+  markLosingBids,
+  scheduleOpenLifecycleJobs,
+  type LifecycleNotification,
+} from './auction-lifecycle.helpers';
 
 type AuctionListing = CarListing | GadgetListing;
-type LifecycleNotification = {
-  recipientId: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  data: Record<string, unknown>;
-};
-
 @Injectable()
 export class AuctionsService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AuctionsService.name);
-  private readonly paymentDeadlineHours = 24;
 
   constructor(
     private readonly dataSource: DataSource,
@@ -57,8 +55,9 @@ export class AuctionsService implements OnApplicationBootstrap {
     private readonly feesRepository: Repository<PlatformFeeSetting>,
     @InjectRepository(BiddingSetting)
     private readonly biddingSettingsRepository: Repository<BiddingSetting>,
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
+    @InjectRepository(EscrowSetting)
+    private readonly escrowSettingsRepository: Repository<EscrowSetting>,
+    private readonly catalog: AuctionCatalogQuery,
     private readonly notificationsService: NotificationsService,
     private readonly lifecycleScheduler: AuctionLifecycleScheduler,
     private readonly bidsGateway: BidsGateway,
@@ -66,7 +65,10 @@ export class AuctionsService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
-    await this.scheduleOpenLifecycleJobs();
+    await scheduleOpenLifecycleJobs(
+      this.auctionsRepository,
+      this.lifecycleScheduler,
+    );
   }
 
   async createFromApprovedListing(
@@ -98,7 +100,10 @@ export class AuctionsService implements OnApplicationBootstrap {
         sellerId: listing.listerId,
         basePriceKobo: Number(listing.basePriceKobo),
         minimumBidIncrementKobo: Number(listing.minimumBidIncrementKobo),
-        holdPercent: biddingSetting.bidRequirementPercent,
+        holdPercent: Math.max(
+          listing.holdPercent,
+          biddingSetting.bidRequirementPercent,
+        ),
         sellerFeeBps: fee.sellerFeeBps,
         buyerFeeBps: fee.buyerFeeBps,
         startTime: listing.startTime,
@@ -120,191 +125,21 @@ export class AuctionsService implements OnApplicationBootstrap {
   }
 
   async list(query: ListAuctionsQueryDto) {
-    let auctionIds: string[] | null = null;
-
-    if (query.search) {
-      auctionIds = await this.searchAuctionIds(query.search);
-      if (auctionIds.length === 0) {
-        return { auctions: [] };
-      }
-    }
-
-    // Year filter applies only to cars — pre-resolve matching listing IDs and
-    // narrow the auction ID set before the main query.
-    if (
-      (query.minYear || query.maxYear) &&
-      query.category !== ListingCategory.Gadget
-    ) {
-      const yearQb = this.carListingsRepository
-        .createQueryBuilder('c')
-        .select('c.id');
-      if (query.minYear) yearQb.andWhere('c.year >= :minY', { minY: query.minYear });
-      if (query.maxYear) yearQb.andWhere('c.year <= :maxY', { maxY: query.maxYear });
-      const carIds = (await yearQb.getMany()).map((c) => c.id);
-      if (carIds.length === 0) {
-        return { auctions: [] };
-      }
-      const yearAuctions = await this.auctionsRepository.find({
-        where: { category: ListingCategory.Car, listingId: In(carIds) },
-        select: ['id'],
-      });
-      const yearIds = yearAuctions.map((a) => a.id);
-      auctionIds = auctionIds
-        ? auctionIds.filter((id) => yearIds.includes(id))
-        : yearIds;
-      if (auctionIds.length === 0) {
-        return { auctions: [] };
-      }
-    }
-
-    const qb = this.auctionsRepository
-      .createQueryBuilder('a')
-      .orderBy('a.startTime', 'ASC')
-      .addOrderBy('a.createdAt', 'DESC')
-      .take(query.limit)
-      .skip(query.offset);
-    if (query.category) qb.andWhere('a.category = :cat', { cat: query.category });
-    if (query.status) qb.andWhere('a.status = :st', { st: query.status });
-    if (auctionIds) qb.andWhere('a.id IN (:...ids)', { ids: auctionIds });
-    if (query.minPriceKobo != null)
-      qb.andWhere('a."basePriceKobo" >= :minP', { minP: query.minPriceKobo });
-    if (query.maxPriceKobo != null)
-      qb.andWhere('a."basePriceKobo" <= :maxP', { maxP: query.maxPriceKobo });
-    const auctions = await qb.getMany();
-
-    const bidStats = auctions.length
-      ? await this.bidsRepository
-          .createQueryBuilder('bid')
-          .select('bid.auctionId', 'auctionId')
-          .addSelect('COUNT(DISTINCT bid.bidderId)', 'bidderCount')
-          .addSelect('MAX(bid.amountKobo)', 'currentBidKobo')
-          .where('bid.auctionId IN (:...auctionIds)', {
-            auctionIds: auctions.map((auction) => auction.id),
-          })
-          .groupBy('bid.auctionId')
-          .getRawMany<{
-            auctionId: string;
-            bidderCount: string;
-            currentBidKobo: string;
-          }>()
-      : [];
-    const bidStatsMap = new Map(
-      bidStats.map((stats) => [stats.auctionId, stats]),
-    );
-
-    // Hydrate display title/subtitle/cover from the underlying listing so the
-    // browse cards can show the make/model/year without a per-card fetch.
-    const carIds = auctions
-      .filter((a) => a.category === ListingCategory.Car)
-      .map((a) => a.listingId);
-    const gadgetIds = auctions
-      .filter((a) => a.category === ListingCategory.Gadget)
-      .map((a) => a.listingId);
-    const [cars, gadgets] = await Promise.all([
-      carIds.length
-        ? this.carListingsRepository.find({ where: { id: In(carIds) } })
-        : Promise.resolve([] as CarListing[]),
-      gadgetIds.length
-        ? this.gadgetListingsRepository.find({ where: { id: In(gadgetIds) } })
-        : Promise.resolve([] as GadgetListing[]),
-    ]);
-    const carMap = new Map(cars.map((c) => [c.id, c]));
-    const gadgetMap = new Map(gadgets.map((g) => [g.id, g]));
-
-    return {
-      auctions: auctions.map((a) => {
-        const stats = bidStatsMap.get(a.id);
-        const base = {
-          ...presentAuction(a),
-          bidderCount: Number(stats?.bidderCount ?? 0),
-          currentBidKobo: Number(stats?.currentBidKobo ?? a.basePriceKobo),
-        };
-        if (a.category === ListingCategory.Car) {
-          const c = carMap.get(a.listingId);
-          if (c) {
-            return {
-              ...base,
-              title: `${c.year} ${c.make} ${c.model}`.trim(),
-              subtitle: [c.condition, `${c.mileage.toLocaleString()} km`]
-                .filter(Boolean)
-                .join(' · '),
-              coverUrl: c.photoUrls?.[0] ?? null,
-            };
-          }
-        } else {
-          const g = gadgetMap.get(a.listingId);
-          if (g) {
-            return {
-              ...base,
-              title: `${g.brand} ${g.model}`.trim(),
-              subtitle: [
-                g.type,
-                g.batteryHealthPercent
-                  ? `${g.batteryHealthPercent}% battery`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(' · '),
-              coverUrl: g.photoUrls?.[0] ?? null,
-            };
-          }
-        }
-        return base;
-      }),
-    };
+    return this.catalog.list(query);
   }
 
   async findOne(id: string) {
-    const auction = await this.findAuction(id);
-    const listing = await this.findListing(auction.category, auction.listingId);
-
-    return {
-      auction: presentAuction(auction),
-      listing: listing ? this.presentListing(auction.category, listing) : null,
-    };
+    return this.catalog.findOne(id);
   }
 
   async listBids(auctionId: string) {
-    await this.findAuction(auctionId);
-    const bids = await this.bidsRepository.find({
-      where: { auctionId },
-      order: { amountKobo: 'DESC', createdAt: 'ASC' },
-    });
-
-    if (bids.length === 0) {
-      return { bids: [] };
-    }
-
-    const bidderIds = [...new Set(bids.map((b) => b.bidderId))];
-    const users = await this.usersRepository.find({
-      where: { id: In(bidderIds) },
-      select: ['id', 'firstName', 'lastName'],
-    });
-    const userMap = new Map(users.map((u) => [u.id, u]));
-
-    const enrichedBids = bids.map((bid) => {
-      const bidder = userMap.get(bid.bidderId);
-      const handle = bidder
-        ? `@${bidder.firstName.toLowerCase()}***`
-        : '@unknown';
-
-      return {
-        id: bid.id,
-        userId: bid.bidderId,
-        handle,
-        amountKobo: bid.amountKobo,
-        placedAt: bid.createdAt,
-        isLeading: bid.status === BidStatus.Winning,
-        status: bid.status,
-      };
-    });
-
-    return { bids: enrichedBids };
+    return this.catalog.listBids(auctionId);
   }
 
   async cancel(adminId: string, auctionId: string, dto: CancelAuctionDto) {
-    const auction = await this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const current = await this.findAuctionForUpdate(manager, auctionId);
+      const previousStatus = current.status;
 
       if (
         ![AuctionStatus.Scheduled, AuctionStatus.Live].includes(current.status)
@@ -313,6 +148,12 @@ export class AuctionsService implements OnApplicationBootstrap {
           'Only scheduled or live auctions can be cancelled',
         );
       }
+
+      const bids = await manager.find(Bid, {
+        where: { auctionId: current.id },
+        select: ['bidderId'],
+      });
+      const bidderIds = [...new Set(bids.map((bid) => bid.bidderId))];
 
       if (current.currentWinningBidId) {
         const winningBid = await manager.findOne(Bid, {
@@ -346,10 +187,42 @@ export class AuctionsService implements OnApplicationBootstrap {
         cancelledAt: new Date(),
       });
 
-      return manager.save(current);
+      return {
+        auction: await manager.save(current),
+        bidderIds,
+        previousStatus,
+      };
     });
 
-    return { auction: presentAuction(auction) };
+    this.bidsGateway.emitStatusChanged({
+      auctionId: result.auction.id,
+      previousStatus: result.previousStatus,
+      newStatus: AuctionStatus.Cancelled,
+    });
+
+    const reason = result.auction.cancellationReason
+      ? ` Reason: ${result.auction.cancellationReason}`
+      : '';
+    await createLifecycleNotifications(this.notificationsService, this.logger, [
+      {
+        recipientId: result.auction.sellerId,
+        type: NotificationType.System,
+        title: 'Auction cancelled',
+        message: `Your auction was cancelled by an administrator.${reason}`,
+        data: { auctionId: result.auction.id },
+      },
+      ...result.bidderIds
+        .filter((bidderId) => bidderId !== result.auction.sellerId)
+        .map((bidderId) => ({
+          recipientId: bidderId,
+          type: NotificationType.System,
+          title: 'Auction cancelled',
+          message: `An auction you bid on was cancelled. Your active hold has been released.${reason}`,
+          data: { auctionId: result.auction.id },
+        })),
+    ]);
+
+    return { auction: presentAuction(result.auction) };
   }
 
   async startScheduledAuction(auctionId: string) {
@@ -380,7 +253,7 @@ export class AuctionsService implements OnApplicationBootstrap {
         newStatus: AuctionStatus.Live,
       });
 
-      await this.createLifecycleNotifications([
+      await createLifecycleNotifications(this.notificationsService, this.logger, [
         {
           recipientId: result.auction.sellerId,
           type: NotificationType.AuctionStarted,
@@ -415,8 +288,12 @@ export class AuctionsService implements OnApplicationBootstrap {
   }
 
   async closeAuction(auctionId: string) {
+    const paymentWindowHours =
+      (await this.escrowSettingsRepository.findOneBy({ id: 'default' }))
+        ?.paymentWindowHours ?? 24;
     const result = await this.dataSource.transaction(async (manager) => {
       const auction = await this.findAuctionForUpdate(manager, auctionId);
+      const previousStatus = auction.status;
 
       if (
         ![AuctionStatus.Scheduled, AuctionStatus.Live].includes(auction.status)
@@ -425,6 +302,7 @@ export class AuctionsService implements OnApplicationBootstrap {
           auction,
           winningBid: null,
           changed: false,
+          previousStatus,
           notifications: [] as LifecycleNotification[],
         };
       }
@@ -435,11 +313,12 @@ export class AuctionsService implements OnApplicationBootstrap {
           auction,
           winningBid: null,
           changed: false,
+          previousStatus,
           notifications: [] as LifecycleNotification[],
         };
       }
 
-      const bids = await this.findClosableBids(manager, auction.id);
+      const bids = await findClosableBids(manager, auction.id);
       const winningBid = bids[0] ?? null;
 
       if (!winningBid) {
@@ -453,6 +332,7 @@ export class AuctionsService implements OnApplicationBootstrap {
           auction,
           winningBid,
           changed: true,
+          previousStatus,
           notifications: [
             {
               recipientId: auction.sellerId,
@@ -466,7 +346,7 @@ export class AuctionsService implements OnApplicationBootstrap {
       }
 
       const paymentDeadlineAt = new Date(
-        Date.now() + this.paymentDeadlineHours * 60 * 60_000,
+        Date.now() + paymentWindowHours * 60 * 60_000,
       );
       auction.status = AuctionStatus.AwaitingPayment;
       auction.currentWinningBidId = winningBid.id;
@@ -475,19 +355,20 @@ export class AuctionsService implements OnApplicationBootstrap {
       winningBid.status = BidStatus.Winning;
 
       await manager.save(winningBid);
-      await this.markLosingBids(manager, bids, winningBid);
+      await markLosingBids(manager, this.walletsService, bids, winningBid);
       await manager.save(auction);
 
       return {
         auction,
         winningBid,
         changed: true,
+        previousStatus,
         notifications: [
           {
             recipientId: winningBid.bidderId,
             type: NotificationType.AuctionWon,
             title: 'You won an auction',
-            message: 'Complete final payment within 24 hours to secure the item.',
+            message: `Complete final payment within ${paymentWindowHours} hours to secure the item.`,
             data: {
               auctionId: auction.id,
               bidId: winningBid.id,
@@ -499,7 +380,7 @@ export class AuctionsService implements OnApplicationBootstrap {
             recipientId: auction.sellerId,
             type: NotificationType.System,
             title: 'Auction has a winner',
-            message: 'Your auction has ended and the winner has 24 hours to pay.',
+            message: `Your auction has ended and the winner has ${paymentWindowHours} hours to pay.`,
             data: {
               auctionId: auction.id,
               winningBidId: winningBid.id,
@@ -511,13 +392,9 @@ export class AuctionsService implements OnApplicationBootstrap {
     });
 
     if (result.changed) {
-      const previousStatus = result.auction.status === AuctionStatus.Ended
-        ? AuctionStatus.Live
-        : AuctionStatus.Scheduled;
-
       this.bidsGateway.emitStatusChanged({
         auctionId: result.auction.id,
-        previousStatus,
+        previousStatus: result.previousStatus,
         newStatus: result.auction.status,
       });
 
@@ -529,7 +406,11 @@ export class AuctionsService implements OnApplicationBootstrap {
           : null,
       });
 
-      await this.createLifecycleNotifications(result.notifications);
+      await createLifecycleNotifications(
+        this.notificationsService,
+        this.logger,
+        result.notifications,
+      );
 
       if (result.winningBid && result.auction.paymentDeadlineAt) {
         await this.lifecycleScheduler.schedulePaymentDeadline(result.auction);
@@ -540,101 +421,6 @@ export class AuctionsService implements OnApplicationBootstrap {
       auction: presentAuction(result.auction),
       winningBid: result.winningBid,
       changed: result.changed,
-    };
-  }
-
-  private async searchAuctionIds(keyword: string): Promise<string[]> {
-    const term = `%${keyword}%`;
-    const carResults = await this.carListingsRepository
-      .createQueryBuilder('car')
-      .select('car.id', 'listingId')
-      .where(
-        'car.make ILIKE :term OR car.model ILIKE :term OR car.colour ILIKE :term OR CAST(car.year AS TEXT) ILIKE :term',
-        { term },
-      )
-      .getRawMany();
-
-    const gadgetResults = await this.gadgetListingsRepository
-      .createQueryBuilder('gadget')
-      .select('gadget.id', 'listingId')
-      .where(
-        'gadget.brand ILIKE :term OR gadget.model ILIKE :term OR gadget.type ILIKE :term OR gadget.colour ILIKE :term',
-        { term },
-      )
-      .getRawMany();
-
-    const listingIds = [
-      ...carResults.map((r) => r.listingId),
-      ...gadgetResults.map((r) => r.listingId),
-    ];
-
-    if (listingIds.length === 0) return [];
-
-    const auctions = await this.auctionsRepository.find({
-      where: { listingId: In(listingIds) },
-      select: ['id'],
-    });
-
-    return auctions.map((a) => a.id);
-  }
-
-  private async findListing(category: ListingCategory, listingId: string) {
-    const repo = this.getListingRepository(category);
-    return repo.findOneBy({ id: listingId });
-  }
-
-  private presentListing(
-    category: ListingCategory,
-    listing: CarListing | GadgetListing,
-  ) {
-    if (category === ListingCategory.Car) {
-      const car = listing as CarListing;
-      return {
-        id: car.id,
-        type: 'car',
-        make: car.make,
-        model: car.model,
-        year: car.year,
-        colour: car.colour,
-        registrationNumber: car.registrationNumber,
-        mileage: car.mileage,
-        condition: car.condition,
-        knownFaults: car.knownFaults,
-        mechanicId: car.mechanicId,
-        photoUrls: car.photoUrls,
-        videoUrls: car.videoUrls ?? [],
-        basePriceKobo: Number(car.basePriceKobo),
-        status: car.status,
-        reviewedById: car.reviewedById,
-        reviewNote: car.reviewNote,
-        reviewedAt: car.reviewedAt,
-        createdAt: car.createdAt,
-        updatedAt: car.updatedAt,
-      };
-    }
-
-    const gadget = listing as GadgetListing;
-    return {
-      id: gadget.id,
-      type: 'gadget',
-      gadgetType: gadget.type,
-      brand: gadget.brand,
-      model: gadget.model,
-      colour: gadget.colour,
-      batteryHealthPercent: gadget.batteryHealthPercent,
-      specs: gadget.specs,
-      usageHistory: gadget.usageHistory,
-      defects: gadget.defects,
-      proofDocumentUrl: gadget.proofDocumentUrl,
-      photoUrls: gadget.photoUrls,
-      videoUrls: gadget.videoUrls,
-      basePriceKobo: Number(gadget.basePriceKobo),
-      status: gadget.status,
-      reviewedById: gadget.reviewedById,
-      reviewNote: gadget.reviewNote,
-      reviewedAt: gadget.reviewedAt,
-      createdAt: gadget.createdAt,
-      updatedAt: gadget.updatedAt,
     };
   }
 
@@ -710,74 +496,4 @@ export class AuctionsService implements OnApplicationBootstrap {
     return existing ?? { bidRequirementPercent: 10 };
   }
 
-  private async scheduleOpenLifecycleJobs() {
-    const auctions = await this.auctionsRepository.find({
-      where: [
-        { status: AuctionStatus.Scheduled },
-        { status: AuctionStatus.Live },
-      ],
-    });
-
-    await Promise.all(
-      auctions.map((auction) =>
-        this.lifecycleScheduler.scheduleAuctionLifecycle(auction),
-      ),
-    );
-  }
-
-  private async findClosableBids(manager: EntityManager, auctionId: string) {
-    return manager.find(Bid, {
-      where: {
-        auctionId,
-        status: In([BidStatus.Accepted, BidStatus.Winning]),
-      },
-      order: { amountKobo: 'DESC', createdAt: 'ASC' },
-      lock: { mode: 'pessimistic_write' },
-    });
-  }
-
-  private async markLosingBids(
-    manager: EntityManager,
-    bids: Bid[],
-    winningBid: Bid,
-  ) {
-    const losingBids = bids.filter((bid) => bid.id !== winningBid.id);
-
-    for (const bid of losingBids) {
-      bid.status = BidStatus.Outbid;
-      await manager.save(bid);
-      // Release the bidder's hold so their wallet frees up the moment the
-      // auction closes. Idempotent — releaseBidHold no-ops if not active.
-      if (bid.walletHoldId) {
-        await this.walletsService.releaseBidHold(manager, {
-          holdId: bid.walletHoldId,
-          reference: `auction_close_${winningBid.auctionId}_bid_${bid.id}`,
-          metadata: {
-            auctionId: winningBid.auctionId,
-            bidId: bid.id,
-            reason: 'auction_closed',
-          },
-        });
-      }
-    }
-  }
-
-  private async createLifecycleNotifications(
-    notifications: LifecycleNotification[],
-  ) {
-    for (const notification of notifications) {
-      try {
-        await this.notificationsService.create({
-          audience: NotificationAudience.User,
-          ...notification,
-        });
-      } catch (error) {
-        this.logger.error(
-          error instanceof Error
-            ? error.message
-            : 'Failed to create auction lifecycle notification',
-        );
-      }
-    }
-  }
 }

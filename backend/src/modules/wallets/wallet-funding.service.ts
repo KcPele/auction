@@ -1,13 +1,19 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import { createHash } from 'crypto';
 import { PaymentProvider } from '../../common/enums/payment-provider.enum';
 import { WalletFundingAccountStatus } from '../../common/enums/wallet-funding-account-status.enum';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
+import { NotificationAudience } from '../../common/enums/notification-audience.enum';
+import { NotificationType } from '../../common/enums/notification-type.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 import { StrowalletProvider } from '../payments/providers/strowallet.provider';
 import { User } from '../users/entities/user.entity';
 import { InitiateTopupDto } from './dto/initiate-topup.dto';
@@ -18,6 +24,8 @@ import { presentFundingAccount } from './presenters/funding-account.presenter';
 
 @Injectable()
 export class WalletFundingService {
+  private readonly logger = new Logger(WalletFundingService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(Wallet)
@@ -27,6 +35,8 @@ export class WalletFundingService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly strowalletProvider: StrowalletProvider,
+    private readonly config: ConfigService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getFundingAccount(userId: string) {
@@ -49,11 +59,13 @@ export class WalletFundingService {
     const wallet = await this.ensureWallet(userId);
     const accountReference = `wallet_${userId}`;
     const accountName = `${user.firstName} ${user.lastName}`.trim();
-    const response = await this.strowalletProvider.createVirtualAccount({
-      email: user.email,
-      accountName,
-      phone: user.phone,
-    });
+    const response = this.isSandbox
+      ? this.createSandboxAccount(userId, accountName)
+      : await this.strowalletProvider.createVirtualAccount({
+          email: user.email,
+          accountName,
+          phone: user.phone,
+        });
     const account = this.parseVirtualAccount(response);
 
     if (!account) {
@@ -101,7 +113,7 @@ export class WalletFundingService {
       throw new BadRequestException('Funding account reference is required');
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const existingLedger = await manager.findOne(WalletLedgerEntry, {
         where: { reference: input.reference },
       });
@@ -144,6 +156,32 @@ export class WalletFundingService {
 
       return { ledgerEntry, wallet, alreadyProcessed: false };
     });
+
+    if (!result.alreadyProcessed && result.wallet) {
+      try {
+        await this.notificationsService.create({
+          audience: NotificationAudience.User,
+          recipientId: result.wallet.userId,
+          type: NotificationType.System,
+          title: 'Wallet funded',
+          message: 'Your bank transfer was confirmed and your wallet is ready to use.',
+          data: {
+            amountKobo: input.amountKobo,
+            reference: input.reference,
+            ledgerEntryId: result.ledgerEntry.id,
+            href: '/dashboard/wallet',
+          },
+        });
+      } catch (error) {
+        this.logger.error(
+          error instanceof Error
+            ? error.message
+            : 'Failed to create wallet funding notification',
+        );
+      }
+    }
+
+    return result;
   }
 
   private async ensureWallet(userId: string) {
@@ -154,6 +192,23 @@ export class WalletFundingService {
     }
 
     return this.walletsRepository.save(this.walletsRepository.create({ userId }));
+  }
+
+  private createSandboxAccount(userId: string, accountName: string) {
+    const digest = createHash('sha256').update(userId).digest('hex');
+    const numeric = Number(BigInt(`0x${digest.slice(0, 12)}`) % 9_000_000_000n);
+    return {
+      accountNumber: String(1_000_000_000 + numeric),
+      accountName,
+      bankName: 'BidNaija Sandbox Bank',
+      bankCode: '999999',
+      providerReference: `sandbox_${userId}`,
+      simulated: true,
+    };
+  }
+
+  private get isSandbox() {
+    return (this.config.get<string>('STROWALLET_MODE') ?? 'sandbox') === 'sandbox';
   }
 
   private parseVirtualAccount(response: Record<string, unknown>) {

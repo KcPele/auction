@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +15,9 @@ import {
   assertHoldPercent,
 } from '../../common/utils/listing-validation';
 import { UserListingPermission } from '../users/entities/user-listing-permission.entity';
+import { PlatformToggle } from '../admin/entities/platform-toggle.entity';
+import { MechanicProfile } from '../admin/entities/mechanic-profile.entity';
+import { MechanicVerificationStatus } from '../../common/enums/mechanic-verification-status.enum';
 import { CreateCarListingDto } from './dto/create-car-listing.dto';
 import { UpdateCarListingDto } from './dto/update-car-listing.dto';
 import { CarListing } from './entities/car-listing.entity';
@@ -25,10 +29,15 @@ export class CarsService {
     private readonly carListingsRepository: Repository<CarListing>,
     @InjectRepository(UserListingPermission)
     private readonly permissionsRepository: Repository<UserListingPermission>,
+    @InjectRepository(PlatformToggle)
+    private readonly platformTogglesRepository: Repository<PlatformToggle>,
+    @InjectRepository(MechanicProfile)
+    private readonly mechanicProfilesRepository: Repository<MechanicProfile>,
   ) {}
 
   async create(userId: string, dto: CreateCarListingDto) {
     await this.ensureListingAccess(userId);
+    if (dto.mechanicId) await this.ensureVerifiedMechanic(dto.mechanicId);
     this.validateSchedule(dto.holdPercent, dto.startTime);
 
     const listing = this.carListingsRepository.create({
@@ -56,7 +65,9 @@ export class CarsService {
   }
 
   async update(userId: string, id: string, dto: UpdateCarListingDto) {
-    const listing = await this.findOwnDraft(userId, id);
+    const listing = await this.findOwnEditable(userId, id);
+
+    if (dto.mechanicId) await this.ensureVerifiedMechanic(dto.mechanicId);
 
     if (dto.holdPercent || dto.startTime) {
       this.validateSchedule(
@@ -65,17 +76,58 @@ export class CarsService {
       );
     }
 
+    if (listing.status === ListingStatus.Rejected) {
+      Object.assign(listing, {
+        status: ListingStatus.Draft,
+        reviewedById: null,
+        reviewNote: null,
+        reviewedAt: null,
+      });
+    }
     Object.assign(listing, this.mapPartialDto(dto));
 
     return { carListing: await this.carListingsRepository.save(listing) };
   }
 
   async submit(userId: string, id: string) {
+    await this.ensureSubmissionsOpen();
     const listing = await this.findOwnDraft(userId, id);
+    if (!listing.mechanicId) {
+      throw new BadRequestException(
+        'Choose a verified mechanic before submitting this car listing',
+      );
+    }
+    await this.ensureVerifiedMechanic(listing.mechanicId);
     assertFutureStartTime(listing.startTime);
     listing.status = ListingStatus.PendingApproval;
 
     return { carListing: await this.carListingsRepository.save(listing) };
+  }
+
+  private async ensureVerifiedMechanic(mechanicId: string) {
+    const mechanic = await this.mechanicProfilesRepository.findOne({
+      where: {
+        id: mechanicId,
+        status: MechanicVerificationStatus.Verified,
+        user: { isActive: true, isBanned: false },
+      },
+    });
+
+    if (!mechanic) {
+      throw new BadRequestException('Choose a verified mechanic');
+    }
+  }
+
+  private async ensureSubmissionsOpen() {
+    const toggles = await this.platformTogglesRepository.findOneBy({
+      id: 'default',
+    });
+
+    if (toggles?.pauseNewListings) {
+      throw new ServiceUnavailableException(
+        'New listing submissions are temporarily paused',
+      );
+    }
   }
 
   private async ensureListingAccess(userId: string) {
@@ -100,14 +152,28 @@ export class CarsService {
   }
 
   private async findOwnDraft(userId: string, id: string) {
+    const listing = await this.findOwnEditable(userId, id);
+
+    if (listing.status !== ListingStatus.Draft) {
+      throw new BadRequestException('Edit a rejected listing before resubmitting');
+    }
+
+    return listing;
+  }
+
+  private async findOwnEditable(userId: string, id: string) {
     const listing = await this.findListing(id);
 
     if (listing.listerId !== userId) {
       throw new NotFoundException('Car listing not found');
     }
 
-    if (listing.status !== ListingStatus.Draft) {
-      throw new BadRequestException('Only draft listings can be changed');
+    if (
+      ![ListingStatus.Draft, ListingStatus.Rejected].includes(listing.status)
+    ) {
+      throw new BadRequestException(
+        'Only draft or rejected listings can be changed',
+      );
     }
 
     return listing;

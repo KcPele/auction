@@ -7,12 +7,14 @@ import { BidsController } from './bids.controller';
 import { BidsGateway } from './bids.gateway';
 import { BidsService } from './bids.service';
 import { Bid } from './entities/bid.entity';
+import { KycModule } from '../kyc/kyc.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Auction, Bid]),
     WalletsModule,
     NotificationsModule,
+    KycModule,
   ],
   controllers: [BidsController],
   providers: [BidsService, BidsGateway],

@@ -24,6 +24,11 @@ export type VerifyBvnInput = {
   phoneNumber: string;
 };
 
+export type ConfirmBvnInput = {
+  transactionId: string;
+  otp: string;
+};
+
 export type VerifyNinInput = {
   numberNin: string;
   surname: string;
@@ -91,14 +96,6 @@ export class StrowalletProvider {
     });
   }
 
-  sendOtp(input: { phone: string; otp: string }) {
-    return this.postQuery<Record<string, unknown>>('/api/Otp-sms/', {
-      public_key: this.publicKey,
-      phone: input.phone,
-      otp: input.otp,
-    });
-  }
-
   verifyBvn(input: VerifyBvnInput) {
     return this.postQuery<Record<string, unknown>>('/api/kyc_bvn/', {
       public_key: this.publicKey,
@@ -107,6 +104,15 @@ export class StrowalletProvider {
       lastName: input.lastName.toUpperCase(),
       dateOfBirth: input.dateOfBirth,
       phoneNumber: input.phoneNumber,
+      mode: this.mode,
+    });
+  }
+
+  confirmBvn(input: ConfirmBvnInput) {
+    return this.postQuery<Record<string, unknown>>('/api/kyc_bvnotp/', {
+      public_key: this.publicKey,
+      trx: input.transactionId,
+      otp: input.otp,
       mode: this.mode,
     });
   }

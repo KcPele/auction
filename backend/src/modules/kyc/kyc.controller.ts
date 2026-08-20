@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import {
   ApiCookieAuth,
   ApiCreatedResponse,
@@ -10,7 +10,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { CreateSubaccountDto } from './dto/create-subaccount.dto';
-import { SendOtpDto } from './dto/send-otp.dto';
+import { ConfirmBvnDto } from './dto/confirm-bvn.dto';
 import { VerifyBvnDto } from './dto/verify-bvn.dto';
 import { VerifyNinDto } from './dto/verify-nin.dto';
 import { KycService } from './kyc.service';
@@ -20,13 +20,37 @@ import { KycService } from './kyc.service';
 export class KycController {
   constructor(private readonly kycService: KycService) {}
 
+  @Get('status')
+  @ApiCookieAuth('better-auth.session_token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get the current user KYC completion state' })
+  @ApiOkResponse({ description: 'KYC completion state returned.' })
+  getStatus(@CurrentUser() user: AuthenticatedUser) {
+    return this.kycService.getStatus(user.id);
+  }
+
   @Post('bvn/verify')
   @ApiCookieAuth('better-auth.session_token')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Verify BVN with Strowallet' })
   @ApiOkResponse({ description: 'BVN verification result returned.' })
-  verifyBvn(@Body() dto: VerifyBvnDto) {
-    return this.kycService.verifyBvn(dto);
+  verifyBvn(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: VerifyBvnDto,
+  ) {
+    return this.kycService.verifyBvn(user.id, dto);
+  }
+
+  @Post('bvn/confirm')
+  @ApiCookieAuth('better-auth.session_token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Confirm the OTP sent during BVN verification' })
+  @ApiOkResponse({ description: 'BVN OTP confirmed.' })
+  confirmBvn(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ConfirmBvnDto,
+  ) {
+    return this.kycService.confirmBvn(user.id, dto);
   }
 
   @Post('nin/verify')
@@ -39,13 +63,6 @@ export class KycController {
     @Body() dto: VerifyNinDto,
   ) {
     return this.kycService.verifyNin(user.id, dto);
-  }
-
-  @Post('otp/send')
-  @ApiOperation({ summary: 'Send an OTP SMS with Strowallet' })
-  @ApiCreatedResponse({ description: 'OTP request submitted.' })
-  sendOtp(@Body() dto: SendOtpDto) {
-    return this.kycService.sendOtp(dto);
   }
 
   @Post('subaccount')

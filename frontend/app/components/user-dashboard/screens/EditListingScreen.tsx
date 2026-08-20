@@ -8,6 +8,7 @@ import {
   useSubmitListing,
   useUpdateCar,
   useUpdateGadget,
+  useVerifiedMechanics,
 } from "@/app/components/listings/hooks/use-listings";
 import type {
   CarListing,
@@ -17,6 +18,8 @@ import type {
 } from "@/app/components/listings/types/listing.types";
 import { ApiError } from "@/app/lib/api/error";
 import { Icon } from "../primitives/Icon";
+import { DateTimeField } from "../create-listing/FormPrimitives";
+import { MechanicSelect } from "../create-listing/MechanicSelect";
 
 type Category = "car" | "gadget";
 
@@ -35,6 +38,7 @@ export function EditListingScreen({ id }: { id: string }) {
   const updateCar = useUpdateCar(id);
   const updateGadget = useUpdateGadget(id);
   const submit = useSubmitListing();
+  const mechanics = useVerifiedMechanics();
 
   const query = category === "car" ? car : gadget;
   const listing = (category === "car" ? car.data : gadget.data) ?? null;
@@ -46,15 +50,15 @@ export function EditListingScreen({ id }: { id: string }) {
     return () => window.cancelAnimationFrame(frame);
   }, [listing]);
 
-  if (query.isLoading || !form) {
-    return <div className="py-10 text-center text-sm text-fg-dim">Loading…</div>;
-  }
-  if (query.isError || !listing) {
+  if (query.isError || (!query.isLoading && !listing)) {
     return (
       <div className="py-10 text-center text-sm text-fg-dim">
         Could not load listing.
       </div>
     );
+  }
+  if (query.isLoading || !form) {
+    return <div className="py-10 text-center text-sm text-fg-dim">Loading…</div>;
   }
 
   const set = <K extends keyof EditFormState>(k: K, v: EditFormState[K]) =>
@@ -69,6 +73,7 @@ export function EditListingScreen({ id }: { id: string }) {
     mileage: Number(form.mileage),
     condition: form.condition,
     knownFaults: form.faults || undefined,
+    mechanicId: form.mechanicId,
     basePriceNaira: form.basePriceNaira,
     holdPercent: form.holdPercent,
     minimumBidIncrementNaira: form.minimumBidIncrementNaira,
@@ -135,7 +140,13 @@ export function EditListingScreen({ id }: { id: string }) {
       </p>
 
       {category === "car" ? (
-        <CarFields form={form} set={set} />
+        <CarFields
+          form={form}
+          set={set}
+          mechanics={mechanics.data ?? []}
+          mechanicsLoading={mechanics.isLoading}
+          mechanicsError={mechanics.isError}
+        />
       ) : (
         <GadgetFields form={form} set={set} />
       )}
@@ -172,6 +183,7 @@ interface EditFormState {
   mileage: string;
   condition: string;
   faults: string;
+  mechanicId: string;
   type: string;
   brand: string;
   batteryHealthPercent: number;
@@ -204,6 +216,7 @@ function toFormState(l: CarListing | GadgetListing): EditFormState {
       mileage: String(l.mileage),
       condition: l.condition,
       faults: l.knownFaults ?? "",
+      mechanicId: l.mechanicId ?? "",
       type: "",
       brand: "",
       batteryHealthPercent: 0,
@@ -223,6 +236,7 @@ function toFormState(l: CarListing | GadgetListing): EditFormState {
     mileage: "",
     condition: "",
     faults: "",
+    mechanicId: "",
     type: l.type,
     brand: l.brand,
     batteryHealthPercent: l.batteryHealthPercent ?? 0,
@@ -257,7 +271,17 @@ interface FG<T> {
   set: <K extends keyof T>(k: K, v: T[K]) => void;
 }
 
-function CarFields({ form, set }: FG<EditFormState>) {
+function CarFields({
+  form,
+  set,
+  mechanics,
+  mechanicsLoading,
+  mechanicsError,
+}: FG<EditFormState> & {
+  mechanics: import("@/app/components/listings/types/listing.types").VerifiedMechanic[];
+  mechanicsLoading: boolean;
+  mechanicsError: boolean;
+}) {
   return (
     <div className="mt-5 grid gap-3 sm:grid-cols-2">
       <Text label="Make" value={form.make} onChange={(v) => set("make", v)} />
@@ -270,10 +294,20 @@ function CarFields({ form, set }: FG<EditFormState>) {
       <div className="sm:col-span-2">
         <label className={labelClass}>Known faults</label>
         <textarea
+          aria-label="Known faults"
           value={form.faults}
           onChange={(e) => set("faults", e.target.value)}
           rows={3}
           className={inputClass}
+        />
+      </div>
+      <div className="sm:col-span-2">
+        <MechanicSelect
+          value={form.mechanicId}
+          onChange={(value) => set("mechanicId", value)}
+          mechanics={mechanics}
+          isLoading={mechanicsLoading}
+          isError={mechanicsError}
         />
       </div>
     </div>
@@ -300,6 +334,7 @@ function GadgetFields({ form, set }: FG<EditFormState>) {
       <div className="sm:col-span-2">
         <label className={labelClass}>Usage history</label>
         <textarea
+          aria-label="Usage history"
           value={form.usage}
           onChange={(e) => set("usage", e.target.value)}
           rows={2}
@@ -309,6 +344,7 @@ function GadgetFields({ form, set }: FG<EditFormState>) {
       <div className="sm:col-span-2">
         <label className={labelClass}>Defects</label>
         <textarea
+          aria-label="Defects"
           value={form.defects}
           onChange={(e) => set("defects", e.target.value)}
           rows={2}
@@ -349,15 +385,12 @@ function PricingFields({ form, set }: FG<EditFormState>) {
           value={form.durationMinutes}
           onChange={(v) => set("durationMinutes", v)}
         />
-        <div className="sm:col-span-2">
-          <label className={labelClass}>Start time</label>
-          <input
-            type="datetime-local"
-            value={form.startTime}
-            onChange={(e) => set("startTime", e.target.value)}
-            className={inputClass}
-          />
-        </div>
+        <DateTimeField
+          className="sm:col-span-2"
+          label="Start time"
+          value={form.startTime}
+          onChange={(value) => set("startTime", value)}
+        />
       </div>
     </div>
   );
@@ -376,6 +409,7 @@ function Text({
     <div>
       <label className={labelClass}>{label}</label>
       <input
+        aria-label={label}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -398,6 +432,7 @@ function Num({
     <div>
       <label className={labelClass}>{label}</label>
       <input
+        aria-label={label}
         type="number"
         inputMode="numeric"
         value={value}

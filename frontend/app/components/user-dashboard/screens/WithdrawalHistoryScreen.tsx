@@ -9,22 +9,25 @@ import { WithdrawalForm } from "@/app/components/wallet/widgets/WithdrawalForm";
 import { fmtNaira } from "../utils";
 import { Icon } from "../primitives/Icon";
 import { Chips, type ChipOption } from "../widgets/Chips";
+import { PaginationControls } from "../../ui/PaginationControls";
 
 type Filter = "all" | WithdrawalStatus;
 
 const FILTERS: ChipOption<Filter>[] = [
   { id: "all", label: "All" },
   { id: "PENDING", label: "Pending" },
+  { id: "PROCESSING", label: "Processing" },
   { id: "COMPLETED", label: "Completed" },
   { id: "FAILED", label: "Failed" },
+  { id: "REVERSED", label: "Reversed" },
 ];
 
 const STATUS_STYLE: Record<WithdrawalStatus, string> = {
   PENDING: "bg-accent/[0.12] text-accent",
   PROCESSING: "bg-info-soft text-info",
-  COMPLETED: "bg-green/[0.12] text-green",
-  FAILED: "bg-red/[0.12] text-red",
-  REVERSED: "bg-red/[0.12] text-red",
+  COMPLETED: "bg-success-soft text-success",
+  FAILED: "bg-danger-soft text-danger",
+  REVERSED: "bg-danger-soft text-danger",
 };
 
 const formatDate = new Intl.DateTimeFormat("en-NG", {
@@ -36,9 +39,12 @@ const formatDate = new Intl.DateTimeFormat("en-NG", {
 export function WithdrawalHistoryScreen() {
   const [filter, setFilter] = useState<Filter>("all");
   const [showForm, setShowForm] = useState(false);
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
 
   const { data, isLoading, isError, refetch } = useMyWithdrawals({
-    limit: 50,
+    limit: pageSize,
+    offset: page * pageSize,
     status: filter === "all" ? undefined : filter,
   });
 
@@ -69,7 +75,14 @@ export function WithdrawalHistoryScreen() {
       )}
 
       <div className="mt-3">
-        <Chips options={FILTERS} value={filter} onChange={setFilter} />
+        <Chips
+          options={FILTERS}
+          value={filter}
+          onChange={(value) => {
+            setFilter(value);
+            setPage(0);
+          }}
+        />
       </div>
 
       <div className="mt-3 flex flex-col gap-2.5">
@@ -94,6 +107,12 @@ export function WithdrawalHistoryScreen() {
           items.map((w) => <WithdrawalCard key={w.id} w={w} />)
         )}
       </div>
+      <PaginationControls
+        page={page}
+        pageSize={pageSize}
+        total={data?.total ?? 0}
+        onPageChange={setPage}
+      />
     </>
   );
 }

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaymentProvider } from '../../common/enums/payment-provider.enum';
@@ -19,43 +23,85 @@ export class PaymentsService {
     private readonly strowalletProvider: StrowalletProvider,
   ) {}
 
-  listBanks() {
-    return this.strowalletProvider.getBanks();
+  async listBanks() {
+    const response = await this.strowalletProvider.getBanks();
+    const data = this.readObject(response, 'data') ?? response;
+    const rawBanks = this.readArray(data, 'bank_list') ?? this.readArray(data, 'banks') ?? [];
+    const banks = rawBanks
+      .map((item) => {
+        const code = this.readOptionalString(item, 'bankCode') ?? this.readOptionalString(item, 'bank_code') ?? this.readOptionalString(item, 'code');
+        const name = this.readOptionalString(item, 'bankName') ?? this.readOptionalString(item, 'bank_name') ?? this.readOptionalString(item, 'name');
+        return code && name ? { code, name } : null;
+      })
+      .filter((bank): bank is { code: string; name: string } => bank !== null);
+
+    if (banks.length === 0) {
+      throw new ServiceUnavailableException('Supported banks are temporarily unavailable');
+    }
+
+    return { banks };
   }
 
-  getAccountName(query: AccountNameQueryDto) {
-    return this.strowalletProvider.getAccountName({
+  async getAccountName(query: AccountNameQueryDto) {
+    const response = await this.strowalletProvider.getAccountName({
       bankCode: query.bankCode,
       accountNumber: query.accountNumber,
     });
+    const accountName = this.findNestedString(response, [
+      'account_name',
+      'accountName',
+      'customer_name',
+      'customerName',
+    ]);
+    const nameEnquiryReference = this.findNestedString(response, [
+      'name_enquiry_reference',
+      'nameEnquiryReference',
+      'session_id',
+      'sessionId',
+      'reference',
+    ]);
+
+    if (!accountName) {
+      throw new ServiceUnavailableException('Unable to resolve account');
+    }
+
+    return { accountName, nameEnquiryReference };
   }
 
-  async handleStrowalletWebhook(dto: StrowalletWebhookDto, rawPayload: string) {
+  async handleStrowalletWebhook(dto: StrowalletWebhookDto, _rawPayload: string) {
     const eventId = this.getStrowalletEventId(dto);
     const existing = await this.webhookEventsRepository.findOneBy({
       eventId,
     });
 
-    if (existing) {
+    if (existing?.processedAt) {
       return { webhookEvent: existing, alreadyProcessed: true };
     }
 
     const payload = dto as unknown as Record<string, unknown>;
-    const webhookEvent = await this.webhookEventsRepository.save(
-      this.webhookEventsRepository.create({
-        provider: PaymentProvider.Strowallet,
-        eventId,
-        eventType: this.readOptionalString(dto, 'event') ?? dto.type ?? null,
-        payload,
-      }),
-    );
+    const webhookEvent = existing
+      ? Object.assign(existing, {
+          eventType:
+            this.readOptionalString(dto, 'event') ?? dto.type ?? null,
+          payload,
+        })
+      : await this.webhookEventsRepository.save(
+          this.webhookEventsRepository.create({
+            provider: PaymentProvider.Strowallet,
+            eventId,
+            eventType:
+              this.readOptionalString(dto, 'event') ?? dto.type ?? null,
+            payload,
+            processedAt: null,
+          }),
+        );
 
-    const result = await this.processStrowalletWebhook(dto, payload);
-    webhookEvent.processedAt = new Date();
+    const processing = await this.processStrowalletWebhook(dto, payload);
+    webhookEvent.processedAt = processing.terminal ? new Date() : null;
 
     return {
       webhookEvent: await this.webhookEventsRepository.save(webhookEvent),
-      result,
+      result: processing.result,
       alreadyProcessed: false,
     };
   }
@@ -74,29 +120,57 @@ export class PaymentsService {
         this.readOptionalString(dto, 'transactionStatus') ??
         this.readString(dto, 'paymentStatus');
 
-      return this.walletWithdrawalsService.updateWithdrawalFromProvider(
-        reference,
-        status,
-        payload,
-      );
+      return {
+        result:
+          await this.walletWithdrawalsService.updateWithdrawalFromProvider(
+            reference,
+            status,
+            payload,
+          ),
+        terminal: this.isTerminalTransferStatus(status),
+      };
     }
 
     if (this.isSuccessfulCollection(dto)) {
-      return this.walletFundingService.creditFundingAccount({
-        accountReference:
-          this.readOptionalString(dto, 'accountReference') ?? undefined,
-        accountNumber:
-          dto.accountNumber ??
-          this.readOptionalString(dto, 'destinationAccountNumber') ??
-          this.readOptionalString(dto, 'beneficiaryAccountNumber') ??
-          undefined,
-        amountKobo: this.toKobo(this.readAmount(dto)),
-        reference: this.getStrowalletEventId(dto),
-        metadata: payload,
-      });
+      return {
+        result: await this.walletFundingService.creditFundingAccount({
+          accountReference:
+            this.readOptionalString(dto, 'accountReference') ?? undefined,
+          accountNumber:
+            dto.accountNumber ??
+            this.readOptionalString(dto, 'destinationAccountNumber') ??
+            this.readOptionalString(dto, 'beneficiaryAccountNumber') ??
+            undefined,
+          amountKobo: this.toKobo(this.readAmount(dto)),
+          reference: this.getStrowalletEventId(dto),
+          metadata: payload,
+        }),
+        terminal: true,
+      };
     }
 
-    return { eventType, ignored: true };
+    const status =
+      this.readOptionalString(dto, 'status') ??
+      this.readOptionalString(dto, 'paymentStatus') ??
+      this.readOptionalString(dto, 'transactionStatus') ??
+      '';
+    return {
+      result: { eventType, ignored: true },
+      terminal: ['FAILED', 'REVERSED', 'CANCELLED'].includes(
+        status.toUpperCase(),
+      ),
+    };
+  }
+
+  private isTerminalTransferStatus(status: string) {
+    return [
+      'SUCCESS',
+      'SUCCESSFUL',
+      'COMPLETED',
+      'FAILED',
+      'REVERSED',
+      'CANCELLED',
+    ].includes(status.trim().toUpperCase());
   }
 
   private isSuccessfulCollection(dto: StrowalletWebhookDto) {
@@ -104,7 +178,7 @@ export class PaymentsService {
       this.readOptionalString(dto, 'status') ??
       this.readOptionalString(dto, 'paymentStatus') ??
       this.readOptionalString(dto, 'transactionStatus') ??
-      'SUCCESS';
+      '';
     const type = String(dto.event ?? dto.type ?? 'credit').toUpperCase();
 
     return (
@@ -115,13 +189,17 @@ export class PaymentsService {
   }
 
   private getStrowalletEventId(dto: StrowalletWebhookDto) {
-    return (
+    const eventId =
       dto.sessionId ??
       this.readOptionalString(dto, 'reference') ??
       this.readOptionalString(dto, 'transactionReference') ??
-      this.readOptionalString(dto, 'settlementId') ??
-      `strowallet:${Date.now()}`
-    );
+      this.readOptionalString(dto, 'settlementId');
+
+    if (!eventId) {
+      throw new BadRequestException('Missing Strowallet event reference');
+    }
+
+    return eventId;
   }
 
   private toKobo(amount: number) {
@@ -161,5 +239,36 @@ export class PaymentsService {
     const value = (source as Record<string, unknown>)[key];
 
     return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  private readObject(source: unknown, key: string) {
+    if (!source || typeof source !== 'object') return null;
+    const value = (source as Record<string, unknown>)[key];
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
+  }
+
+  private readArray(source: unknown, key: string) {
+    if (!source || typeof source !== 'object') return null;
+    const value = (source as Record<string, unknown>)[key];
+    return Array.isArray(value) ? value : null;
+  }
+
+  private findNestedString(
+    source: unknown,
+    keys: string[],
+    depth = 0,
+  ): string | null {
+    if (!source || typeof source !== 'object' || depth > 3) return null;
+    for (const key of keys) {
+      const value = this.readOptionalString(source, key);
+      if (value) return value;
+    }
+    for (const value of Object.values(source as Record<string, unknown>)) {
+      const nested = this.findNestedString(value, keys, depth + 1);
+      if (nested) return nested;
+    }
+    return null;
   }
 }

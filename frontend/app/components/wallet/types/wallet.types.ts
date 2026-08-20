@@ -40,7 +40,10 @@ export type LedgerEntryDto = {
   createdAt: string;
 };
 
-export type ListLedgerResponseDto = { ledgerEntries: LedgerEntryDto[] };
+export type ListLedgerResponseDto = {
+  ledgerEntries: LedgerEntryDto[];
+  total: number;
+};
 
 export type WithdrawalStatus =
   | "PENDING"
@@ -112,6 +115,8 @@ export type LedgerEntry = {
   createdAt: Date;
 };
 
+export type LedgerPage = { items: LedgerEntry[]; total: number };
+
 export type Withdrawal = {
   id: string;
   amount: number; // naira
@@ -138,4 +143,14 @@ export type CreateWithdrawalInput = {
   destinationAccountNumber: string;
   destinationAccountName: string;
   narration?: string;
+};
+
+export type BankOption = {
+  code: string;
+  name: string;
+};
+
+export type ResolvedBankAccount = {
+  accountName: string;
+  nameEnquiryReference: string | null;
 };

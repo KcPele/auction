@@ -68,6 +68,10 @@ const toAuction = (
     paymentDeadlineAt: dto.paymentDeadlineAt
       ? new Date(dto.paymentDeadlineAt)
       : null,
+    winnerPaymentConfirmedAt: dto.winnerPaymentConfirmedAt
+      ? new Date(dto.winnerPaymentConfirmedAt)
+      : null,
+    winnerPaymentNote: dto.winnerPaymentNote,
     winnerId: dto.winnerId,
     sellerId: dto.sellerId,
     listingId: dto.listingId,
@@ -97,7 +101,7 @@ export const listAuctions = async (params: {
   maxPriceKobo?: number;
   minYear?: number;
   maxYear?: number;
-} = {}): Promise<Auction[]> => {
+} = {}): Promise<{ items: Auction[]; total: number }> => {
   const dto = await apiClient<ListAuctionsResponseDto>("/auctions", {
     query: {
       category:
@@ -116,7 +120,10 @@ export const listAuctions = async (params: {
       maxYear: params.maxYear,
     },
   });
-  return dto.auctions.map((a) => toAuction(a, null));
+  return {
+    items: dto.auctions.map((a) => toAuction(a, null)),
+    total: dto.total,
+  };
 };
 
 export const getAuctionDetail = async (id: string): Promise<AuctionDetail> => {
@@ -147,7 +154,7 @@ export const getPaymentInstructions = async (
   );
   return {
     auction: toAuction(dto.auction, null),
-    amountDue: koboToNaira(dto.winningBid.amountKobo),
+    amountDue: koboToNaira(dto.winningBid.amountDueKobo),
     paymentDeadlineAt: dto.paymentDeadlineAt
       ? new Date(dto.paymentDeadlineAt)
       : null,

@@ -50,7 +50,12 @@ export function MobileHeader() {
   if (path === "/dashboard/notifications") {
     return (
       <div className={HEADER_CLASS}>
-        <button className={ICON_BTN_CLASS} onClick={() => router.back()} type="button">
+        <button
+          aria-label="Go back"
+          className={ICON_BTN_CLASS}
+          onClick={() => router.back()}
+          type="button"
+        >
           <Icon name="chevron-l" size={20} />
         </button>
         <div className="flex-1 text-center text-sm font-semibold">Notifications</div>
@@ -68,7 +73,12 @@ export function MobileHeader() {
   if (backTitle) {
     return (
       <div className={HEADER_CLASS}>
-        <button className={ICON_BTN_CLASS} onClick={() => router.back()} type="button">
+        <button
+          aria-label="Go back"
+          className={ICON_BTN_CLASS}
+          onClick={() => router.back()}
+          type="button"
+        >
           <Icon name="chevron-l" size={20} />
         </button>
         <div className="flex-1 text-center text-sm font-semibold">{backTitle}</div>
@@ -96,7 +106,11 @@ export function MobileHeader() {
         <div className="text-[15px] font-semibold">{me?.firstName ?? "—"}</div>
       </div>
       <div className="ml-auto flex gap-1.5">
-        <Link href="/dashboard/notifications" className={ICON_BTN_CLASS}>
+        <Link
+          href="/dashboard/notifications"
+          className={ICON_BTN_CLASS}
+          aria-label={unread > 0 ? `${unread} unread notifications` : "Notifications"}
+        >
           <Icon name="bell" size={18} />
           {unread > 0 && (
             <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-bg bg-red px-1 font-mono text-[9px] font-bold text-fg">

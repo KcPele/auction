@@ -73,6 +73,8 @@ function createAuction(overrides: Partial<Auction> = {}): Auction {
     currentWinningBidId: null,
     winnerId: null,
     paymentDeadlineAt: null,
+    winnerPaymentConfirmedAt: null,
+    winnerPaymentNote: null,
     externalPaymentKobo: null,
     walletPaymentKobo: null,
     settledById: null,

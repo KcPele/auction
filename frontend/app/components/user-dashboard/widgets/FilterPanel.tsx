@@ -14,6 +14,7 @@ interface Props {
   onClose: () => void;
   value: BrowseFilters;
   onChange: (next: BrowseFilters) => void;
+  onApply: (next: BrowseFilters) => void;
   /** Hide year fields for gadget-only filter sets. */
   showYearFields?: boolean;
 }
@@ -27,6 +28,7 @@ export function FilterPanel({
   onClose,
   value,
   onChange,
+  onApply,
   showYearFields = true,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -53,8 +55,7 @@ export function FilterPanel({
         <button
           type="button"
           onClick={() => {
-            onChange({});
-            onClose();
+            onApply({});
           }}
           className="text-[11px] text-fg-dim hover:text-fg"
         >
@@ -116,7 +117,7 @@ export function FilterPanel({
 
       <button
         type="button"
-        onClick={onClose}
+        onClick={() => onApply(value)}
         className="flex w-full items-center justify-center gap-2 rounded-md border border-line bg-surface py-2 text-xs font-medium text-fg-muted hover:text-fg"
       >
         <Icon name="check" size={12} /> Apply

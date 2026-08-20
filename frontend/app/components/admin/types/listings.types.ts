@@ -68,7 +68,10 @@ export type AccessCodeDto = {
   createdAt: string;
 };
 
-export type ListAccessCodesResponseDto = { items: AccessCodeDto[] };
+export type ListAccessCodesResponseDto = {
+  items: AccessCodeDto[];
+  total: number;
+};
 
 export type AccessCode = {
   id: string;

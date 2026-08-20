@@ -15,6 +15,7 @@ import { WalletLedgerEntry } from '../wallets/entities/wallet-ledger-entry.entit
 import { ListAdminAuctionsQueryDto } from './dto/list-admin-auctions-query.dto';
 import { ListAdminLedgerQueryDto } from './dto/list-admin-ledger-query.dto';
 import { ListNotificationLogsQueryDto } from './dto/list-notification-logs-query.dto';
+import { ListInAppNotificationsQueryDto } from './dto/list-in-app-notifications-query.dto';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { NotificationDeliveryLog } from './entities/notification-delivery-log.entity';
 
@@ -63,8 +64,22 @@ export class AdminDashboardService {
     const gmvKobo = settledAuctions.reduce((sum, a) => sum + (a.externalPaymentKobo ?? 0) + (a.walletPaymentKobo ?? 0), 0);
     const walletHoldsKobo = Math.max(0, Number(holdBalance?.total ?? 0));
 
-    const totalPayments = await this.ledgerRepository.count({ where: { type: In([WalletLedgerType.FinalPaymentConfirmed, WalletLedgerType.BidHoldApplied]) } });
-    const failedPayments = await this.ledgerRepository.count({ where: { type: WalletLedgerType.BidHoldForfeited } });
+    const ledgerRange = since ? { createdAt: MoreThanOrEqual(since) } : {};
+    const totalPayments = await this.ledgerRepository.count({
+      where: {
+        type: In([
+          WalletLedgerType.FinalPaymentConfirmed,
+          WalletLedgerType.BidHoldApplied,
+        ]),
+        ...ledgerRange,
+      },
+    });
+    const failedPayments = await this.ledgerRepository.count({
+      where: {
+        type: WalletLedgerType.BidHoldForfeited,
+        ...ledgerRange,
+      },
+    });
     const paymentSuccessRate = totalPayments + failedPayments > 0 ? Math.round((totalPayments / (totalPayments + failedPayments)) * 100) : 100;
 
     return { gmvKobo, auctionsSettled: settledAuctions.length, walletHoldsKobo, activeBids, paymentSuccessRate };
@@ -104,13 +119,25 @@ export class AdminDashboardService {
 
   async listAdminAuctions(query: ListAdminAuctionsQueryDto) {
     const where: Record<string, unknown> = {};
+    if (query.auctionId) where.id = query.auctionId;
     if (query.status) where.status = query.status;
 
-    const auctions = await this.auctionsRepository.find({ where, order: { startTime: 'DESC' }, take: query.limit, skip: query.offset });
-    if (auctions.length === 0) return { items: [], total: 0 };
+    const [auctions, total] = await this.auctionsRepository.findAndCount({ where, order: { startTime: 'DESC' }, take: query.limit, skip: query.offset });
+    if (auctions.length === 0) return { items: [], total };
 
     const auctionIds = auctions.map((a) => a.id);
-    const bids = await this.bidsRepository.find({ where: { auctionId: In(auctionIds) } });
+    const bidStats = await this.bidsRepository
+      .createQueryBuilder('bid')
+      .select('bid.auctionId', 'auctionId')
+      .addSelect('COUNT(DISTINCT bid.bidderId)', 'bidderCount')
+      .addSelect('MAX(bid.amountKobo)', 'currentBidKobo')
+      .where('bid.auctionId IN (:...auctionIds)', { auctionIds })
+      .groupBy('bid.auctionId')
+      .getRawMany<{
+        auctionId: string;
+        bidderCount: string;
+        currentBidKobo: string;
+      }>();
 
     const listingIds = auctions.map((a) => a.listingId);
     const [cars, gadgets] = await Promise.all([
@@ -119,21 +146,16 @@ export class AdminDashboardService {
     ]);
     const listingMap = new Map([...cars, ...gadgets].map((l) => [l.id, l]));
 
-    const bidCountMap = new Map<string, number>();
-    const currentBidMap = new Map<string, number>();
-    for (const bid of bids) {
-      bidCountMap.set(bid.auctionId, (bidCountMap.get(bid.auctionId) ?? 0) + 1);
-      const current = currentBidMap.get(bid.auctionId) ?? 0;
-      if (bid.amountKobo > current) currentBidMap.set(bid.auctionId, bid.amountKobo);
-    }
+    const bidStatsMap = new Map(bidStats.map((stats) => [stats.auctionId, stats]));
 
     const items = auctions.map((auction) => {
       const listing = listingMap.get(auction.listingId);
-      const title = listing ? auction.category === ListingCategory.Car ? `${(listing as CarListing).make} ${(listing as CarListing).model} ${(listing as CarListing).year}` : `${(listing as GadgetListing).brand} ${(listing as GadgetListing).model}` : 'Untitled';
-      return { id: auction.id, title, category: auction.category, status: auction.status, currentBidKobo: currentBidMap.get(auction.id) ?? auction.basePriceKobo, bidderCount: bidCountMap.get(auction.id) ?? 0, holdPercent: auction.holdPercent, endsAt: auction.endTime, basePriceKobo: auction.basePriceKobo };
+      const title = listing ? auction.category === ListingCategory.Car ? `${(listing as CarListing).year} ${(listing as CarListing).make} ${(listing as CarListing).model}` : `${(listing as GadgetListing).brand} ${(listing as GadgetListing).model}` : 'Untitled';
+      const stats = bidStatsMap.get(auction.id);
+      return { id: auction.id, title, category: auction.category, status: auction.status, currentBidKobo: Number(stats?.currentBidKobo ?? auction.basePriceKobo), bidderCount: Number(stats?.bidderCount ?? 0), holdPercent: auction.holdPercent, endsAt: auction.endTime, basePriceKobo: auction.basePriceKobo, winnerPaymentConfirmedAt: auction.winnerPaymentConfirmedAt, winnerPaymentNote: auction.winnerPaymentNote };
     });
 
-    return { items, total: await this.auctionsRepository.count({ where }) };
+    return { items, total };
   }
 
   async listAdminLedger(query: ListAdminLedgerQueryDto) {
@@ -170,13 +192,20 @@ export class AdminDashboardService {
     const where: Record<string, unknown> = {};
     if (query.channel) where.channel = query.channel;
     if (query.status) where.status = query.status;
-    return { items: await this.deliveryLogsRepository.find({ where, order: { createdAt: 'DESC' }, take: 20 }) };
+    const [items, total] = await this.deliveryLogsRepository.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      take: query.limit,
+      skip: query.offset,
+    });
+    return { items, total };
   }
 
-  async listInAppNotifications() {
-    const notifications = await this.notificationsRepository.find({
+  async listInAppNotifications(query: ListInAppNotificationsQueryDto) {
+    const [notifications, total] = await this.notificationsRepository.findAndCount({
       order: { createdAt: 'DESC' },
-      take: 30,
+      take: query.limit,
+      skip: query.offset,
     });
     const recipientIds = [
       ...new Set(
@@ -194,6 +223,7 @@ export class AdminDashboardService {
     const userMap = new Map(users.map((user) => [user.id, user]));
 
     return {
+      total,
       items: notifications.map((notification) => {
         const recipient = notification.recipientId
           ? userMap.get(notification.recipientId)

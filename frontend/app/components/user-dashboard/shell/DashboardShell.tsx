@@ -1,10 +1,13 @@
+"use client";
 import type { ReactNode } from "react";
+import { useNotificationsStream } from "@/app/components/notifications/hooks/use-notifications";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { MobileHeader } from "./MobileHeader";
 import { TabBar } from "./TabBar";
 
 export function DashboardShell({ children }: { children: ReactNode }) {
+  useNotificationsStream();
   return (
     <div className="min-h-screen bg-background lg:grid lg:grid-cols-[var(--sidebar-w)_1fr]">
       <aside className="sticky top-0 hidden h-screen overflow-y-auto lg:block">

@@ -1,8 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+
+export type WalletActivityBucket = 'top' | 'hold' | 'release' | 'pay';
 
 export class ListWalletLedgerQueryDto {
+  @ApiPropertyOptional({ enum: ['top', 'hold', 'release', 'pay'] })
+  @IsOptional()
+  @IsIn(['top', 'hold', 'release', 'pay'])
+  activity?: WalletActivityBucket;
+
   @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)

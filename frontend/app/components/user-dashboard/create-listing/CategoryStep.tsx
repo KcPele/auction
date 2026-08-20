@@ -3,10 +3,12 @@ import type { ListingCategory } from "./types";
 
 export function CategoryStep({
   category,
+  allowedCategories,
   onSelect,
   onContinue,
 }: {
   category: ListingCategory | null;
+  allowedCategories: ListingCategory[];
   onSelect: (category: ListingCategory) => void;
   onContinue: () => void;
 }) {
@@ -18,8 +20,10 @@ export function CategoryStep({
           <button
             key={item}
             type="button"
+            disabled={!allowedCategories.includes(item)}
+            aria-pressed={category === item}
             onClick={() => onSelect(item)}
-            className={`flex flex-col items-center gap-3 rounded-[14px] border p-6 text-left transition-colors ${
+            className={`flex flex-col items-center gap-3 rounded-[14px] border p-6 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
               category === item
                 ? "border-accent bg-accent/[0.08]"
                 : "border-line bg-surface hover:border-line-strong"
@@ -33,6 +37,9 @@ export function CategoryStep({
             <div className="text-sm font-semibold">
               {item === "CAR" ? "Car" : "Gadget"}
             </div>
+            {!allowedCategories.includes(item) && (
+              <div className="text-xs text-fg-dim">Access required</div>
+            )}
           </button>
         ))}
       </div>

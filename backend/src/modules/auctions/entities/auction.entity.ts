@@ -68,6 +68,12 @@ export class Auction {
   @Column({ type: 'timestamptz', nullable: true })
   paymentDeadlineAt!: Date | null;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  winnerPaymentConfirmedAt!: Date | null;
+
+  @Column({ type: 'text', nullable: true })
+  winnerPaymentNote!: string | null;
+
   @Column({ type: 'bigint', nullable: true, transformer: bigintNumberTransformer })
   externalPaymentKobo!: number | null;
 

@@ -17,9 +17,13 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
     label: "Shipping",
     cls: "border-accent/30 bg-accent/10 text-accent",
   },
-  inspecting: {
+  inspection: {
     label: "Inspecting",
     cls: "border-accent/30 bg-accent/10 text-accent",
+  },
+  dispatch: {
+    label: "Dispatched",
+    cls: "border-info/30 bg-info-soft text-info",
   },
   delivered: {
     label: "Delivered",
@@ -115,7 +119,7 @@ function Card({
         <button
           type="button"
           onClick={() => router.push(`/dashboard/auction/${w.auctionId}/payment`)}
-          className="mt-3 w-full rounded-lg border-none p-2.5 text-xs font-bold text-primary-foreground accent-gradient-bg"
+          className="mt-3 w-full rounded-lg border-none bg-primary p-2.5 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
         >
           View payment instructions
         </button>

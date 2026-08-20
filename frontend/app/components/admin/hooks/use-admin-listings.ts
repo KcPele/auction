@@ -4,6 +4,7 @@ import {
   approveApplication,
   approveListing,
   createAccessCode,
+  deactivateAccessCode,
   grantListingPermission,
   listAccessCodes,
   listPendingApplications,
@@ -72,16 +73,17 @@ export function useGrantListingPermission() {
 }
 
 export function useAccessCodes(
-  params: { category?: "cars" | "gadgets"; active?: boolean } = {},
+  params: {
+    category?: "cars" | "gadgets";
+    active?: boolean;
+    limit?: number;
+    offset?: number;
+  } = {},
 ) {
   return useQuery({
-    queryKey: adminKeys.accessCodes({
-      limit: 100,
-      offset: 0,
-      ...(params.category ? { category: params.category } : {}),
-      ...(params.active !== undefined ? { active: params.active } : {}),
-    }) as readonly unknown[] as ReturnType<typeof adminKeys.accessCodes>,
+    queryKey: adminKeys.accessCodes(params),
     queryFn: () => listAccessCodes(params),
+    placeholderData: (previous) => previous,
   });
 }
 
@@ -89,6 +91,14 @@ export function useCreateAccessCode() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createAccessCode,
+    onSuccess: () => qc.invalidateQueries({ queryKey: adminKeys.all }),
+  });
+}
+
+export function useDeactivateAccessCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deactivateAccessCode,
     onSuccess: () => qc.invalidateQueries({ queryKey: adminKeys.all }),
   });
 }

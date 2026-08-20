@@ -2,7 +2,6 @@
 import { useState } from "react";
 import {
   useDashboardStats,
-  useAdminLedger,
   useAdminAuctions,
 } from "@/app/components/admin/hooks/use-admin-dashboard";
 import {
@@ -39,7 +38,6 @@ export function DashboardScreen() {
 
   const { data: me } = useMe();
   const { data: stats } = useDashboardStats(range);
-  const ledger = useAdminLedger({ limit: 50 });
   const liveAuctions = useAdminAuctions({ status: "LIVE", limit: 1 });
   const pendingListings = usePendingListings();
   const pendingApps = usePendingApplications();
@@ -49,7 +47,6 @@ export function DashboardScreen() {
   const pendingAppCount = pendingApps.data?.length ?? 0;
 
   const exportReport = () => {
-    const items = ledger.data?.items ?? [];
     downloadCSV(`bidnaija-dashboard-${range}-${Date.now()}.csv`, [
       ["Metric", "Value"],
       ["Range", range],
@@ -58,17 +55,6 @@ export function DashboardScreen() {
       ["Wallet holds", stats?.walletHolds ?? 0],
       ["Active bids", stats?.activeBids ?? 0],
       ["Payment success rate", `${stats?.paymentSuccessRate ?? 0}%`],
-      [],
-      ["Time", "Entry ID", "User", "Action", "Reference", "Direction", "Amount"],
-      ...items.map((l) => [
-        l.ts.toISOString(),
-        l.id,
-        l.handle,
-        l.action,
-        l.ref ?? "",
-        l.direction,
-        l.amount,
-      ]),
     ]);
   };
 

@@ -9,6 +9,8 @@ import type {
   GadgetDetailsValues,
   ListingMediaProps,
 } from "./types";
+import type { VerifiedMechanic } from "@/app/components/listings/types/listing.types";
+import { MechanicSelect } from "./MechanicSelect";
 
 type DetailsStepNavigation = {
   onBack: () => void;
@@ -21,10 +23,16 @@ export function CarDetailsStep({
   media,
   onBack,
   onNext,
+  mechanics,
+  mechanicsLoading,
+  mechanicsError,
 }: {
   values: CarDetailsValues;
   onChange: FieldSetters<CarDetailsValues>;
   media: ListingMediaProps;
+  mechanics: VerifiedMechanic[];
+  mechanicsLoading: boolean;
+  mechanicsError: boolean;
 } & DetailsStepNavigation) {
   return (
     <div className="mt-6 flex flex-col gap-3">
@@ -70,6 +78,13 @@ export function CarDetailsStep({
         value={values.faults}
         onChange={onChange.faults}
         placeholder="AC needs servicing"
+      />
+      <MechanicSelect
+        value={values.mechanicId}
+        onChange={onChange.mechanicId}
+        mechanics={mechanics}
+        isLoading={mechanicsLoading}
+        isError={mechanicsError}
       />
       <MediaFields {...media} />
       <NavRow onBack={onBack} onNext={onNext} />

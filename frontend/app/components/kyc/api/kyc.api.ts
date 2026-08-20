@@ -1,5 +1,14 @@
 import { apiClient } from "@/app/lib/api/client";
 
+export type KycStatus = {
+  ninVerifiedAt: string | null;
+  bvnVerifiedAt: string | null;
+  phoneVerifiedAt: string | null;
+  subaccountCreated: boolean;
+};
+
+export const getKycStatus = () => apiClient<KycStatus>("/kyc/status");
+
 export type VerifyNinKycInput = {
   numberNin: string;
   surname: string;
@@ -18,8 +27,8 @@ export type VerifyBvnInput = {
   phoneNumber: string;
 };
 
-export type SendKycOtpInput = {
-  phone: string;
+export type ConfirmBvnInput = {
+  transactionId: string;
   otp: string;
 };
 
@@ -41,19 +50,24 @@ export const verifyKycNin = (input: VerifyNinKycInput) =>
   });
 
 export const verifyKycBvn = (input: VerifyBvnInput) =>
-  apiClient<{ verified: boolean; data?: unknown }>("/kyc/bvn/verify", {
+  apiClient<{
+    verified: false;
+    otpRequired: true;
+    transactionId: string;
+    message: string;
+  }>("/kyc/bvn/verify", {
     method: "POST",
     body: input,
   });
 
-export const sendKycOtp = (input: SendKycOtpInput) =>
-  apiClient<{ status: boolean }>("/kyc/otp/send", {
+export const confirmKycBvn = (input: ConfirmBvnInput) =>
+  apiClient<{ verified: true; verifiedAt: string }>("/kyc/bvn/confirm", {
     method: "POST",
     body: input,
   });
 
 export const createKycSubaccount = (input: CreateSubaccountInput) =>
-  apiClient<{ subaccount: Record<string, unknown> }>("/kyc/subaccount", {
+  apiClient<{ created: boolean; subaccountId: string }>("/kyc/subaccount", {
     method: "POST",
     body: input,
   });

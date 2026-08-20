@@ -3,7 +3,7 @@ import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AuthService } from '../auth/auth.service';
 import type { CreateSubaccountDto } from './dto/create-subaccount.dto';
-import type { SendOtpDto } from './dto/send-otp.dto';
+import type { ConfirmBvnDto } from './dto/confirm-bvn.dto';
 import type { VerifyBvnDto } from './dto/verify-bvn.dto';
 import type { VerifyNinDto } from './dto/verify-nin.dto';
 import { KycController } from './kyc.controller';
@@ -19,16 +19,18 @@ describe('KycController', () => {
   let controller: KycController;
   let service: {
     verifyBvn: jest.Mock;
+    confirmBvn: jest.Mock;
     verifyNin: jest.Mock;
-    sendOtp: jest.Mock;
+    getStatus: jest.Mock;
     createSubaccount: jest.Mock;
   };
 
   beforeEach(async () => {
     service = {
       verifyBvn: jest.fn(),
+      confirmBvn: jest.fn(),
       verifyNin: jest.fn(),
-      sendOtp: jest.fn(),
+      getStatus: jest.fn(),
       createSubaccount: jest.fn(),
     };
 
@@ -53,8 +55,8 @@ describe('KycController', () => {
     };
     service.verifyBvn.mockResolvedValue({ status: true });
 
-    await expect(controller.verifyBvn(dto)).resolves.toEqual({ status: true });
-    expect(service.verifyBvn).toHaveBeenCalledWith(dto);
+    await expect(controller.verifyBvn(currentUser, dto)).resolves.toEqual({ status: true });
+    expect(service.verifyBvn).toHaveBeenCalledWith(currentUser.id, dto);
   });
 
   it('verifies NIN', async () => {
@@ -71,12 +73,17 @@ describe('KycController', () => {
     expect(service.verifyNin).toHaveBeenCalledWith(currentUser.id, dto);
   });
 
-  it('sends OTP', async () => {
-    const dto: SendOtpDto = { phone: '08123456789', otp: '123456' };
-    service.sendOtp.mockResolvedValue({ status: true });
+  it('confirms the BVN OTP', async () => {
+    const dto: ConfirmBvnDto = { transactionId: 'provider-trx', otp: '123456' };
+    service.confirmBvn.mockResolvedValue({ verified: true });
+    await expect(controller.confirmBvn(currentUser, dto)).resolves.toEqual({ verified: true });
+    expect(service.confirmBvn).toHaveBeenCalledWith(currentUser.id, dto);
+  });
 
-    await expect(controller.sendOtp(dto)).resolves.toEqual({ status: true });
-    expect(service.sendOtp).toHaveBeenCalledWith(dto);
+  it('returns KYC status', async () => {
+    service.getStatus.mockResolvedValue({ subaccountCreated: false });
+    await expect(controller.getStatus(currentUser)).resolves.toEqual({ subaccountCreated: false });
+    expect(service.getStatus).toHaveBeenCalledWith(currentUser.id);
   });
 
   it('creates a subaccount', async () => {

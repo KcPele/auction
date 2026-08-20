@@ -27,6 +27,31 @@ export function Field({
   );
 }
 
+export function DateTimeField({
+  label,
+  value,
+  onChange,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <label className={labelClass}>{label}</label>
+      <input
+        aria-label={label}
+        className={inputClass}
+        type="datetime-local"
+        value={value}
+        onInput={(event) => onChange(event.currentTarget.value)}
+      />
+    </div>
+  );
+}
+
 export function NavRow({
   onBack,
   onNext,

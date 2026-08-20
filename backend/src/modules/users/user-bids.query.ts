@@ -18,28 +18,61 @@ function applyStatusFilter(
   userId: string,
   status?: UserBidStatus,
 ) {
-  if (status === UserBidStatus.Scheduled) {
-    queryBuilder.andWhere('auction.status = :scheduledStatus', {
-      scheduledStatus: AuctionStatus.Scheduled,
-    });
-  } else if (status === UserBidStatus.Won) {
+  if (status === UserBidStatus.Won) {
     queryBuilder.andWhere(
       'auction.status IN (:...wonStatuses) AND auction.winnerId = :winnerId',
       { wonStatuses, winnerId: userId },
     );
   } else if (status === UserBidStatus.Active) {
+    queryBuilder.andWhere('auction.status = :liveStatus', {
+      liveStatus: AuctionStatus.Live,
+    });
+  } else if (status === UserBidStatus.Past) {
     queryBuilder.andWhere(
-      `auction.status <> :scheduledStatus
+      `auction.status <> :liveStatus
        AND NOT (auction.status IN (:...wonStatuses) AND auction.winnerId = :winnerId)`,
-      {
-        scheduledStatus: AuctionStatus.Scheduled,
-        wonStatuses,
-        winnerId: userId,
-      },
+      { liveStatus: AuctionStatus.Live, wonStatuses, winnerId: userId },
     );
   }
 
   return queryBuilder;
+}
+
+export async function queryUserBidCounts(
+  bidsRepository: Repository<Bid>,
+  userId: string,
+) {
+  const result = await bidsRepository
+    .createQueryBuilder('bid')
+    .innerJoin(Auction, 'auction', 'auction.id = bid.auctionId')
+    .where('bid.bidderId = :userId', { userId })
+    .select(
+      'COUNT(DISTINCT CASE WHEN auction.status = :liveStatus THEN bid.auctionId END)',
+      'active',
+    )
+    .addSelect(
+      `COUNT(DISTINCT CASE WHEN auction.status <> :liveStatus
+       AND NOT (auction.status IN (:...wonStatuses) AND auction.winnerId = :winnerId)
+       THEN bid.auctionId END)`,
+      'past',
+    )
+    .addSelect(
+      `COUNT(DISTINCT CASE WHEN auction.status IN (:...wonStatuses)
+       AND auction.winnerId = :winnerId THEN bid.auctionId END)`,
+      'won',
+    )
+    .setParameters({
+      liveStatus: AuctionStatus.Live,
+      wonStatuses,
+      winnerId: userId,
+    })
+    .getRawOne<{ active: string; past: string; won: string }>();
+
+  return {
+    active: Number(result?.active ?? 0),
+    past: Number(result?.past ?? 0),
+    won: Number(result?.won ?? 0),
+  };
 }
 
 export async function queryUserBidPage(

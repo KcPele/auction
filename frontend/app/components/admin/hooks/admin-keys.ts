@@ -13,6 +13,7 @@ export const adminKeys = {
   ledger: (params: { limit?: number; offset?: number; type?: string }) =>
     [...adminKeys.dashboard(), "ledger", params] as const,
   auctions: (params: {
+    auctionId?: string;
     status?: string;
     limit?: number;
     offset?: number;
@@ -27,6 +28,7 @@ export const adminKeys = {
   // Users
   users: (params: {
     search?: string;
+    status?: string;
     limit?: number;
     offset?: number;
   }) => [...adminKeys.all, "users", params] as const,
@@ -43,7 +45,12 @@ export const adminKeys = {
   }) => [...adminKeys.all, "wallet-withdrawals", params] as const,
 
   // Access codes
-  accessCodes: (params: { limit?: number; offset?: number }) =>
+  accessCodes: (params: {
+    category?: "cars" | "gadgets";
+    active?: boolean;
+    limit?: number;
+    offset?: number;
+  }) =>
     [...adminKeys.all, "access-codes", params] as const,
 
   // Settings
@@ -58,13 +65,19 @@ export const adminKeys = {
   disputes: (params: { status?: string; limit?: number; offset?: number }) =>
     [...adminKeys.all, "disputes", params] as const,
   mechanics: (params: {
+    mechanicId?: string;
     search?: string;
-    verified?: boolean;
+    status?: string;
     limit?: number;
     offset?: number;
   }) => [...adminKeys.all, "mechanics", params] as const,
-  notificationLogs: (params: { channel?: string; status?: string }) =>
+  notificationLogs: (params: {
+    channel?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }) =>
     [...adminKeys.all, "notification-logs", params] as const,
-  inAppNotifications: () =>
-    [...adminKeys.all, "in-app-notifications"] as const,
+  inAppNotifications: (params: { limit?: number; offset?: number }) =>
+    [...adminKeys.all, "in-app-notifications", params] as const,
 };

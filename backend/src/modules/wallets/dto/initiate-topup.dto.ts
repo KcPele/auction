@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, Min } from 'class-validator';
 import { ListingCategory } from '../../../common/enums/listing-category.enum';
 
 export class InitiateTopupDto {
@@ -8,9 +8,9 @@ export class InitiateTopupDto {
   @Min(10000)
   amountKobo!: number;
 
-  @ApiProperty({ enum: ['strowallet', 'bank_transfer'], example: 'strowallet' })
-  @IsString()
-  method!: string;
+  @ApiProperty({ enum: ['bank_transfer'], example: 'bank_transfer' })
+  @IsIn(['bank_transfer'])
+  method!: 'bank_transfer';
 
   @ApiPropertyOptional({ enum: ListingCategory })
   @IsOptional()

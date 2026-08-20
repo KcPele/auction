@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { WalletHoldStatus } from '../../common/enums/wallet-hold-status.enum';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
 import { ListWalletLedgerQueryDto } from './dto/list-wallet-ledger-query.dto';
@@ -12,6 +12,24 @@ import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
 import { WalletHold } from './entities/wallet-hold.entity';
 import { Wallet } from './entities/wallet.entity';
 import { presentWallet } from './presenters/wallet.presenter';
+
+const LEDGER_TYPES_BY_ACTIVITY = {
+  top: [
+    WalletLedgerType.WalletFundingConfirmed,
+    WalletLedgerType.AdminAdjustment,
+  ],
+  hold: [WalletLedgerType.BidHoldCreated, WalletLedgerType.BidHoldApplied],
+  release: [
+    WalletLedgerType.BidHoldReleased,
+    WalletLedgerType.BidHoldForfeited,
+    WalletLedgerType.WithdrawalFailed,
+  ],
+  pay: [
+    WalletLedgerType.WithdrawalRequested,
+    WalletLedgerType.WithdrawalConfirmed,
+    WalletLedgerType.FinalPaymentConfirmed,
+  ],
+} as const;
 
 @Injectable()
 export class WalletsService {
@@ -31,14 +49,20 @@ export class WalletsService {
 
   async listLedger(userId: string, query: ListWalletLedgerQueryDto) {
     const wallet = await this.ensureWallet(userId);
-    const ledgerEntries = await this.ledgerRepository.find({
-      where: { walletId: wallet.id },
+    const activityTypes = query.activity
+      ? [...LEDGER_TYPES_BY_ACTIVITY[query.activity]]
+      : undefined;
+    const [ledgerEntries, total] = await this.ledgerRepository.findAndCount({
+      where: {
+        walletId: wallet.id,
+        ...(activityTypes ? { type: In(activityTypes) } : {}),
+      },
       order: { createdAt: 'DESC' },
       take: query.limit,
       skip: query.offset,
     });
 
-    return { ledgerEntries };
+    return { ledgerEntries, total };
   }
 
   async assertBidQualification(
@@ -181,6 +205,45 @@ export class WalletsService {
     });
 
     return { hold, forfeited: true };
+  }
+
+  async applyBidHold(
+    manager: EntityManager,
+    input: {
+      holdId: string;
+      reference: string;
+      metadata: Record<string, unknown>;
+    },
+  ) {
+    const hold = await manager.findOne(WalletHold, {
+      where: { id: input.holdId },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    if (!hold || hold.status !== WalletHoldStatus.Active) {
+      return { hold, applied: false, amountKobo: 0 };
+    }
+
+    const wallet = await this.findWalletForUpdate(manager, hold.walletId);
+    const balanceBeforeKobo = wallet.balanceKobo;
+    const heldBeforeKobo = wallet.heldKobo;
+    wallet.balanceKobo -= hold.amountKobo;
+    wallet.heldKobo -= hold.amountKobo;
+    hold.status = WalletHoldStatus.Applied;
+    hold.releasedAt = new Date();
+
+    await manager.save(wallet);
+    await manager.save(hold);
+    await this.writeLedger(manager, wallet, {
+      type: WalletLedgerType.BidHoldApplied,
+      amountKobo: -hold.amountKobo,
+      balanceBeforeKobo,
+      heldBeforeKobo,
+      reference: input.reference,
+      metadata: { ...input.metadata, holdId: hold.id },
+    });
+
+    return { hold, applied: true, amountKobo: hold.amountKobo };
   }
 
   private async ensureWallet(userId: string, manager?: EntityManager) {

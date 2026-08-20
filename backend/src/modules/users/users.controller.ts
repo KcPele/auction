@@ -21,18 +21,23 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AddWatchlistDto } from './dto/add-watchlist.dto';
 import { ApplyListingAccessDto } from './dto/apply-listing-access.dto';
+import { CreateDisputeDto } from './dto/create-dispute.dto';
 import { ListUserBidsQueryDto } from './dto/list-user-bids-query.dto';
 import { RedeemAccessCodeDto } from './dto/redeem-access-code.dto';
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
+import { UserDisputesService } from './user-disputes.service';
 
 @ApiTags('users')
 @ApiCookieAuth('better-auth.session_token')
 @UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly disputesService: UserDisputesService,
+  ) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Get the current user profile and permissions' })
@@ -78,11 +83,35 @@ export class UsersController {
     return this.usersService.listWonAuctions(user.id);
   }
 
+  @Get('me/deliveries')
+  @ApiOperation({ summary: 'List deliveries where the current user is buyer or seller' })
+  @ApiOkResponse({ description: 'User deliveries returned.' })
+  listDeliveries(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.listDeliveries(user.id);
+  }
+
   @Get('me/stats')
   @ApiOperation({ summary: 'Get the current user bidding stats' })
   @ApiOkResponse({ description: 'User stats returned.' })
   getStats(@CurrentUser() user: AuthenticatedUser) {
     return this.usersService.getStats(user.id);
+  }
+
+  @Get('me/disputes')
+  @ApiOperation({ summary: "List the current user's auction disputes" })
+  @ApiOkResponse({ description: 'Auction disputes returned.' })
+  listDisputes(@CurrentUser() user: AuthenticatedUser) {
+    return this.disputesService.listForUser(user.id);
+  }
+
+  @Post('me/disputes')
+  @ApiOperation({ summary: 'Open a dispute for a settled auction' })
+  @ApiCreatedResponse({ description: 'Auction dispute opened.' })
+  createDispute(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateDisputeDto,
+  ) {
+    return this.disputesService.create(user.id, dto);
   }
 
   @Get('me/listing-access-applications')

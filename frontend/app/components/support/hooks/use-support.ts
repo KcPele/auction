@@ -14,6 +14,7 @@ import {
   adminResolve,
   createConversation,
   getSupportSettings,
+  getAdminConversation,
   listAllConversations,
   listMessages,
   listMyConversations,
@@ -38,8 +39,11 @@ export const supportKeys = {
   myConversations: () => [...supportKeys.all, "mine"] as const,
   conversation: (id: string) => [...supportKeys.all, "conv", id] as const,
   messages: (id: string) => [...supportKeys.all, "conv", id, "messages"] as const,
-  adminList: (state?: SupportState) =>
-    [...supportKeys.all, "admin", state ?? "all"] as const,
+  adminLists: () => [...supportKeys.all, "admin"] as const,
+  adminConversation: (id: string) =>
+    [...supportKeys.adminLists(), "conversation", id] as const,
+  adminList: (state: SupportState | undefined, page: number) =>
+    [...supportKeys.adminLists(), state ?? "all", page] as const,
   settings: () => [...supportKeys.all, "settings"] as const,
 };
 
@@ -136,11 +140,23 @@ export function useMarkRead() {
 
 // --- Admin-side hooks -----------------------------------------------------
 
-export function useAdminConversations(state?: SupportState) {
+export function useAdminConversations(state: SupportState | undefined, page: number) {
+  const limit = 25;
   return useQuery({
-    queryKey: supportKeys.adminList(state),
-    queryFn: () => listAllConversations(state),
+    queryKey: supportKeys.adminList(state, page),
+    queryFn: () =>
+      listAllConversations({ state, limit, offset: page * limit }),
     staleTime: 10_000,
+  });
+}
+
+export function useAdminConversation(id: string | null) {
+  return useQuery({
+    queryKey: id
+      ? supportKeys.adminConversation(id)
+      : [...supportKeys.adminLists(), "noop"],
+    queryFn: () => getAdminConversation(id as string),
+    enabled: Boolean(id),
   });
 }
 
@@ -186,7 +202,7 @@ export function useAdminPostMessage(id: string) {
         if (stripped.some((m) => m.id === msg.id)) return stripped;
         return [...stripped, msg];
       });
-      qc.invalidateQueries({ queryKey: supportKeys.adminList() });
+      qc.invalidateQueries({ queryKey: supportKeys.adminLists() });
     },
   });
 }
@@ -317,7 +333,7 @@ export function useSupportStream(conversationId: string | null, isAdmin = false)
       // List screens may need re-sort.
       qc.invalidateQueries({
         queryKey: isAdmin
-          ? supportKeys.adminList()
+          ? supportKeys.adminLists()
           : supportKeys.myConversations(),
       });
     };
@@ -331,7 +347,7 @@ export function useSupportStream(conversationId: string | null, isAdmin = false)
       if (payload.conversationId !== conversationId) return;
       qc.invalidateQueries({
         queryKey: isAdmin
-          ? supportKeys.adminList()
+          ? supportKeys.adminLists()
           : supportKeys.myConversations(),
       });
     };
@@ -356,7 +372,7 @@ export function useAdminSupportListStream() {
     const socket = getSocket();
     if (!socket.connected) socket.connect();
     const onListUpdated = () =>
-      qc.invalidateQueries({ queryKey: supportKeys.adminList() });
+      qc.invalidateQueries({ queryKey: supportKeys.adminLists() });
     socket.on("support.list-updated", onListUpdated);
     return () => {
       socket.off("support.list-updated", onListUpdated);

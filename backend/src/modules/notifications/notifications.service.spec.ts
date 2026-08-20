@@ -5,6 +5,7 @@ import { NotificationType } from '../../common/enums/notification-type.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import type { NotificationsGateway } from './notifications.gateway';
 import { NotificationsService } from './notifications.service';
+import type { NotificationDeliveryService } from './notification-delivery.service';
 
 describe('NotificationsService', () => {
   const user: AuthenticatedUser = {
@@ -24,6 +25,7 @@ describe('NotificationsService', () => {
     findOneBy: jest.Mock;
   };
   let gateway: { emitCreated: jest.Mock };
+  let delivery: { deliver: jest.Mock };
   let service: NotificationsService;
 
   beforeEach(() => {
@@ -42,10 +44,12 @@ describe('NotificationsService', () => {
       findOneBy: jest.fn(),
     };
     gateway = { emitCreated: jest.fn() };
+    delivery = { deliver: jest.fn().mockResolvedValue(undefined) };
     service = new NotificationsService(
       notificationsRepository as never,
       readsRepository as never,
       gateway as unknown as NotificationsGateway,
+      delivery as unknown as NotificationDeliveryService,
     );
   });
 
@@ -68,6 +72,9 @@ describe('NotificationsService', () => {
     expect(gateway.emitCreated).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'notification-id' }),
     );
+    expect(delivery.deliver).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'notification-id' }),
+    );
   });
 
   it('requires a recipient for user notifications', async () => {
@@ -82,8 +89,7 @@ describe('NotificationsService', () => {
   });
 
   it('lists visible notifications with read state', async () => {
-    notificationsRepository.createQueryBuilder.mockReturnValue(
-      createQueryBuilder({
+    const queryBuilder = createQueryBuilder({
         rawAndEntities: {
           entities: [
             {
@@ -99,11 +105,17 @@ describe('NotificationsService', () => {
           ],
           raw: [{ readAt: '2026-04-24T12:01:00.000Z' }],
         },
-      }),
-    );
+        count: 6,
+      });
+    notificationsRepository.createQueryBuilder.mockReturnValue(queryBuilder);
 
     await expect(
-      service.listForUser(user, { limit: 20, offset: 0, unreadOnly: false }),
+      service.listForUser(user, {
+        kind: 'payment',
+        limit: 20,
+        offset: 0,
+        unreadOnly: false,
+      }),
     ).resolves.toEqual({
       notifications: [
         expect.objectContaining({
@@ -111,7 +123,12 @@ describe('NotificationsService', () => {
           readAt: new Date('2026-04-24T12:01:00.000Z'),
         }),
       ],
+      total: 6,
     });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'notification.type IN (:...notificationTypes)',
+      { notificationTypes: [NotificationType.PaymentDue] },
+    );
   });
 
   it('marks a visible notification as read', async () => {
@@ -157,14 +174,24 @@ describe('NotificationsService', () => {
       { notificationId: 'second-id', userId: user.id },
     ]);
   });
+
+  it('counts unread notifications without loading notification rows', async () => {
+    const queryBuilder = createQueryBuilder({ count: 4 });
+    notificationsRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    await expect(service.getUnreadCount(user)).resolves.toEqual({ count: 4 });
+    expect(queryBuilder.getRawAndEntities).not.toHaveBeenCalled();
+  });
 });
 
 function createQueryBuilder(results: {
   rawAndEntities?: { entities: unknown[]; raw: unknown[] };
   one?: unknown;
   many?: unknown[];
+  count?: number;
 }) {
   return {
+    clone: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
     orWhere: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
@@ -176,5 +203,6 @@ function createQueryBuilder(results: {
     getRawAndEntities: jest.fn().mockResolvedValue(results.rawAndEntities),
     getOne: jest.fn().mockResolvedValue(results.one),
     getMany: jest.fn().mockResolvedValue(results.many ?? []),
+    getCount: jest.fn().mockResolvedValue(results.count ?? 0),
   };
 }

@@ -7,4 +7,6 @@ export const usersKeys = {
   stats: () => [...usersKeys.all, "stats"] as const,
   applications: () => [...usersKeys.all, "applications"] as const,
   watchlist: () => [...usersKeys.all, "watchlist"] as const,
+  disputes: () => [...usersKeys.all, "disputes"] as const,
+  deliveries: () => [...usersKeys.all, "deliveries"] as const,
 };

@@ -14,6 +14,7 @@ import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { NotificationPreference } from '../users/entities/notification-preference.entity';
 import { User } from '../users/entities/user.entity';
+import { MechanicProfile } from '../admin/entities/mechanic-profile.entity';
 
 type BetterAuthModule = {
   betterAuth: (options: Record<string, unknown>) => BetterAuthInstance;
@@ -65,6 +66,8 @@ export class AuthService implements OnModuleDestroy {
     private readonly usersRepository: Repository<User>,
     @InjectRepository(NotificationPreference)
     private readonly preferencesRepository: Repository<NotificationPreference>,
+    @InjectRepository(MechanicProfile)
+    private readonly mechanicProfilesRepository: Repository<MechanicProfile>,
     private readonly emailService: EmailService,
   ) {}
 
@@ -187,6 +190,7 @@ export class AuthService implements OnModuleDestroy {
       emailAndPassword: {
         enabled: true,
         minPasswordLength: 8,
+        requireEmailVerification: true,
         sendResetPassword: async (data: {
           url: string;
           token: string;
@@ -205,6 +209,9 @@ export class AuthService implements OnModuleDestroy {
         },
       },
       emailVerification: {
+        // The product uses the email-otp plugin and routes new users to an
+        // OTP screen. Request the OTP explicitly after signup so users never
+        // receive a link for a flow the UI cannot complete.
         sendOnSignUp: false,
         sendVerificationEmail: async (data: {
           url: string;
@@ -293,6 +300,12 @@ export class AuthService implements OnModuleDestroy {
     await this.preferencesRepository.save(
       this.preferencesRepository.create({ userId: authUser.id }),
     );
+
+    if (appRole === UserRole.Mechanic) {
+      await this.mechanicProfilesRepository.save(
+        this.mechanicProfilesRepository.create({ userId: authUser.id }),
+      );
+    }
   }
 
   private getNodeHelpers() {

@@ -8,6 +8,7 @@ import type { WalletsService } from '../wallets/wallets.service';
 import type { BidsGateway } from './bids.gateway';
 import { BidsService } from './bids.service';
 import { Bid } from './entities/bid.entity';
+import type { KycRequirementService } from '../kyc/kyc-requirement.service';
 
 describe('BidsService', () => {
   let dataSource: { transaction: jest.Mock };
@@ -23,6 +24,7 @@ describe('BidsService', () => {
     emitOutbid: jest.Mock;
   };
   let notificationsService: { create: jest.Mock };
+  let kycRequirement: { assertCanBid: jest.Mock };
   let service: BidsService;
 
   beforeEach(() => {
@@ -45,6 +47,7 @@ describe('BidsService', () => {
       emitOutbid: jest.fn(),
     };
     notificationsService = { create: jest.fn() };
+    kycRequirement = { assertCanBid: jest.fn().mockResolvedValue(undefined) };
     service = new BidsService(
       dataSource as never,
       {} as never,
@@ -52,7 +55,18 @@ describe('BidsService', () => {
       walletsService as unknown as WalletsService,
       bidsGateway as unknown as BidsGateway,
       notificationsService as unknown as NotificationsService,
+      kycRequirement as unknown as KycRequirementService,
     );
+  });
+
+  it('rejects bidding before identity verification', async () => {
+    kycRequirement.assertCanBid.mockRejectedValue(
+      new BadRequestException('Complete NIN and BVN verification'),
+    );
+    await expect(
+      service.placeBid('bidder-id', 'auction-id', { amountKobo: 250000000 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
   it('accepts the first live auction bid and makes it top bid', async () => {
@@ -103,6 +117,21 @@ describe('BidsService', () => {
       bid: expect.objectContaining({ id: 'bid-id' }),
       previousBid: null,
     });
+  });
+
+  it('calculates the hold from the submitted bid amount', async () => {
+    const auction = createAuction({ basePriceKobo: 200000000 });
+    const manager = createManager({ auction, currentTopBid: null });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await service.placeBid('bidder-id', auction.id, {
+      amountKobo: 260000000,
+    });
+
+    expect(walletsService.createBidHold).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({ amountKobo: 26000000 }),
+    );
   });
 
   it('rejects bids when the auction is not live', async () => {
@@ -224,6 +253,8 @@ function createAuction(overrides: Partial<Auction> = {}): Auction {
     currentWinningBidId: null,
     winnerId: null,
     paymentDeadlineAt: null,
+    winnerPaymentConfirmedAt: null,
+    winnerPaymentNote: null,
     externalPaymentKobo: null,
     walletPaymentKobo: null,
     settledById: null,

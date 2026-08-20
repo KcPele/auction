@@ -1,5 +1,6 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -12,42 +13,77 @@ import type {
 import { timeAgo } from "@/app/components/notifications/utils/relative-time";
 import { Icon, type IconName } from "../primitives/Icon";
 import { Chips, type ChipOption } from "../widgets/Chips";
+import { PaginationControls } from "../../ui/PaginationControls";
 
 type Filter = "all" | NotificationKind;
 
 const FILTERS: ChipOption<Filter>[] = [
   { id: "all", label: "All" },
   { id: "bid", label: "Bids" },
-  { id: "alert", label: "Alerts" },
-  { id: "wa", label: "WhatsApp" },
-  { id: "email", label: "Email" },
+  { id: "listing", label: "Listings" },
+  { id: "payment", label: "Payments" },
+  { id: "system", label: "System" },
 ];
 
 const ICON_FOR: Record<NotificationKind, IconName> = {
-  email: "mail",
-  wa: "wa",
   bid: "gavel",
-  alert: "flame",
+  listing: "tag",
+  payment: "wallet",
+  system: "bell",
 };
 
 const ICON_BG: Record<NotificationKind, string> = {
-  email: "bg-accent/[0.12] text-accent",
-  wa: "bg-green/[0.12] text-green",
   bid: "bg-info-soft text-info",
-  alert: "bg-red/[0.12] text-red",
+  listing: "bg-primary-soft text-primary",
+  payment: "bg-warning-soft text-warning",
+  system: "bg-surface-subtle text-fg-muted",
 };
 
+function notificationHref(notification: Notification): string | null {
+  const directHref = notification.data?.href;
+  if (
+    directHref === "/dashboard/wallet" ||
+    directHref === "/dashboard/wallet/withdrawals"
+  ) {
+    return directHref;
+  }
+  const auctionId = notification.data?.auctionId;
+  if (typeof auctionId === "string") {
+    return `/dashboard/auction/${encodeURIComponent(auctionId)}`;
+  }
+  const listingId = notification.data?.listingId;
+  const listingCategory = notification.data?.category;
+  if (
+    typeof listingId === "string" &&
+    (listingCategory === "CAR" || listingCategory === "GADGET")
+  ) {
+    const category = listingCategory === "CAR" ? "cars" : "gadgets";
+    return `/dashboard/listings/${encodeURIComponent(listingId)}?category=${category}`;
+  }
+  if (typeof notification.data?.applicationId === "string") {
+    return "/dashboard/listing-access";
+  }
+  const conversationId = notification.data?.conversationId;
+  if (typeof conversationId === "string") {
+    return `/dashboard/support?c=${encodeURIComponent(conversationId)}`;
+  }
+  return null;
+}
+
 export function NotificationsScreen() {
+  const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
-  const { data, isLoading, isError, refetch } = useNotifications({ limit: 50 });
+  const [page, setPage] = useState(0);
+  const pageSize = 25;
+  const { data, isLoading, isError, refetch } = useNotifications({
+    limit: pageSize,
+    offset: page * pageSize,
+    kind: filter === "all" ? undefined : filter,
+  });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
-  const items = useMemo<Notification[]>(() => data ?? [], [data]);
-  const filtered = useMemo(
-    () => (filter === "all" ? items : items.filter((n) => n.kind === filter)),
-    [filter, items],
-  );
+  const items: Notification[] = data?.items ?? [];
   const hasUnread = items.some((n) => n.unread);
 
   return (
@@ -69,22 +105,33 @@ export function NotificationsScreen() {
       </div>
 
       <div className="mt-3">
-        <Chips options={FILTERS} value={filter} onChange={setFilter} />
+        <Chips
+          options={FILTERS}
+          value={filter}
+          onChange={(value) => {
+            setFilter(value);
+            setPage(0);
+          }}
+        />
       </div>
 
       {isLoading ? (
         <NotificationsSkeleton />
       ) : isError ? (
         <FailedState onRetry={refetch} />
-      ) : filtered.length === 0 ? (
+      ) : items.length === 0 ? (
         <EmptyState />
       ) : (
         <div className="mt-2">
-          {filtered.map((n) => (
+          {items.map((n) => (
             <button
               key={n.id}
               type="button"
-              onClick={() => n.unread && markRead.mutate(n.id)}
+              onClick={() => {
+                if (n.unread) markRead.mutate(n.id);
+                const href = notificationHref(n);
+                if (href) router.push(href);
+              }}
               className={`relative grid w-full grid-cols-[36px_1fr_auto] gap-3 border-b border-line py-3.5 text-left ${
                 n.unread
                   ? "before:absolute before:-left-2.5 before:top-[22px] before:h-1 before:w-1 before:rounded-full before:bg-accent before:content-['']"
@@ -109,6 +156,13 @@ export function NotificationsScreen() {
           ))}
         </div>
       )}
+
+      <PaginationControls
+        page={page}
+        pageSize={pageSize}
+        total={data?.total ?? 0}
+        onPageChange={setPage}
+      />
     </>
   );
 }

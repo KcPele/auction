@@ -2,10 +2,12 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { WalletLedgerType } from '../../common/enums/wallet-ledger-type.enum';
 import { WalletWithdrawalStatus } from '../../common/enums/wallet-withdrawal-status.enum';
 import type { StrowalletProvider } from '../payments/providers/strowallet.provider';
+import type { NotificationsService } from '../notifications/notifications.service';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
 import { WalletWithdrawal } from './entities/wallet-withdrawal.entity';
 import { Wallet } from './entities/wallet.entity';
 import { WalletWithdrawalsService } from './wallet-withdrawals.service';
+import type { KycRequirementService } from '../kyc/kyc-requirement.service';
 
 describe('WalletWithdrawalsService', () => {
   let service: WalletWithdrawalsService;
@@ -15,6 +17,8 @@ describe('WalletWithdrawalsService', () => {
     getAccountName: jest.Mock;
     initiateBankTransfer: jest.Mock;
   };
+  let notificationsService: { create: jest.Mock };
+  let kycRequirement: { assertCanWithdraw: jest.Mock };
 
   beforeEach(() => {
     dataSource = { transaction: jest.fn((callback) => callback(createManager())) };
@@ -23,11 +27,27 @@ describe('WalletWithdrawalsService', () => {
       getAccountName: jest.fn(),
       initiateBankTransfer: jest.fn(),
     };
+    notificationsService = { create: jest.fn() };
+    kycRequirement = {
+      assertCanWithdraw: jest.fn().mockResolvedValue(undefined),
+    };
     service = new WalletWithdrawalsService(
       dataSource as never,
       withdrawalsRepository as never,
       strowalletProvider as unknown as StrowalletProvider,
+      notificationsService as unknown as NotificationsService,
+      kycRequirement as unknown as KycRequirementService,
     );
+  });
+
+  it('rejects withdrawals before payment-account KYC is complete', async () => {
+    kycRequirement.assertCanWithdraw.mockRejectedValue(
+      new BadRequestException('Complete KYC and payment account setup'),
+    );
+    await expect(
+      service.createWithdrawal('user-id', createWithdrawalDto()),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
   it('rejects withdrawals above available balance', async () => {
@@ -62,6 +82,12 @@ describe('WalletWithdrawalsService', () => {
       payout: expect.objectContaining({ status: 'SUCCESS' }),
     });
     expect(wallet.balanceKobo).toBe(50000);
+    expect(notificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: 'user-id',
+        title: 'Withdrawal completed',
+      }),
+    );
   });
 
   it('refunds failed withdrawals', async () => {
@@ -84,6 +110,53 @@ describe('WalletWithdrawalsService', () => {
         amountKobo: 50000,
       }),
     );
+    expect(notificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: withdrawal.userId,
+        title: 'Withdrawal failed',
+      }),
+    );
+  });
+
+  it('never completes a withdrawal after its funds were refunded', async () => {
+    const wallet = createWallet({ balanceKobo: 100000 });
+    const withdrawal = createWithdrawal({
+      status: WalletWithdrawalStatus.Failed,
+      failedAt: new Date('2026-04-24T13:00:00.000Z'),
+    });
+    const manager = createManager({ wallet, withdrawal });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await expect(
+      service.updateWithdrawalFromProvider(
+        withdrawal.providerReference,
+        'SUCCESSFUL',
+        {},
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({ status: WalletWithdrawalStatus.Failed }),
+    );
+
+    expect(wallet.balanceKobo).toBe(100000);
+    expect(manager.save).not.toHaveBeenCalled();
+    expect(notificationsService.create).not.toHaveBeenCalled();
+  });
+
+  it('normalizes lowercase provider statuses', async () => {
+    const wallet = createWallet({ balanceKobo: 50000 });
+    const withdrawal = createWithdrawal();
+    const manager = createManager({ wallet, withdrawal });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await expect(
+      service.updateWithdrawalFromProvider(
+        withdrawal.providerReference,
+        'successful',
+        {},
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({ status: WalletWithdrawalStatus.Completed }),
+    );
   });
 
   it('returns a user withdrawal by id', async () => {
@@ -104,7 +177,7 @@ describe('WalletWithdrawalsService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('lists pending withdrawals for admin authorization', async () => {
+  it('lists withdrawals awaiting provider completion', async () => {
     withdrawalsRepository.find.mockResolvedValue([
       createWithdrawal({ id: 'withdrawal-a' }),
     ]);
@@ -117,38 +190,6 @@ describe('WalletWithdrawalsService', () => {
     );
   });
 
-  it('does not authorize Strowallet withdrawals with OTP', async () => {
-    const withdrawal = createWithdrawal();
-    withdrawalsRepository.findOneBy.mockResolvedValue(withdrawal);
-
-    await expect(
-      service.authorizeWithdrawal('withdrawal-id', '886850'),
-    ).rejects.toBeInstanceOf(BadRequestException);
-  });
-
-  it('returns a Strowallet withdrawal OTP resend message', async () => {
-    const withdrawal = createWithdrawal();
-    withdrawalsRepository.findOneBy.mockResolvedValue(withdrawal);
-
-    await expect(
-      service.resendWithdrawalOtp('withdrawal-id'),
-    ).resolves.toEqual({
-      withdrawal: expect.objectContaining({ id: 'withdrawal-id' }),
-      providerResponse: expect.objectContaining({
-        message: expect.stringContaining('Strowallet'),
-      }),
-    });
-  });
-
-  it('does not authorize completed withdrawals', async () => {
-    withdrawalsRepository.findOneBy.mockResolvedValue(
-      createWithdrawal({ status: WalletWithdrawalStatus.Completed }),
-    );
-
-    await expect(
-      service.authorizeWithdrawal('withdrawal-id', '886850'),
-    ).rejects.toBeInstanceOf(BadRequestException);
-  });
 });
 
 function createWallet(overrides: Record<string, unknown> = {}) {

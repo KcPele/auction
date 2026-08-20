@@ -1,17 +1,26 @@
 "use client";
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { notificationsSocket } from "@/app/lib/realtime/socket";
 import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  getUnreadNotificationCount,
+  toNotification,
 } from "../api/notifications.api";
-import type { Notification } from "../types/notification.types";
+import type {
+  NotificationKind,
+  NotificationPage,
+  NotificationDto,
+} from "../types/notification.types";
 import { notificationKeys } from "./notification-keys";
 
 export function useNotifications(params: {
   limit?: number;
   offset?: number;
   unreadOnly?: boolean;
+  kind?: NotificationKind;
 } = {}) {
   return useQuery({
     queryKey: notificationKeys.list(params),
@@ -21,11 +30,31 @@ export function useNotifications(params: {
 
 export function useUnreadCount() {
   return useQuery({
-    queryKey: notificationKeys.list({ unreadOnly: true, limit: 100 }),
-    queryFn: () => listNotifications({ unreadOnly: true, limit: 100 }),
-    select: (rows: Notification[]) => rows.length,
+    queryKey: notificationKeys.unreadCount(),
+    queryFn: getUnreadNotificationCount,
     refetchInterval: 60_000,
   });
+}
+
+export function useNotificationsStream() {
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    const socket = notificationsSocket();
+    const onCreated = (payload: NotificationDto) => {
+      const notification = toNotification(payload);
+      qc.setQueryData<number>(notificationKeys.unreadCount(), (count = 0) =>
+        notification.unread ? count + 1 : count,
+      );
+      qc.invalidateQueries({ queryKey: notificationKeys.lists() });
+    };
+
+    socket.on("notification.created", onCreated);
+    if (!socket.connected) socket.connect();
+    return () => {
+      socket.off("notification.created", onCreated);
+    };
+  }, [qc]);
 }
 
 export function useMarkNotificationRead() {
@@ -33,16 +62,21 @@ export function useMarkNotificationRead() {
   return useMutation({
     mutationFn: markNotificationRead,
     onMutate: async (id: string) => {
-      await qc.cancelQueries({ queryKey: notificationKeys.all });
+      await qc.cancelQueries({ queryKey: notificationKeys.lists() });
       // Patch every cached list optimistically.
-      const snapshots = qc.getQueriesData<Notification[]>({
-        queryKey: notificationKeys.all,
+      const snapshots = qc.getQueriesData<NotificationPage>({
+        queryKey: notificationKeys.lists(),
       });
       for (const [key, list] of snapshots) {
         if (!list) continue;
-        qc.setQueryData<Notification[]>(
+        qc.setQueryData<NotificationPage>(
           key,
-          list.map((n) => (n.id === id ? { ...n, unread: false } : n)),
+          {
+            ...list,
+            items: list.items.map((n) =>
+              n.id === id ? { ...n, unread: false } : n,
+            ),
+          },
         );
       }
       return { snapshots };
@@ -62,15 +96,15 @@ export function useMarkAllNotificationsRead() {
   return useMutation({
     mutationFn: markAllNotificationsRead,
     onMutate: async () => {
-      await qc.cancelQueries({ queryKey: notificationKeys.all });
-      const snapshots = qc.getQueriesData<Notification[]>({
-        queryKey: notificationKeys.all,
+      await qc.cancelQueries({ queryKey: notificationKeys.lists() });
+      const snapshots = qc.getQueriesData<NotificationPage>({
+        queryKey: notificationKeys.lists(),
       });
       for (const [key, list] of snapshots) {
         if (!list) continue;
-        qc.setQueryData<Notification[]>(
+        qc.setQueryData<NotificationPage>(
           key,
-          list.map((n) => ({ ...n, unread: false })),
+          { ...list, items: list.items.map((n) => ({ ...n, unread: false })) },
         );
       }
       return { snapshots };

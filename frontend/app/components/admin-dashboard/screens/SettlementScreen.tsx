@@ -11,11 +11,15 @@ import { ApiError } from "@/app/lib/api/error";
 import { Modal } from "../../ui/Modal";
 import { fmtNGN } from "../utils";
 import { SectionHeader } from "./SectionHeader";
+import { PaginationControls } from "../../ui/PaginationControls";
 
 export function SettlementScreen() {
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
   const { data, isLoading, isError, refetch } = useAdminAuctions({
     status: "AWAITING_PAYMENT",
-    limit: 50,
+    limit: pageSize,
+    offset: page * pageSize,
   });
   const settle = useSettleAuctionPayment();
   const markDefault = useDefaultAuctionPayment();
@@ -31,6 +35,11 @@ export function SettlementScreen() {
   const [reason, setReason] = useState("");
 
   const items = data?.items ?? [];
+  const amountDueAfterHold = (auction: AdminAuctionItem) => {
+    const holdNaira =
+      Math.ceil(auction.currentBid * auction.holdPercent) / 100;
+    return Math.max(0, auction.currentBid - holdNaira);
+  };
 
   const onSettle = async () => {
     if (!settlingFor) return;
@@ -109,6 +118,18 @@ export function SettlementScreen() {
                   <div className="mt-0.5 text-xs text-fg-dim">
                     {s.id.slice(0, 8)} · {s.bidderCount} bidders
                   </div>
+                  {s.winnerPaymentConfirmedAt && (
+                    <div className="mt-2">
+                      <span className="rounded-full border border-info/30 bg-info-soft px-2 py-0.5 text-[10px] font-semibold text-info">
+                        WINNER CONFIRMED PAYMENT
+                      </span>
+                      {s.winnerPaymentNote && (
+                        <p className="mt-1 text-xs text-fg-muted">
+                          {s.winnerPaymentNote}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="font-mono text-[16px] font-bold text-accent">
@@ -125,12 +146,12 @@ export function SettlementScreen() {
                   type="button"
                   onClick={() => {
                     setSettlingFor(s);
-                    setExternalNaira(s.currentBid);
+                    setExternalNaira(amountDueAfterHold(s));
                     setWalletNaira(0);
                   }}
                   className="flex-1 rounded-lg border-none bg-primary p-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover"
                 >
-                  Settle &amp; release escrow
+                  Settle payment
                 </button>
                 <button
                   type="button"
@@ -144,6 +165,13 @@ export function SettlementScreen() {
           ))}
         </div>
       )}
+
+      <PaginationControls
+        page={page}
+        pageSize={pageSize}
+        total={data?.total ?? 0}
+        onPageChange={setPage}
+      />
 
       <Modal
         open={!!settlingFor}
@@ -171,8 +199,9 @@ export function SettlementScreen() {
         }
       >
         <p className="mb-3 text-[12px] text-fg-muted">
-          Split the winner&apos;s payment between an external transfer (already
-          received) and any wallet hold to apply.
+          Enter only the balance received after the bid hold. The active bid
+          hold is applied automatically; split the remaining balance between
+          an external transfer and an additional wallet debit if needed.
         </p>
         <label className="mb-1 block text-xs font-medium text-fg-muted">
           External payment (₦)

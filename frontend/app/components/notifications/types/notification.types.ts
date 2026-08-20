@@ -24,9 +24,10 @@ export type NotificationDto = {
 
 export type ListNotificationsResponseDto = {
   notifications: NotificationDto[];
+  total: number;
 };
 
-export type NotificationKind = "bid" | "alert" | "wa" | "email";
+export type NotificationKind = "bid" | "listing" | "payment" | "system";
 
 export type Notification = {
   id: string;
@@ -38,3 +39,5 @@ export type Notification = {
   unread: boolean;
   createdAt: Date;
 };
+
+export type NotificationPage = { items: Notification[]; total: number };

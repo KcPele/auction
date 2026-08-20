@@ -3,13 +3,21 @@ import { DefaultPlatformFees } from '../../common/constants/platform-fees';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
 import { BidStatus } from '../../common/enums/bid-status.enum';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
-import { ListingStatus } from '../../common/enums/listing-status.enum';
 import { NotificationType } from '../../common/enums/notification-type.enum';
 import type { NotificationsService } from '../notifications/notifications.service';
 import type { BidsGateway } from '../bids/bids.gateway';
 import type { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
 import { AuctionsService } from './auctions.service';
+import { AuctionCatalogQuery } from './auction-catalog.query';
 import type { WalletsService } from '../wallets/wallets.service';
+import {
+  createAuction,
+  createBid,
+  createBidStatsQueryBuilder,
+  createListQueryBuilder,
+  createListing,
+  createManager,
+} from './auctions.service.spec-helpers';
 
 describe('AuctionsService', () => {
   let dataSource: { transaction: jest.Mock };
@@ -29,6 +37,7 @@ describe('AuctionsService', () => {
   let gadgetListingsRepository: { findOneBy: jest.Mock; find: jest.Mock };
   let feesRepository: { findOneBy: jest.Mock };
   let biddingSettingsRepository: { findOneBy: jest.Mock };
+  let escrowSettingsRepository: { findOneBy: jest.Mock };
   let usersRepository: { find: jest.Mock; findOneBy: jest.Mock };
   let notificationsService: { create: jest.Mock };
   let walletsService: { releaseBidHold: jest.Mock };
@@ -66,6 +75,7 @@ describe('AuctionsService', () => {
     gadgetListingsRepository = { findOneBy: jest.fn(), find: jest.fn().mockResolvedValue([]) };
     feesRepository = { findOneBy: jest.fn() };
     biddingSettingsRepository = { findOneBy: jest.fn() };
+    escrowSettingsRepository = { findOneBy: jest.fn().mockResolvedValue(null) };
     usersRepository = { find: jest.fn(), findOneBy: jest.fn() };
     notificationsService = { create: jest.fn() };
     walletsService = { releaseBidHold: jest.fn() };
@@ -84,7 +94,14 @@ describe('AuctionsService', () => {
       gadgetListingsRepository as never,
       feesRepository as never,
       biddingSettingsRepository as never,
-      usersRepository as never,
+      escrowSettingsRepository as never,
+      new AuctionCatalogQuery(
+        auctionsRepository as never,
+        bidsRepository as never,
+        carListingsRepository as never,
+        gadgetListingsRepository as never,
+        usersRepository as never,
+      ),
       notificationsService as unknown as NotificationsService,
       lifecycleScheduler as unknown as AuctionLifecycleScheduler,
       bidsGateway as unknown as BidsGateway,
@@ -142,6 +159,21 @@ describe('AuctionsService', () => {
     });
   });
 
+  it('preserves a stricter reviewed listing hold requirement', async () => {
+    const listing = { ...createListing(), holdPercent: 18 };
+    auctionsRepository.findOneBy.mockResolvedValue(null);
+    carListingsRepository.findOneBy.mockResolvedValue(listing);
+    biddingSettingsRepository.findOneBy.mockResolvedValue({
+      bidRequirementPercent: 15,
+    });
+
+    await service.createFromApprovedListing(ListingCategory.Car, listing.id);
+
+    expect(auctionsRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ holdPercent: 18 }),
+    );
+  });
+
   it('uses default fee settings when no custom fee exists', async () => {
     const listing = createListing();
     auctionsRepository.findOneBy.mockResolvedValue(null);
@@ -178,6 +210,7 @@ describe('AuctionsService', () => {
       }),
     ).resolves.toEqual({
       auctions: [expect.objectContaining({ id: 'auction-id' })],
+      total: 1,
     });
     expect(auctionsRepository.createQueryBuilder).toHaveBeenCalledWith('a');
   });
@@ -206,6 +239,55 @@ describe('AuctionsService', () => {
         cancellationReason: 'Issue found',
       }),
     });
+  });
+
+  it('releases the winning wallet hold when cancelling a live auction', async () => {
+    const winningBid = createBid({ status: BidStatus.Winning });
+    const auction = createAuction({
+      status: AuctionStatus.Live,
+      currentWinningBidId: winningBid.id,
+    });
+    const manager = createManager({ auction, bids: [winningBid] });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await service.cancel('admin-id', auction.id, { reason: 'Safety issue' });
+
+    expect(walletsService.releaseBidHold).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({
+        holdId: winningBid.walletHoldId,
+        metadata: expect.objectContaining({ reason: 'auction_cancelled' }),
+      }),
+    );
+    expect(manager.update).toHaveBeenCalledWith(
+      expect.any(Function),
+      { auctionId: auction.id },
+      { status: BidStatus.Cancelled },
+    );
+  });
+
+  it('notifies the seller and every bidder when an auction is cancelled', async () => {
+    const firstBid = createBid({ bidderId: 'bidder-1' });
+    const secondBid = createBid({ id: 'bid-2', bidderId: 'bidder-2' });
+    const auction = createAuction({ status: AuctionStatus.Live });
+    const manager = createManager({ auction, bids: [firstBid, secondBid] });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await service.cancel('admin-id', auction.id, { reason: 'Listing safety issue' });
+
+    expect(bidsGateway.emitStatusChanged).toHaveBeenCalledWith({
+      auctionId: auction.id,
+      previousStatus: AuctionStatus.Live,
+      newStatus: AuctionStatus.Cancelled,
+    });
+    for (const recipientId of [auction.sellerId, 'bidder-1', 'bidder-2']) {
+      expect(notificationsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId,
+          title: 'Auction cancelled',
+        }),
+      );
+    }
   });
 
   it('rejects cancellation after an auction has ended', async () => {
@@ -296,6 +378,9 @@ describe('AuctionsService', () => {
     expect(lifecycleScheduler.schedulePaymentDeadline).toHaveBeenCalledWith(
       auction,
     );
+    expect(bidsGateway.emitStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ previousStatus: AuctionStatus.Live }),
+    );
     expect(notificationsService.create).toHaveBeenCalledWith(
       expect.objectContaining({
         recipientId: winningBid.bidderId,
@@ -304,121 +389,27 @@ describe('AuctionsService', () => {
     );
   });
 
+  it('uses the configured payment window for winner deadlines', async () => {
+    escrowSettingsRepository.findOneBy.mockResolvedValue({
+      paymentWindowHours: 48,
+    });
+    const beforeClose = Date.now();
+    const auction = createAuction({
+      status: AuctionStatus.Live,
+      startTime: new Date(beforeClose - 120_000),
+      endTime: new Date(beforeClose - 60_000),
+    });
+    const winningBid = createBid({ amountKobo: 7000000 });
+    const manager = createManager({ auction, bids: [winningBid] });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await service.closeAuction(auction.id);
+
+    const deadline = auction.paymentDeadlineAt as Date | null;
+    expect(deadline).not.toBeNull();
+    expect((deadline as Date).getTime()).toBeGreaterThanOrEqual(
+      beforeClose + 48 * 60 * 60_000,
+    );
+  });
+
 });
-
-function createListing() {
-  return {
-    id: 'listing-id',
-    listerId: 'seller-id',
-    basePriceKobo: '5000000',
-    minimumBidIncrementKobo: '100000',
-    holdPercent: 10,
-    startTime: new Date('2026-04-24T13:00:00.000Z'),
-    durationMinutes: 120,
-    status: ListingStatus.Approved,
-  };
-}
-
-function createAuction(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'auction-id',
-    category: ListingCategory.Car,
-    listingId: 'listing-id',
-    sellerId: 'seller-id',
-    basePriceKobo: 5000000,
-    minimumBidIncrementKobo: 100000,
-    holdPercent: 10,
-    sellerFeeBps: 300,
-    buyerFeeBps: 0,
-    startTime: new Date('2026-04-24T13:00:00.000Z'),
-    durationMinutes: 120,
-    endTime: new Date('2026-04-24T15:00:00.000Z'),
-    status: AuctionStatus.Scheduled,
-    currentWinningBidId: null,
-    winnerId: null,
-    paymentDeadlineAt: null,
-    externalPaymentKobo: null,
-    walletPaymentKobo: null,
-    settledById: null,
-    settledAt: null,
-    defaultedAt: null,
-    defaultReason: null,
-    cancelledById: null,
-    cancellationReason: null,
-    cancelledAt: null,
-    createdAt: new Date('2026-04-24T12:00:00.000Z'),
-    updatedAt: new Date('2026-04-24T12:00:00.000Z'),
-    ...overrides,
-  };
-}
-
-function createBid(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'bid-id',
-    auctionId: 'auction-id',
-    bidderId: 'bidder-id',
-    amountKobo: 5000000,
-    walletHoldId: 'hold-id',
-    status: BidStatus.Accepted,
-    createdAt: new Date('2026-04-24T14:00:00.000Z'),
-    ...overrides,
-  };
-}
-
-function createManager(input?: {
-  auction?: ReturnType<typeof createAuction>;
-  bids?: ReturnType<typeof createBid>[];
-}) {
-  return {
-    findOne: jest.fn((entity) => {
-      if (entity.name === 'Auction') {
-        return Promise.resolve(input?.auction ?? createAuction());
-      }
-
-      if (entity.name === 'Bid') {
-        return Promise.resolve(input?.bids?.[0] ?? null);
-      }
-
-      return Promise.resolve(null);
-    }),
-    find: jest.fn((entity) => {
-      if (entity.name === 'Bid') {
-        return Promise.resolve(input?.bids ?? []);
-      }
-
-      return Promise.resolve([]);
-    }),
-    create: jest.fn((_entity, value) => value),
-    save: jest.fn(async (value) => value),
-    update: jest.fn(),
-  };
-}
-
-function createListQueryBuilder(items: ReturnType<typeof createAuction>[] = []) {
-  const qb = {
-    orderBy: jest.fn(),
-    addOrderBy: jest.fn(),
-    take: jest.fn(),
-    skip: jest.fn(),
-    andWhere: jest.fn(),
-    getMany: jest.fn().mockResolvedValue(items),
-  };
-  for (const method of ['orderBy', 'addOrderBy', 'take', 'skip', 'andWhere'] as const) {
-    qb[method].mockReturnValue(qb);
-  }
-  return qb;
-}
-
-function createBidStatsQueryBuilder() {
-  const qb = {
-    select: jest.fn(),
-    addSelect: jest.fn(),
-    where: jest.fn(),
-    groupBy: jest.fn(),
-    getRawMany: jest.fn().mockResolvedValue([]),
-  };
-  for (const method of ['select', 'addSelect', 'where', 'groupBy'] as const) {
-    qb[method].mockReturnValue(qb);
-  }
-  return qb;
-}

@@ -43,10 +43,12 @@ export function RedeemAccessCodeScreen() {
       ) : (
         <>
           <div className="mt-6">
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor="redeem-access-code" className="mb-1 block text-xs font-medium text-fg-muted">
               Access code
             </label>
             <input
+              id="redeem-access-code"
+              autoComplete="off"
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}

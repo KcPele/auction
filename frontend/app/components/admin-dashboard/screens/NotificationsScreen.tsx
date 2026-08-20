@@ -5,6 +5,7 @@ import {
   useNotificationLogs,
 } from "@/app/components/admin/hooks/use-admin-extras";
 import { Card, CardBody, CardHead } from "../widgets/Card";
+import { PaginationControls } from "../../ui/PaginationControls";
 import { SectionHeader } from "./SectionHeader";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -13,6 +14,7 @@ const STATUS_STYLE: Record<string, string> = {
   QUEUED: "text-accent",
   PENDING: "text-accent",
   SENT: "text-green",
+  SKIPPED: "text-fg-muted",
 };
 
 const CHANNEL_BG: Record<string, string> = {
@@ -30,20 +32,28 @@ const dateFmt = new Intl.DateTimeFormat("en-NG", {
 });
 
 const CHANNEL_OPTS = ["all", "EMAIL", "WHATSAPP", "SMS", "PUSH"];
-const STATUS_OPTS = ["all", "DELIVERED", "FAILED", "QUEUED"];
+const STATUS_OPTS = ["all", "SENT", "FAILED", "SKIPPED"];
 
 export function NotificationsScreen() {
   const [channel, setChannel] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
+  const [deliveryPage, setDeliveryPage] = useState(0);
+  const [inAppPage, setInAppPage] = useState(0);
+  const pageSize = 20;
 
   const { data, isLoading, isError, refetch } = useNotificationLogs({
     channel: channel === "all" ? undefined : channel,
     status: status === "all" ? undefined : status,
+    limit: pageSize,
+    offset: deliveryPage * pageSize,
   });
-  const inApp = useInAppNotifications();
+  const inApp = useInAppNotifications({
+    limit: pageSize,
+    offset: inAppPage * pageSize,
+  });
 
-  const items = data ?? [];
-  const inAppItems = inApp.data ?? [];
+  const items = data?.items ?? [];
+  const inAppItems = inApp.data?.items ?? [];
   const failed = items.filter((i) => i.status === "FAILED").length;
 
   return (
@@ -58,7 +68,7 @@ export function NotificationsScreen() {
             <>
               In-app notifications
               <span className="ml-1.5 text-[11px] font-normal text-fg-dim">
-                {inAppItems.length} recent
+                {inApp.data?.total ?? 0} total
               </span>
             </>
           }
@@ -125,21 +135,31 @@ export function NotificationsScreen() {
           )}
         </CardBody>
       </Card>
+      <PaginationControls
+        page={inAppPage}
+        pageSize={pageSize}
+        total={inApp.data?.total ?? 0}
+        onPageChange={setInAppPage}
+      />
       <Card>
         <CardHead
           title={
             <>
               External delivery logs
               <span className="ml-1.5 text-[11px] font-normal text-fg-dim">
-                {items.length} entries · {failed} failed
+                {data?.total ?? 0} entries · {failed} failed on this page
               </span>
             </>
           }
           controls={
             <div className="flex flex-wrap gap-1.5">
               <select
+                aria-label="Filter delivery channel"
                 value={channel}
-                onChange={(e) => setChannel(e.target.value)}
+                onChange={(e) => {
+                  setChannel(e.target.value);
+                  setDeliveryPage(0);
+                }}
                 className="rounded-md border border-line bg-surface px-2 py-1 text-xs outline-none focus:border-accent"
               >
                 {CHANNEL_OPTS.map((c) => (
@@ -149,8 +169,12 @@ export function NotificationsScreen() {
                 ))}
               </select>
               <select
+                aria-label="Filter delivery status"
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setDeliveryPage(0);
+                }}
                 className="rounded-md border border-line bg-surface px-2 py-1 text-xs outline-none focus:border-accent"
               >
                 {STATUS_OPTS.map((s) => (
@@ -229,6 +253,12 @@ export function NotificationsScreen() {
           )}
         </CardBody>
       </Card>
+      <PaginationControls
+        page={deliveryPage}
+        pageSize={pageSize}
+        total={data?.total ?? 0}
+        onPageChange={setDeliveryPage}
+      />
     </>
   );
 }

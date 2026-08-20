@@ -13,11 +13,19 @@ import {
 import { adminKeys } from "./admin-keys";
 
 export function useAdminMechanics(
-  params: { search?: string; status?: string } = {},
+  params: {
+    mechanicId?: string;
+    search?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+  enabled = true,
 ) {
   return useQuery({
     queryKey: adminKeys.mechanics(params),
     queryFn: () => listAdminMechanics(params),
+    enabled,
   });
 }
 
@@ -37,7 +45,9 @@ export function useRevokeMechanic() {
   });
 }
 
-export function useAdminDisputes(params: { status?: string } = {}) {
+export function useAdminDisputes(
+  params: { status?: string; limit?: number; offset?: number } = {},
+) {
   return useQuery({
     queryKey: adminKeys.disputes(params),
     queryFn: () => listAdminDisputes(params),
@@ -61,7 +71,12 @@ export function useResolveDispute() {
 }
 
 export function useNotificationLogs(
-  params: { channel?: string; status?: string } = {},
+  params: {
+    channel?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
 ) {
   return useQuery({
     queryKey: adminKeys.notificationLogs(params),
@@ -70,10 +85,12 @@ export function useNotificationLogs(
   });
 }
 
-export function useInAppNotifications() {
+export function useInAppNotifications(
+  params: { limit?: number; offset?: number } = {},
+) {
   return useQuery({
-    queryKey: adminKeys.inAppNotifications(),
-    queryFn: listInAppNotifications,
+    queryKey: adminKeys.inAppNotifications(params),
+    queryFn: () => listInAppNotifications(params),
     refetchInterval: 30_000,
   });
 }

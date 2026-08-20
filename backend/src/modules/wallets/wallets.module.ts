@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StrowalletProvider } from '../payments/providers/strowallet.provider';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { User } from '../users/entities/user.entity';
 import { WalletFundingAccount } from './entities/wallet-funding-account.entity';
 import { WalletHold } from './entities/wallet-hold.entity';
@@ -11,9 +12,12 @@ import { WalletsController } from './wallets.controller';
 import { WalletFundingService } from './wallet-funding.service';
 import { WalletWithdrawalsService } from './wallet-withdrawals.service';
 import { WalletsService } from './wallets.service';
+import { KycModule } from '../kyc/kyc.module';
 
 @Module({
   imports: [
+    NotificationsModule,
+    KycModule,
     TypeOrmModule.forFeature([
       Wallet,
       WalletLedgerEntry,

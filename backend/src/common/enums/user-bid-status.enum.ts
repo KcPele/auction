@@ -1,5 +1,5 @@
 export enum UserBidStatus {
   Active = 'ACTIVE',
-  Scheduled = 'SCHEDULED',
+  Past = 'PAST',
   Won = 'WON',
 }

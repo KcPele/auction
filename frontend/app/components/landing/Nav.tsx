@@ -27,9 +27,11 @@ export function Nav() {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <Button href="/login" variant="ghost" className="hidden sm:inline-flex">
-            Log in
-          </Button>
+          <div className="hidden sm:block">
+            <Button href="/login" variant="ghost">
+              Log in
+            </Button>
+          </div>
           <Button href="/register">Create account</Button>
         </div>
       </nav>

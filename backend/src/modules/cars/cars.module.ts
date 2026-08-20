@@ -1,12 +1,21 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserListingPermission } from '../users/entities/user-listing-permission.entity';
+import { PlatformToggle } from '../admin/entities/platform-toggle.entity';
+import { MechanicProfile } from '../admin/entities/mechanic-profile.entity';
 import { CarsController } from './cars.controller';
 import { CarsService } from './cars.service';
 import { CarListing } from './entities/car-listing.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CarListing, UserListingPermission])],
+  imports: [
+    TypeOrmModule.forFeature([
+      CarListing,
+      UserListingPermission,
+      PlatformToggle,
+      MechanicProfile,
+    ]),
+  ],
   controllers: [CarsController],
   providers: [CarsService],
   exports: [CarsService],

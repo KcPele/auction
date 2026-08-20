@@ -4,24 +4,25 @@ import type {
   Notification,
   NotificationDto,
   NotificationKind,
+  NotificationPage,
   NotificationTypeWire,
 } from "../types/notification.types";
 
 const KIND_OF: Record<NotificationTypeWire, NotificationKind> = {
-  LISTING_SUBMITTED: "alert",
-  LISTING_APPROVED: "alert",
-  LISTING_REJECTED: "alert",
+  LISTING_SUBMITTED: "listing",
+  LISTING_APPROVED: "listing",
+  LISTING_REJECTED: "listing",
   AUCTION_STARTED: "bid",
   OUTBID: "bid",
   AUCTION_WON: "bid",
-  PAYMENT_DUE: "alert",
-  SYSTEM: "email",
+  PAYMENT_DUE: "payment",
+  SYSTEM: "system",
 };
 
 export const toNotification = (dto: NotificationDto): Notification => ({
   id: dto.id,
   type: dto.type,
-  kind: KIND_OF[dto.type] ?? "email",
+  kind: KIND_OF[dto.type] ?? "system",
   title: dto.title,
   message: dto.message,
   data: dto.data,
@@ -33,15 +34,17 @@ export const listNotifications = async (params: {
   limit?: number;
   offset?: number;
   unreadOnly?: boolean;
-} = {}): Promise<Notification[]> => {
+  kind?: NotificationKind;
+} = {}): Promise<NotificationPage> => {
   const dto = await apiClient<ListNotificationsResponseDto>("/notifications", {
     query: {
       limit: params.limit ?? 20,
       offset: params.offset ?? 0,
       unreadOnly: params.unreadOnly ?? false,
+      kind: params.kind,
     },
   });
-  return dto.notifications.map(toNotification);
+  return { items: dto.notifications.map(toNotification), total: dto.total };
 };
 
 export const markNotificationRead = (id: string) =>
@@ -49,3 +52,10 @@ export const markNotificationRead = (id: string) =>
 
 export const markAllNotificationsRead = () =>
   apiClient<unknown>("/notifications/read-all", { method: "PATCH" });
+
+export const getUnreadNotificationCount = async (): Promise<number> => {
+  const dto = await apiClient<{ count: number }>(
+    "/notifications/unread-count",
+  );
+  return dto.count;
+};

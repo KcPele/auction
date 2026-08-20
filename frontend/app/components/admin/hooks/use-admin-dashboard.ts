@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   cancelAuction,
+  forceCloseAuction,
   getActivityFeed,
   getDashboardStats,
   getSystemHealth,
@@ -49,7 +50,7 @@ export function useAdminLedger(
 }
 
 export function useAdminAuctions(
-  params: { status?: string; limit?: number; offset?: number } = {},
+  params: { auctionId?: string; status?: string; limit?: number; offset?: number } = {},
 ) {
   return useQuery({
     queryKey: adminKeys.auctions(params),
@@ -62,6 +63,14 @@ export function useCancelAuction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: cancelAuction,
+    onSuccess: () => qc.invalidateQueries({ queryKey: adminKeys.all }),
+  });
+}
+
+export function useForceCloseAuction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: forceCloseAuction,
     onSuccess: () => qc.invalidateQueries({ queryKey: adminKeys.all }),
   });
 }

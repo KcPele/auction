@@ -80,6 +80,8 @@ export type AdminAuctionItemDto = {
   holdPercent: number;
   endsAt: string;
   basePriceKobo: number;
+  winnerPaymentConfirmedAt: string | null;
+  winnerPaymentNote: string | null;
 };
 
 export type ListAdminAuctionsResponseDto = {
@@ -97,4 +99,6 @@ export type AdminAuctionItem = {
   bidderCount: number;
   holdPercent: number;
   endsAt: Date;
+  winnerPaymentConfirmedAt: Date | null;
+  winnerPaymentNote: string | null;
 };

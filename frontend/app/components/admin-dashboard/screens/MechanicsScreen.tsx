@@ -7,7 +7,9 @@ import {
   useVerifyMechanic,
 } from "@/app/components/admin/hooks/use-admin-extras";
 import { ApiError } from "@/app/lib/api/error";
+import { useDebounced } from "@/app/components/search/hooks/use-search";
 import { Card, CardBody, CardHead } from "../widgets/Card";
+import { PaginationControls } from "../../ui/PaginationControls";
 import { SectionHeader } from "./SectionHeader";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -18,13 +20,18 @@ const STATUS_STYLE: Record<string, string> = {
 
 export function MechanicsScreen() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
+  const debouncedSearch = useDebounced(search.trim(), 250);
   const { data, isLoading, isError, refetch } = useAdminMechanics({
-    search: search || undefined,
+    search: debouncedSearch || undefined,
+    limit: pageSize,
+    offset: page * pageSize,
   });
   const verify = useVerifyMechanic();
   const revoke = useRevokeMechanic();
 
-  const items = data ?? [];
+  const items = data?.items ?? [];
 
   const onVerify = async (id: string) => {
     try {
@@ -54,11 +61,14 @@ export function MechanicsScreen() {
       />
       <Card>
         <CardHead
-          title={`Mechanics · ${items.length}`}
+          title={`Mechanics · ${data?.total ?? 0}`}
           controls={
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+              }}
               placeholder="Search name, shop…"
               className="w-48 rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs outline-none focus:border-accent/40"
             />
@@ -103,6 +113,11 @@ export function MechanicsScreen() {
                       >
                         {m.status}
                       </span>
+                      {(!m.isActive || m.isBanned) && (
+                        <span className="rounded-full border border-danger/30 bg-danger-soft px-2 py-0.5 text-[10px] font-semibold uppercase text-danger">
+                          Account {m.isBanned ? "banned" : "inactive"}
+                        </span>
+                      )}
                     </div>
                     <div className="mt-0.5 text-xs text-fg-muted">
                       {[m.shopName, m.city].filter(Boolean).join(" · ")}
@@ -112,7 +127,7 @@ export function MechanicsScreen() {
                     </div>
                   </div>
                   <div className="flex gap-1.5">
-                    {m.status !== "VERIFIED" && (
+                    {m.status !== "VERIFIED" && m.isActive && !m.isBanned && (
                       <button
                         type="button"
                         disabled={verify.isPending}
@@ -139,6 +154,12 @@ export function MechanicsScreen() {
           )}
         </CardBody>
       </Card>
+      <PaginationControls
+        page={page}
+        pageSize={pageSize}
+        total={data?.total ?? 0}
+        onPageChange={setPage}
+      />
     </>
   );
 }

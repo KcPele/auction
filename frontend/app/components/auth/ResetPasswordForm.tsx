@@ -33,7 +33,12 @@ export function ResetPasswordForm() {
   });
 
   return (
-    <>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (match && token && !reset.isPending) reset.mutate();
+      }}
+    >
       <AuthFormTop
         left={
           <Link
@@ -47,7 +52,7 @@ export function ResetPasswordForm() {
       <AuthFormBody
         eyebrow="Set new password"
         title="Create new password."
-        subtitle="Must be at least 8 characters with a mix of letters, numbers, and symbols."
+        subtitle="Use at least 8 characters. A unique passphrase is easier to remember and harder to guess."
       >
         {!token && (
           <div className="mb-3 rounded-[10px] border border-red/30 bg-red/[0.06] p-3 text-xs text-red">
@@ -80,14 +85,13 @@ export function ResetPasswordForm() {
         </Field>
 
         <AuthButton
-          type="button"
+          type="submit"
           disabled={!match || !token || reset.isPending}
-          onClick={() => reset.mutate()}
         >
           {reset.isPending ? "Resetting…" : "Reset password"}{" "}
           <Icon name="arrow-r" size={16} strokeWidth={2} />
         </AuthButton>
       </AuthFormBody>
-    </>
+    </form>
   );
 }

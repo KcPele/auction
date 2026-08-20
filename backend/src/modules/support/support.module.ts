@@ -19,6 +19,7 @@ import { SupportConversation } from './entities/support-conversation.entity';
 import { SupportMessage } from './entities/support-message.entity';
 import { User } from '../users/entities/user.entity';
 import { OpenRouterClient } from './openrouter.client';
+import { SupportAiRunner } from './support-ai-runner.service';
 
 @Module({
   imports: [
@@ -40,7 +41,13 @@ import { OpenRouterClient } from './openrouter.client';
     NotificationsModule,
   ],
   controllers: [SupportController, SupportAdminController],
-  providers: [SupportService, SupportAiTools, OpenRouterClient, SupportGateway],
+  providers: [
+    SupportService,
+    SupportAiRunner,
+    SupportAiTools,
+    OpenRouterClient,
+    SupportGateway,
+  ],
   exports: [SupportService],
 })
 export class SupportModule {}

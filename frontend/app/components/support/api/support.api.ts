@@ -85,13 +85,25 @@ export const markConversationRead = async (id: string) =>
 // --- Admin endpoints -------------------------------------------------------
 
 export const listAllConversations = async (
-  state?: SupportState,
-): Promise<SupportConversation[]> => {
-  const dto = await apiClient<SupportConversationDto[]>(
+  input: { state?: SupportState; limit: number; offset: number },
+): Promise<{ items: SupportConversation[]; total: number }> => {
+  const dto = await apiClient<{
+    items: SupportConversationDto[];
+    total: number;
+  }>(
     "/admin/support/conversations",
-    { query: state ? { state } : {} },
+    { query: input },
   );
-  return dto.map(toSupportConversation);
+  return { items: dto.items.map(toSupportConversation), total: dto.total };
+};
+
+export const getAdminConversation = async (
+  id: string,
+): Promise<SupportConversation> => {
+  const dto = await apiClient<SupportConversationDto>(
+    `/admin/support/conversations/${id}`,
+  );
+  return toSupportConversation(dto);
 };
 
 export const adminListMessages = async (id: string): Promise<SupportMessage[]> => {

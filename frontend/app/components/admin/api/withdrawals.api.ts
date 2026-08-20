@@ -31,17 +31,3 @@ export const listAllAdminWithdrawals = async (
   );
   return { total: dto.total, items: dto.items.map(toWithdrawal) };
 };
-
-export const authorizeWithdrawal = (input: {
-  id: string;
-  authorizationCode: string;
-}) =>
-  apiClient<unknown>(`/admin/wallet-withdrawals/${input.id}/authorize`, {
-    method: "POST",
-    body: { authorizationCode: input.authorizationCode },
-  });
-
-export const resendWithdrawalOtp = (id: string) =>
-  apiClient<unknown>(`/admin/wallet-withdrawals/${id}/resend-otp`, {
-    method: "POST",
-  });

@@ -4,6 +4,7 @@ import { useMe } from "@/app/components/auth/hooks/use-me";
 import { useDelivery, useUpdateDelivery } from "@/app/components/auctions/hooks/use-auctions";
 import type { DeliveryStatusWire } from "@/app/components/auctions/api/auction.api";
 import { ApiError } from "@/app/lib/api/error";
+import { DisputePanel } from "../delivery/DisputePanel";
 import { Icon, type IconName } from "../primitives/Icon";
 
 const STEPS: {
@@ -54,7 +55,15 @@ export function DeliveryTrackingScreen({ auctionId }: { auctionId: string }) {
 
   const currentIdx = stepIndex(data.status);
   const nextStep = STEPS[currentIdx + 1];
-  const canUpdate = me?.id === data.sellerId && Boolean(nextStep);
+  const isAdmin = me?.role === "ADMIN";
+  const confirmsReceipt = nextStep?.key === "DELIVERED";
+  const canUpdate = Boolean(
+    nextStep &&
+      (isAdmin ||
+        (confirmsReceipt
+          ? me?.id === data.winnerId
+          : me?.id === data.sellerId)),
+  );
 
   const advanceDelivery = async () => {
     if (!nextStep) return;
@@ -140,9 +149,15 @@ export function DeliveryTrackingScreen({ auctionId }: { auctionId: string }) {
           onClick={() => void advanceDelivery()}
           type="button"
         >
-          {update.isPending ? "Updating…" : `Mark as ${nextStep.label.toLowerCase()}`}
+          {update.isPending
+            ? "Updating…"
+            : confirmsReceipt
+              ? "Confirm delivery received"
+              : `Mark as ${nextStep.label.toLowerCase()}`}
         </button>
       )}
+
+      <DisputePanel auctionId={auctionId} />
     </>
   );
 }

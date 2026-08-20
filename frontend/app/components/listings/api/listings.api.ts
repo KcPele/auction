@@ -20,6 +20,7 @@ import type {
   UploadBatchResponseDto,
   UploadOneResponseDto,
   UploadPurpose,
+  VerifiedMechanic,
 } from "../types/listing.types";
 
 const STATUS_MAP: Record<ListingStatusWire, ListingStatusUi> = {
@@ -52,6 +53,7 @@ export const toCarListing = (dto: CarListingDto): CarListing => ({
   mileage: dto.mileage,
   condition: dto.condition,
   knownFaults: dto.knownFaults,
+  mechanicId: dto.mechanicId,
   videoUrls: dto.videoUrls ?? [],
   holdPercent: dto.holdPercent,
   minimumBidIncrement: koboToNaira(num(dto.minimumBidIncrementKobo)),
@@ -128,6 +130,13 @@ export const listMyListings = async (): Promise<AnyListing[]> => {
   return [...cars, ...gadgets].sort(
     (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
   );
+};
+
+export const listVerifiedMechanics = async (): Promise<VerifiedMechanic[]> => {
+  const dto = await apiClient<{ items: VerifiedMechanic[] }>(
+    "/public/mechanics",
+  );
+  return dto.items;
 };
 
 export const getCarListing = async (id: string): Promise<CarListing> => {

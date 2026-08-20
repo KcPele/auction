@@ -45,14 +45,18 @@ export function BrowseScreen() {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounced(query.trim(), 250);
   const [filters, setFilters] = useState<BrowseFilters>({});
+  const [draftFilters, setDraftFilters] = useState<BrowseFilters>({});
   const [filterOpen, setFilterOpen] = useState(false);
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
 
   const { data, isLoading, isError, refetch } = useAuctions({
     category: cat === "all" ? undefined : cat,
     status:
       status === "live" ? "LIVE" : status === "soon" ? "SCHEDULED" : undefined,
     search: debouncedQuery || undefined,
-    limit: 40,
+    limit: pageSize,
+    offset: page * pageSize,
     minPriceKobo:
       filters.minPrice != null ? nairaToKobo(filters.minPrice) : undefined,
     maxPriceKobo:
@@ -67,7 +71,10 @@ export function BrowseScreen() {
     (filters.minYear != null ? 1 : 0) +
     (filters.maxYear != null ? 1 : 0);
 
-  const auctions = useMemo(() => data ?? [], [data]);
+  const auctions = useMemo(() => data?.items ?? [], [data]);
+  const total = data?.total ?? 0;
+  const pageStart = total === 0 ? 0 : page * pageSize + 1;
+  const pageEnd = Math.min((page + 1) * pageSize, total);
 
   return (
     <>
@@ -81,12 +88,18 @@ export function BrowseScreen() {
           <input
             placeholder="Search Camry, iPhone, Lexus…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(0);
+            }}
             className="flex-1 border-none bg-transparent text-sm text-fg outline-none"
           />
           <button
             type="button"
-            onClick={() => setFilterOpen((v) => !v)}
+            onClick={() => {
+              if (!filterOpen) setDraftFilters(filters);
+              setFilterOpen((v) => !v);
+            }}
             className={`relative cursor-pointer border-none bg-transparent ${
               filterCount > 0 ? "text-accent" : "text-fg-muted"
             }`}
@@ -103,8 +116,13 @@ export function BrowseScreen() {
         <FilterPanel
           open={filterOpen}
           onClose={() => setFilterOpen(false)}
-          value={filters}
-          onChange={setFilters}
+          value={draftFilters}
+          onChange={setDraftFilters}
+          onApply={(next) => {
+            setFilters(next);
+            setPage(0);
+            setFilterOpen(false);
+          }}
           showYearFields={cat !== "gadgets"}
         />
       </div>
@@ -115,7 +133,11 @@ export function BrowseScreen() {
             key={c.id}
             type="button"
             className={chipClass(cat === c.id)}
-            onClick={() => setSelectedCat(c.id)}
+            onClick={() => {
+              setSelectedCat(c.id);
+              setPage(0);
+            }}
+            aria-pressed={cat === c.id}
           >
             {c.label}
           </button>
@@ -126,7 +148,11 @@ export function BrowseScreen() {
             key={s.id}
             type="button"
             className={chipClass(status === s.id)}
-            onClick={() => setStatus(s.id)}
+            onClick={() => {
+              setStatus(s.id);
+              setPage(0);
+            }}
+            aria-pressed={status === s.id}
           >
             {s.label}
           </button>
@@ -155,6 +181,33 @@ export function BrowseScreen() {
           auctions.map((a) => <AuctionTile key={a.id} a={a} />)
         )}
       </div>
+
+      {total > pageSize && (
+        <nav
+          aria-label="Auction results pages"
+          className="mt-5 flex items-center justify-between gap-3"
+        >
+          <button
+            type="button"
+            disabled={page === 0 || isLoading}
+            onClick={() => setPage((current) => Math.max(0, current - 1))}
+            className="rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-fg-muted disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="text-xs text-fg-muted">
+            {pageStart}–{pageEnd} of {total}
+          </span>
+          <button
+            type="button"
+            disabled={pageEnd >= total || isLoading}
+            onClick={() => setPage((current) => current + 1)}
+            className="rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-fg-muted disabled:opacity-50"
+          >
+            Next
+          </button>
+        </nav>
+      )}
     </>
   );
 }
@@ -200,7 +253,7 @@ function AuctionTile({ a }: { a: Auction }) {
           {a.title}
         </div>
         <div className="font-mono text-[13px] font-semibold tabular-nums text-accent-light">
-          {fmtNaira(a.basePrice)}
+          {fmtNaira(a.isLive ? a.currentBid : a.basePrice)}
         </div>
         <div className="text-[11px] text-fg-dim">
           <Countdown target={a.endTime.getTime()} compact />
