@@ -15,7 +15,7 @@ export function Payments() {
             className="relative mx-auto flex aspect-square max-w-[420px] items-center justify-center rounded-full"
             style={{
               background:
-                "conic-gradient(from 0deg, var(--accent-light) 0%, var(--accent) 25%, transparent 25%), radial-gradient(circle, var(--surface) 55%, transparent 56%)",
+                "conic-gradient(from 0deg, var(--accent-soft) 0%, var(--accent) 25%, transparent 25%), radial-gradient(circle, var(--surface) 55%, transparent 56%)",
             }}
           >
             <div className="flex h-3/4 w-3/4 flex-col items-center justify-center rounded-full border border-line-strong bg-surface p-5 text-center">

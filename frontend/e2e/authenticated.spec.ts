@@ -28,6 +28,37 @@ async function assertHealthyScreen(page: Page, path: string) {
   await expect(page.getByText("Application error")).toHaveCount(0);
 }
 
+async function contrastRatio(page: Page, text: string) {
+  return page.getByText(text, { exact: true }).evaluate((element) => {
+    const rgb = (value: string) =>
+      value.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [0, 0, 0];
+    const luminance = (value: number[]) => {
+      const channels = value.map((channel) => {
+        const normalized = channel / 255;
+        return normalized <= 0.03928
+          ? normalized / 12.92
+          : ((normalized + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    let backgroundElement: Element | null = element;
+    let background = "rgb(255, 255, 255)";
+    while (backgroundElement) {
+      const candidate = getComputedStyle(backgroundElement).backgroundColor;
+      if (!candidate.endsWith(", 0)")) {
+        background = candidate;
+        break;
+      }
+      backgroundElement = backgroundElement.parentElement;
+    }
+    const foregroundLuminance = luminance(rgb(getComputedStyle(element).color));
+    const backgroundLuminance = luminance(rgb(background));
+    const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+    const darker = Math.min(foregroundLuminance, backgroundLuminance);
+    return (lighter + 0.05) / (darker + 0.05);
+  });
+}
+
 test.describe("authenticated user navigation", () => {
   test.skip(
     !userCredentials,
@@ -78,6 +109,32 @@ test.describe("authenticated user navigation", () => {
     await page.goto("/kyc?ctx=account");
     await expect(page).toHaveURL(/\/(kyc\?ctx=account|dashboard\/profile)$/);
     await expect(page.getByRole("main")).toBeVisible();
+  });
+
+  test("muted status text is readable and wallet actions have no gradient", async ({
+    page,
+  }) => {
+    await signIn(page, userCredentials!, "/dashboard/profile");
+
+    for (const theme of ["light", "dark"] as const) {
+      await page.getByRole("button", { name: `Use ${theme} theme` }).first().click();
+      await expect.poll(() => contrastRatio(page, "No active access")).toBeGreaterThanOrEqual(3);
+    }
+
+    await page.goto("/dashboard");
+    const gradients = await page.getByRole("link", { name: "Activity" }).evaluate((element) => {
+      const values: string[] = [];
+      let current: Element | null = element;
+      while (current && current.tagName !== "MAIN") {
+        for (const pseudo of [null, "::before", "::after"] as const) {
+          const image = getComputedStyle(current, pseudo).backgroundImage;
+          if (image.includes("gradient")) values.push(image);
+        }
+        current = current.parentElement;
+      }
+      return values;
+    });
+    expect(gradients).toEqual([]);
   });
 });
 

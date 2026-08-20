@@ -19,10 +19,6 @@ export function WalletHero({ showActions = true }: WalletHeroProps) {
 
   return (
     <div className="relative my-3.5 mb-5 overflow-hidden rounded-[22px] border border-line-strong bg-[var(--feature-surface)] p-5">
-      <div
-        className="pointer-events-none absolute -bottom-[60px] -right-[60px] h-[200px] w-[200px] rounded-full"
-        style={{ background: "var(--feature-glow)" }}
-      />
       <div className="text-[11px] uppercase tracking-[0.12em] text-fg-dim">
         Wallet balance
       </div>
