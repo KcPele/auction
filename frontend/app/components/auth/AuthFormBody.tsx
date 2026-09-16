@@ -50,7 +50,7 @@ export function AuthFormTop({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 pr-28 md:pr-32">
+    <div className="flex items-center justify-between gap-4  md:pr-32">
       <div className="text-sm text-subtle-foreground">{left}</div>
       {right && <div className="text-sm text-muted-foreground">{right}</div>}
     </div>

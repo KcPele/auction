@@ -261,13 +261,33 @@ export class AuthService implements OnModuleDestroy {
       databaseHooks: {
         user: {
           create: {
-            before: async (user: BetterAuthUser) => ({
-              data: {
-                ...user,
-                name: user.name ?? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
-                role: 'user',
-              },
-            }),
+            before: async (user: BetterAuthUser) => {
+              // Check for duplicates BEFORE Better Auth inserts, so we can
+              // return a readable error instead of letting Postgres 23505
+              // get swallowed into a generic "Failed to create user" 422.
+              const [emailExists, phoneExists] = await Promise.all([
+                this.usersRepository.existsBy({ email: user.email?.toLowerCase().trim() }),
+                user.phone
+                  ? this.usersRepository.existsBy({ phone: user.phone })
+                  : Promise.resolve(false),
+              ]);
+
+              if (emailExists) {
+                throw new BadRequestException('An account with this email already exists');
+              }
+
+              if (phoneExists) {
+                throw new BadRequestException('An account with this phone number already exists');
+              }
+
+              return {
+                data: {
+                  ...user,
+                  name: user.name ?? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+                  role: 'user',
+                },
+              };
+            },
             after: async (user: BetterAuthUser) => {
               await this.createAppProfile(user as BetterAuthUser);
             },
