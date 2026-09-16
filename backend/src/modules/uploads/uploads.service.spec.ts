@@ -3,7 +3,7 @@ import type { ConfigService } from '@nestjs/config';
 import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { UploadPurpose } from '../../common/enums/upload-purpose.enum';
 import { UploadResourceType } from '../../common/enums/upload-resource-type.enum';
-import type { OpeninaryProvider } from './providers/openinary.provider';
+import type { MinioProvider } from './providers/minio.provider';
 import { UploadsService } from './uploads.service';
 
 describe('UploadsService', () => {
@@ -18,15 +18,15 @@ describe('UploadsService', () => {
     };
     provider = {
       upload: jest.fn(async () => ({
-        provider: 'openinary',
-        providerPublicId: 'auction/file',
-        url: 'https://cdn.example.com/file.jpg',
+        provider: 'minio',
+        providerPublicId: 'auction/general/listing_photo/user-id/file-123.jpg',
+        url: 'https://api-minio-s3-storage.kcpele.com/bidnaija/auction/general/listing_photo/user-id/file-123.jpg',
         sizeBytes: 4,
       })),
     };
     service = new UploadsService(
       repository as never,
-      provider as unknown as OpeninaryProvider,
+      provider as unknown as MinioProvider,
       { get: jest.fn().mockReturnValue('auction') } as unknown as ConfigService,
     );
   });
@@ -45,10 +45,10 @@ describe('UploadsService', () => {
       ),
     ).resolves.toEqual({
       uploadAsset: expect.objectContaining({
-        id: 'upload-id',
-        resourceType: UploadResourceType.Image,
-        url: 'https://cdn.example.com/file.jpg',
-      }),
+          id: 'upload-id',
+          resourceType: UploadResourceType.Image,
+          url: 'https://api-minio-s3-storage.kcpele.com/bidnaija/auction/general/listing_photo/user-id/file-123.jpg',
+        }),
     });
     expect(provider.upload).toHaveBeenCalledWith(
       expect.objectContaining({ resourceType: UploadResourceType.Image }),

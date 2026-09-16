@@ -11,7 +11,7 @@ import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { UploadPurpose } from '../../common/enums/upload-purpose.enum';
 import { UploadResourceType } from '../../common/enums/upload-resource-type.enum';
 import { UploadAsset } from './entities/upload-asset.entity';
-import { OpeninaryProvider } from './providers/openinary.provider';
+import { MinioProvider } from './providers/minio.provider';
 import type { UploadFile, ValidatedUploadFile } from './types/upload-file';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -33,7 +33,7 @@ export class UploadsService {
   constructor(
     @InjectRepository(UploadAsset)
     private readonly uploadAssetsRepository: Repository<UploadAsset>,
-    private readonly provider: OpeninaryProvider,
+    private readonly provider: MinioProvider,
     private readonly config: ConfigService,
   ) {
   }
@@ -185,7 +185,7 @@ export class UploadsService {
     category?: ListingCategory,
   ) {
     return [
-      this.config.get<string>('OPENINARY_FOLDER') ?? 'auction',
+      this.config.get<string>('MINIO_BUCKET') ?? 'auction',
       category?.toLowerCase() ?? 'general',
       purpose.toLowerCase(),
       ownerId,
