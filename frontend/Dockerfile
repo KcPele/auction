@@ -1,14 +1,11 @@
 FROM node:22-alpine AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-# --ignore-scripts skips ALL post-install scripts, bypassing ERR_PNPM_IGNORED_BUILDS.
-# We then explicitly rebuild the two packages that need native compilation.
-RUN pnpm install --frozen-lockfile --ignore-scripts && \
-    pnpm rebuild sharp unrs-resolver
+RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
