@@ -44,12 +44,15 @@ import { buildTypeOrmConfig } from './config/typeorm.config';
       inject: [ConfigService],
       useFactory: buildBullConfig,
     }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60_000,
-        limit: 120,
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: config.getOrThrow<number>('RATE_LIMIT_TTL_MS'),
+          limit: config.getOrThrow<number>('RATE_LIMIT_REQUESTS'),
+        },
+      ],
+    }),
     RedisModule,
     EmailModule,
     HealthModule,

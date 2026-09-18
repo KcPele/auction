@@ -1,6 +1,8 @@
 "use client";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
+  useAuction,
   useConfirmWinnerPayment,
   usePaymentInstructions,
 } from "@/app/components/auctions/hooks/use-auctions";
@@ -19,12 +21,34 @@ export function PaymentInstructionsScreen({
 }: {
   auctionId: string;
 }) {
-  const { data, isLoading, isError, refetch } =
-    usePaymentInstructions(auctionId);
+  const auction = useAuction(auctionId);
+  const shouldLoadInstructions = auction.data?.status === "AWAITING_PAYMENT";
+  const { data, isLoading, isError, refetch } = usePaymentInstructions(
+    auctionId,
+    shouldLoadInstructions,
+  );
   const confirm = useConfirmWinnerPayment(auctionId);
 
-  if (isLoading) return <Skeleton />;
-  if (isError || !data) {
+  if (auction.isLoading || (shouldLoadInstructions && isLoading)) return <Skeleton />;
+  if (auction.data?.status === "SETTLED") {
+    return (
+      <div className="py-12 text-center">
+        <h1 className="font-display text-[26px] font-semibold tracking-tight text-fg">
+          Payment completed
+        </h1>
+        <p className="mt-2 text-sm text-fg-muted">
+          Your payment is settled. You can follow the item through delivery.
+        </p>
+        <Link
+          href={`/dashboard/auction/${auctionId}/delivery`}
+          className="button-primary mt-5 inline-flex rounded-lg px-4 py-2.5 text-sm font-semibold"
+        >
+          Track delivery
+        </Link>
+      </div>
+    );
+  }
+  if (auction.isError || !shouldLoadInstructions || isError || !data) {
     return (
       <div className="py-12 text-center">
         <div className="text-sm text-fg-dim">

@@ -47,11 +47,14 @@ export function useAuctionBids(id: string | undefined) {
   });
 }
 
-export function usePaymentInstructions(id: string | undefined) {
+export function usePaymentInstructions(
+  id: string | undefined,
+  enabled = true,
+) {
   return useQuery({
     queryKey: auctionKeys.paymentInstructions(id ?? ""),
     queryFn: () => getPaymentInstructions(id!),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && enabled,
   });
 }
 

@@ -1,7 +1,20 @@
 import { apiClient } from "@/app/lib/api/client";
 import { ApiError } from "@/app/lib/api/error";
 import { authClient } from "@/app/lib/auth/client";
-import type { Me, MeDto, SignInInput, SignUpInput } from "../types/auth.types";
+import type {
+  Me,
+  MeDto,
+  PhoneSignInInput,
+  SignInInput,
+  SignUpInput,
+} from "../types/auth.types";
+
+const normalizeNigerianPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  return digits.startsWith("234")
+    ? `+${digits}`
+    : `+234${digits.startsWith("0") ? digits.slice(1) : digits}`;
+};
 
 const toMe = (dto: MeDto): Me => ({
   id: dto.user.id,
@@ -36,10 +49,7 @@ const requestVerificationOtp = (email: string) =>
 // `additionalFields`. We hit Better Auth's HTTP route directly to keep that simple.
 export const signUpEmail = async (input: SignUpInput) => {
   const name = `${input.firstName} ${input.lastName}`.trim();
-  const phoneDigits = input.phone.replace(/\D/g, "");
-  const phone = phoneDigits.startsWith("234")
-    ? `+${phoneDigits}`
-    : `+234${phoneDigits.startsWith("0") ? phoneDigits.slice(1) : phoneDigits}`;
+  const phone = normalizeNigerianPhone(input.phone);
   const result = await apiClient<{ user: { id: string }; token: string | null }>(
     "/auth/sign-up/email",
     {
@@ -82,6 +92,16 @@ export const signInEmail = async (input: SignInInput) => {
 
   return data;
 };
+
+export const signInPhone = (input: PhoneSignInInput) =>
+  apiClient<unknown>("/auth/sign-in/phone", {
+    method: "POST",
+    body: {
+      phone: normalizeNigerianPhone(input.phone),
+      password: input.password,
+      rememberMe: input.rememberMe,
+    },
+  });
 
 export const signOutCall = async () =>
   apiClient<{ success: boolean }>("/auth/sign-out", { method: "POST" });

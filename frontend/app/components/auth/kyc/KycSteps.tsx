@@ -37,12 +37,14 @@ export function NinStep({ flow }: { flow: KycFlowController }) {
         <Field label="First name">
           <Input
             value={fields.ninFirst}
+            placeholder="John"
             onChange={(event) => updateField("ninFirst", event.target.value)}
           />
         </Field>
         <Field label="Surname">
           <Input
             value={fields.ninSurname}
+            placeholder="Doe"
             onChange={(event) => updateField("ninSurname", event.target.value)}
           />
         </Field>
@@ -99,12 +101,14 @@ export function BvnStep({ flow }: { flow: KycFlowController }) {
         <Field label="First name">
           <Input
             value={fields.bvnFirstName}
+            placeholder="John"
             onChange={(event) => updateField("bvnFirstName", event.target.value)}
           />
         </Field>
         <Field label="Last name">
           <Input
             value={fields.bvnLastName}
+            placeholder="Doe"
             onChange={(event) => updateField("bvnLastName", event.target.value)}
           />
         </Field>

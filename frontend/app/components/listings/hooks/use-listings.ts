@@ -54,7 +54,11 @@ export function useCreateCar() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateCarInput) => createCarListing(input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: listingKeys.mine() }),
+    onSuccess: () =>
+      qc.invalidateQueries({
+        queryKey: listingKeys.mine(),
+        refetchType: "all",
+      }),
   });
 }
 
@@ -62,7 +66,11 @@ export function useCreateGadget() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateGadgetInput) => createGadgetListing(input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: listingKeys.mine() }),
+    onSuccess: () =>
+      qc.invalidateQueries({
+        queryKey: listingKeys.mine(),
+        refetchType: "all",
+      }),
   });
 }
 

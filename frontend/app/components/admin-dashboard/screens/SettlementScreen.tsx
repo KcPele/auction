@@ -207,6 +207,7 @@ export function SettlementScreen() {
           External payment (₦)
         </label>
         <input
+          aria-label="External payment (₦)"
           type="number"
           value={externalNaira || ""}
           onChange={(e) => setExternalNaira(Number(e.target.value) || 0)}
@@ -216,6 +217,7 @@ export function SettlementScreen() {
           Wallet payment (₦)
         </label>
         <input
+          aria-label="Wallet payment (₦)"
           type="number"
           value={walletNaira || ""}
           onChange={(e) => setWalletNaira(Number(e.target.value) || 0)}
@@ -225,6 +227,7 @@ export function SettlementScreen() {
           Note (optional)
         </label>
         <textarea
+          aria-label="Note (optional)"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={2}
@@ -265,6 +268,7 @@ export function SettlementScreen() {
           Reason (optional)
         </label>
         <textarea
+          aria-label="Reason (optional)"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}

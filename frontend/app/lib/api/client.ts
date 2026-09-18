@@ -35,9 +35,14 @@ export async function apiClient<T>(path: string, opts: Options = {}): Promise<T>
       typeof json === "object" && json && "code" in json
         ? String((json as { code: unknown }).code)
         : "unknown";
-    const message =
+    const rawMessage =
       typeof json === "object" && json && "message" in json
-        ? String((json as { message: unknown }).message)
+        ? (json as { message: unknown }).message
+        : undefined;
+    const message = Array.isArray(rawMessage)
+      ? rawMessage.map(String).join(", ")
+      : typeof rawMessage === "string"
+        ? rawMessage
         : res.statusText;
     throw new ApiError(res.status, code, message, json);
   }

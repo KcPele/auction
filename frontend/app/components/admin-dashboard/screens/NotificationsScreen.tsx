@@ -62,7 +62,8 @@ export function NotificationsScreen() {
         title="Notifications log"
         sub="In-app notifications from the database, plus external delivery status when providers log it."
       />
-      <Card className="mb-4">
+      <div className="mb-4">
+      <Card>
         <CardHead
           title={
             <>
@@ -141,6 +142,7 @@ export function NotificationsScreen() {
         total={inApp.data?.total ?? 0}
         onPageChange={setInAppPage}
       />
+      </div>
       <Card>
         <CardHead
           title={

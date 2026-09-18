@@ -8,7 +8,7 @@ import { usePlaceBid } from "../hooks/use-auctions";
 
 const BID_BAR_BG = {
   background: "linear-gradient(180deg, transparent, var(--bg) 20%)",
-  paddingBottom: "calc(var(--nav-h) + 14px + env(safe-area-inset-bottom))",
+  paddingBottom: "calc(var(--nav-h) + 18px + env(safe-area-inset-bottom))",
 };
 
 interface Props {
@@ -39,7 +39,7 @@ export function BidBar({ auctionId, topBidNaira, minIncrementNaira, hasBids }: P
 
   return (
     <div
-      className="sticky bottom-0 -mx-[18px] -mb-6 flex items-center gap-2.5 px-[18px] pt-3.5"
+      className="sticky bottom-0 -mx-4.5 -mb-6 flex items-end flex-wrap gap-2.5 px-4.5 pt-3.5"
       style={BID_BAR_BG}
     >
       <div className="flex-1">

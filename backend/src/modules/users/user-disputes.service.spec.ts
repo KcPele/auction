@@ -66,4 +66,17 @@ describe('UserDisputesService', () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('rejects a second dispute for the same auction', async () => {
+    disputes.findOneBy.mockResolvedValue({ id: 'existing-dispute-id' });
+
+    await expect(
+      service.create('buyer-id', {
+        auctionId: auction.id,
+        reason: 'This duplicate report must not be created.',
+      }),
+    ).rejects.toThrow('A dispute already exists for this auction');
+    expect(disputes.save).not.toHaveBeenCalled();
+    expect(notifications.create).not.toHaveBeenCalled();
+  });
 });

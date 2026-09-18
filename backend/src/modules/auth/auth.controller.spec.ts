@@ -6,10 +6,13 @@ import type { SignUpEmailDto } from './dto/sign-up-email.dto';
 
 describe('AuthController', () => {
   let controller: AuthController;
-  let service: { handleRequest: jest.Mock };
+  let service: { handleRequest: jest.Mock; validateSignUp: jest.Mock };
 
   beforeEach(async () => {
-    service = { handleRequest: jest.fn() };
+    service = {
+      handleRequest: jest.fn(),
+      validateSignUp: jest.fn().mockResolvedValue(undefined),
+    };
 
     const moduleRef = await Test.createTestingModule({
       controllers: [AuthController],
@@ -37,6 +40,10 @@ describe('AuthController', () => {
 
     await controller.signUpEmail(dto, request, reply);
 
+    expect(service.validateSignUp).toHaveBeenCalledWith(
+      dto.email,
+      dto.phone,
+    );
     expect(service.handleRequest).toHaveBeenCalledWith({
       method: 'POST',
       url: '/api/v1/auth/sign-up/email',

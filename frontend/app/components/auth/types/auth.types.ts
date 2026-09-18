@@ -85,3 +85,9 @@ export type SignInInput = {
   password: string;
   rememberMe?: boolean;
 };
+
+export type PhoneSignInInput = {
+  phone: string;
+  password: string;
+  rememberMe?: boolean;
+};

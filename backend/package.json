@@ -15,7 +15,8 @@
     "migration:generate": "pnpm typeorm migration:generate src/database/migrations/AutoMigration -d src/database/typeorm-cli.config.ts",
     "migration:run": "pnpm typeorm migration:run -d src/database/typeorm-cli.config.ts",
     "migration:revert": "pnpm typeorm migration:revert -d src/database/typeorm-cli.config.ts",
-    "admin:promote": "ts-node -r tsconfig-paths/register src/scripts/promote-admin.ts"
+    "admin:promote": "ts-node -r tsconfig-paths/register src/scripts/promote-admin.ts",
+    "beta:prepare-account": "ts-node -r tsconfig-paths/register src/scripts/prepare-beta-account.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",

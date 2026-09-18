@@ -106,11 +106,13 @@ export class AuthService implements OnModuleDestroy {
     const signIn = authApi.signInEmail as (context: {
       body: Record<string, unknown>;
       headers: Headers;
+      asResponse: boolean;
     }) => Promise<Response>;
 
     return signIn({
       body: { email: user.email, password },
       headers: fromNodeHeaders(headers),
+      asResponse: true,
     });
   }
 
@@ -139,6 +141,25 @@ export class AuthService implements OnModuleDestroy {
       authRole: this.getAuthRole(session.user.role),
       sessionId: session.session.id,
     };
+  }
+
+  async validateSignUp(email?: string, phone?: string) {
+    const [emailExists, phoneExists] = await Promise.all([
+      email
+        ? this.usersRepository.existsBy({ email: email.toLowerCase().trim() })
+        : Promise.resolve(false),
+      phone
+        ? this.usersRepository.existsBy({ phone })
+        : Promise.resolve(false),
+    ]);
+
+    if (emailExists) {
+      throw new BadRequestException('An account with this email already exists');
+    }
+
+    if (phoneExists) {
+      throw new BadRequestException('An account with this phone number already exists');
+    }
   }
 
   async onModuleDestroy() {
@@ -261,13 +282,19 @@ export class AuthService implements OnModuleDestroy {
       databaseHooks: {
         user: {
           create: {
-            before: async (user: BetterAuthUser) => ({
-              data: {
-                ...user,
-                name: user.name ?? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
-                role: 'user',
-              },
-            }),
+            before: async (user: BetterAuthUser) => {
+              // Check for duplicates BEFORE Better Auth inserts, returning
+              // a readable error formatted for Better Auth and NestJS.
+              await this.validateSignUp(user.email, user.phone);
+
+              return {
+                data: {
+                  ...user,
+                  name: user.name ?? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+                  role: 'user',
+                },
+              };
+            },
             after: async (user: BetterAuthUser) => {
               await this.createAppProfile(user as BetterAuthUser);
             },

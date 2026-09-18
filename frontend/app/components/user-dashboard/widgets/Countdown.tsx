@@ -66,21 +66,25 @@ function CountdownDisplay({
     return <span>{pad2(h)}:{pad2(m)}:{pad2(s)}</span>;
   }
   return (
-    <span className="flex items-baseline gap-1 font-mono tabular-nums">
+    <span className="flex flex-wrap items-baseline gap-x-0.5 font-mono text-[17px] font-semibold tabular-nums leading-tight sm:text-[18px]">
       {d > 0 && (
         <>
-          <span className="text-[22px] font-bold">{d}</span>
-          <span className="mr-1 text-[10px] text-fg-dim">d</span>
+          <span className="font-bold text-fg">{d}</span>
+          <span className="mr-1.5 text-[11px] font-normal text-fg-dim">d</span>
         </>
       )}
-      <span className="text-[22px] font-bold">{pending ? "--" : pad2(h)}</span>
-      <span className="mr-1 text-[10px] text-fg-dim">h</span>
-      <span className="text-[22px] font-bold">{pending ? "--" : pad2(m)}</span>
-      <span className="mr-1 text-[10px] text-fg-dim">m</span>
-      <span className="text-[22px] font-bold text-accent-light">
-        {pending ? "--" : pad2(s)}
-      </span>
-      <span className="mr-1 text-[10px] text-fg-dim">s</span>
+      <span className="font-bold text-fg">{pending ? "--" : pad2(h)}</span>
+      <span className="mr-1.5 text-[11px] font-normal text-fg-dim">h</span>
+      <span className="font-bold text-fg">{pending ? "--" : pad2(m)}</span>
+      <span className="mr-1.5 text-[11px] font-normal text-fg-dim">m</span>
+      {d === 0 && (
+        <>
+          <span className="font-bold text-accent-light">
+            {pending ? "--" : pad2(s)}
+          </span>
+          <span className="text-[11px] font-normal text-fg-dim">s</span>
+        </>
+      )}
     </span>
   );
 }

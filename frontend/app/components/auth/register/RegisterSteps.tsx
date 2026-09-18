@@ -24,7 +24,7 @@ export function AccountStep({ register, errors }: RegisterFieldProps) {
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field htmlFor="register-first-name" label="First name" hint={errors.firstName?.message}>
-          <Input autoComplete="given-name" id="register-first-name" placeholder="Adaeze" {...register("firstName")} />
+          <Input autoComplete="given-name"  id="register-first-name" placeholder="Adaeze" {...register("firstName")} />
         </Field>
         <Field htmlFor="register-last-name" label="Last name" hint={errors.lastName?.message}>
           <Input autoComplete="family-name" id="register-last-name" placeholder="Okafor" {...register("lastName")} />

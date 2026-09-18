@@ -12,6 +12,7 @@ import {
   useMarkRead,
   useMyConversations,
   usePostMessage,
+  useRequestHandoff,
   useSupportStream,
 } from "./hooks/use-support";
 import type { SupportState } from "./types/support.types";
@@ -41,6 +42,7 @@ export function SupportChatScreen() {
   const messagesQuery = useConversationMessages(activeId);
   const createConv = useCreateConversation();
   const postMsg = usePostMessage(activeId ?? "");
+  const requestHandoff = useRequestHandoff(activeId ?? "");
   const markRead = useMarkRead();
   useSupportStream(activeId);
 
@@ -88,6 +90,18 @@ export function SupportChatScreen() {
     } catch (err) {
       toast.error(
         err instanceof ApiError ? err.message : "Could not start conversation",
+      );
+    }
+  };
+
+  const onRequestHandoff = async () => {
+    if (!activeId) return;
+    try {
+      await requestHandoff.mutateAsync("User requested a human support agent");
+      toast.success("A human support agent has been requested");
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Could not request a human agent",
       );
     }
   };
@@ -174,7 +188,7 @@ export function SupportChatScreen() {
             New
           </button>
         </div>
-        <header className="flex items-center justify-between border-b border-line px-3.5 py-2.5">
+        <header className="flex items-center justify-between gap-3 border-b border-line px-3.5 py-2.5">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-fg">
               {active?.subject || "BidNaija Support"}
@@ -192,6 +206,16 @@ export function SupportChatScreen() {
               </span>
             </div>
           </div>
+          {active?.state === "AI_ACTIVE" && (
+            <button
+              type="button"
+              onClick={() => void onRequestHandoff()}
+              disabled={requestHandoff.isPending}
+              className="shrink-0 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-xs font-semibold text-warning hover:border-warning disabled:opacity-60"
+            >
+              {requestHandoff.isPending ? "Requesting…" : "Talk to a human"}
+            </button>
+          )}
         </header>
 
         <div
