@@ -33,7 +33,7 @@ const envSchema = z.object({
   STROWALLET_PUBLIC_KEY: z.string().optional(),
   STROWALLET_SECRET_KEY: z.string().optional(),
   STROWALLET_MERCHANT_ID: z.string().optional(),
-  STROWALLET_MODE: z.string().default('sandbox'),
+  STROWALLET_MODE: z.enum(['sandbox', 'live']).default('sandbox'),
   STROWALLET_WEBHOOK_URL: z.string().url().optional(),
   STROWALLET_WEBHOOK_SECRET: z.string().optional(),
   STROWALLET_WEBSITE_URL: z.string().url().optional(),
@@ -110,6 +110,9 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
       'local-better-auth-secret-change-before-production'
     ) {
       missing.push('BETTER_AUTH_SECRET (still set to the dev default)');
+    }
+    if (env.STROWALLET_MODE !== 'live') {
+      missing.push('STROWALLET_MODE (must be live in production)');
     }
     if (missing.length > 0) {
       throw new Error(

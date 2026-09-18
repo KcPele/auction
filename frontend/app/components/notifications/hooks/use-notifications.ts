@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { notificationsSocket } from "@/app/lib/realtime/socket";
+import { useSession } from "@/app/lib/auth/client";
 import {
   listNotifications,
   markAllNotificationsRead,
@@ -38,9 +39,11 @@ export function useUnreadCount() {
 
 export function useNotificationsStream() {
   const qc = useQueryClient();
+  const { data: authSession } = useSession();
+  const sessionToken = authSession?.session.token;
 
   useEffect(() => {
-    const socket = notificationsSocket();
+    const socket = notificationsSocket(sessionToken);
     const onCreated = (payload: NotificationDto) => {
       const notification = toNotification(payload);
       qc.setQueryData<number>(notificationKeys.unreadCount(), (count = 0) =>
@@ -54,7 +57,7 @@ export function useNotificationsStream() {
     return () => {
       socket.off("notification.created", onCreated);
     };
-  }, [qc]);
+  }, [qc, sessionToken]);
 }
 
 export function useMarkNotificationRead() {

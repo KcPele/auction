@@ -170,7 +170,15 @@ export function useKycFlow() {
       toast.success("NIN verified");
       goNext();
     } catch (error) {
-      reportError(error, "NIN verification failed");
+      const providerMessage =
+        error instanceof ApiError ? error.message.toLowerCase() : "";
+      if (providerMessage.includes("mismatch") || providerMessage.includes("match")) {
+        toast.error(
+          "Your details did not match the NIN record. Check your first name, surname, date of birth, and NIN-linked phone number.",
+        );
+      } else {
+        reportError(error, "NIN verification failed");
+      }
     }
   };
 

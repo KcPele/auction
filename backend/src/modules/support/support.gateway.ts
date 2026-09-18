@@ -55,8 +55,10 @@ export class SupportGateway
 
   async handleConnection(client: AuthedSocket) {
     try {
-      const user = await this.authService.getAuthenticatedUser(
+      const token = this.readSessionToken(client);
+      const user = await this.authService.getAuthenticatedSocketUser(
         client.handshake.headers as IncomingHttpHeaders,
+        token,
       );
       client.data.user = user;
       if (user.authRole === 'admin' || user.role === UserRole.Admin) {
@@ -73,6 +75,11 @@ export class SupportGateway
       client.emit('support.error', { message: 'Authentication required' });
       client.disconnect(true);
     }
+  }
+
+  private readSessionToken(client: Socket): string | undefined {
+    const value = client.handshake.auth?.sessionToken;
+    return typeof value === 'string' ? value : undefined;
   }
 
   async handleDisconnect(_client: AuthedSocket) {
@@ -126,9 +133,12 @@ export class SupportGateway
       .to(conversationRoom(conversationId))
       .emit('support.message', { conversationId, message });
     // Also nudge the admin list so unread counters refresh.
-    this.server
-      .to(ADMIN_ROOM)
-      .emit('support.list-updated', { conversationId });
+    this.emitListUpdated(conversationId);
+  }
+
+  emitListUpdated(conversationId: string) {
+    if (!this.server) return;
+    this.server.to(ADMIN_ROOM).emit('support.list-updated', { conversationId });
   }
 
   emitStateChanged(conv: SupportConversation) {
@@ -141,9 +151,7 @@ export class SupportGateway
     };
     this.server.to(conversationRoom(conv.id)).emit('support.state', payload);
     this.server.to(ADMIN_ROOM).emit('support.state', payload);
-    this.server.to(ADMIN_ROOM).emit('support.list-updated', {
-      conversationId: conv.id,
-    });
+    this.emitListUpdated(conv.id);
   }
 
   /** Returns true if any admin socket is currently in the conversation room. */

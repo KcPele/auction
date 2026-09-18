@@ -60,6 +60,25 @@ describe('KycService', () => {
     expect(saved.ninVerifiedAt).toBeInstanceOf(Date);
   });
 
+  it('trims NIN identity details before sending them to the provider', async () => {
+    provider.verifyNin.mockResolvedValue({ status: true });
+
+    await service.verifyNin(user.id, {
+      ...ninDto(),
+      surname: '  Okafor ',
+      firstname: ' Ada  ',
+      telephoneno: ' +2348123456789 ',
+    });
+
+    expect(provider.verifyNin).toHaveBeenCalledWith(
+      expect.objectContaining({
+        surname: 'Okafor',
+        firstname: 'Ada',
+        telephoneno: '+2348123456789',
+      }),
+    );
+  });
+
   it('starts BVN verification and returns its OTP transaction', async () => {
     provider.verifyBvn.mockResolvedValue({
       status: true,

@@ -31,8 +31,10 @@ export class NotificationsGateway implements OnGatewayConnection {
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
-      const user = await this.authService.getAuthenticatedUser(
+      const token = client.handshake.auth?.sessionToken;
+      const user = await this.authService.getAuthenticatedSocketUser(
         client.handshake.headers as IncomingHttpHeaders,
+        typeof token === 'string' ? token : undefined,
       );
 
       client.data.user = user;

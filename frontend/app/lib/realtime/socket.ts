@@ -13,21 +13,31 @@ const WS_URL =
 
 const sockets = new Map<string, Socket>();
 
-function getSocket(namespace: string): Socket {
+function getSocket(namespace: string, sessionToken?: string): Socket {
   if (typeof window === "undefined") {
     throw new Error("getSocket must be called in the browser");
   }
   const existing = sockets.get(namespace);
-  if (existing) return existing;
+  if (existing) {
+    const currentToken = (existing.auth as { sessionToken?: string })?.sessionToken;
+    if (sessionToken && currentToken !== sessionToken) {
+      existing.auth = { sessionToken };
+      if (existing.connected) existing.disconnect();
+    }
+    return existing;
+  }
 
   const socket = io(`${WS_URL}/${namespace}`, {
     withCredentials: true,
     transports: ["websocket"],
     autoConnect: false,
+    auth: sessionToken ? { sessionToken } : {},
   });
   sockets.set(namespace, socket);
   return socket;
 }
 
-export const auctionsSocket = (): Socket => getSocket("auctions");
-export const notificationsSocket = (): Socket => getSocket("notifications");
+export const auctionsSocket = (sessionToken?: string): Socket =>
+  getSocket("auctions", sessionToken);
+export const notificationsSocket = (sessionToken?: string): Socket =>
+  getSocket("notifications", sessionToken);

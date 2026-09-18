@@ -12,8 +12,10 @@ describe('SupportGateway', () => {
   let gateway: SupportGateway;
   let client: {
     data: { user: typeof user };
+    handshake: { auth: Record<string, unknown>; headers: Record<string, string> };
     emit: jest.Mock;
     join: jest.Mock;
+    disconnect: jest.Mock;
   };
 
   beforeEach(() => {
@@ -21,9 +23,32 @@ describe('SupportGateway', () => {
     gateway = new SupportGateway({} as never, conversations as never);
     client = {
       data: { user },
+      handshake: { auth: {}, headers: { cookie: 'session=value' } },
       emit: jest.fn(),
       join: jest.fn(),
+      disconnect: jest.fn(),
     };
+  });
+
+  it('authenticates a cross-origin socket with its session token', async () => {
+    const authService = {
+      getAuthenticatedSocketUser: jest.fn().mockResolvedValue(user),
+    };
+    gateway = new SupportGateway(authService as never, conversations as never);
+    client.data = {} as never;
+    client.handshake.auth = { sessionToken: 'socket-session-token' };
+
+    await gateway.handleConnection(client as never);
+
+    expect(authService.getAuthenticatedSocketUser).toHaveBeenCalledWith(
+      client.handshake.headers,
+      'socket-session-token',
+    );
+    expect(client.data.user).toEqual(user);
+    expect(client.emit).toHaveBeenCalledWith('support.ready', {
+      userId: user.id,
+      admin: false,
+    });
   });
 
   it('joins a conversation owned by the current user', async () => {

@@ -202,7 +202,11 @@ export function SupportChatScreen() {
                 </span>
               )}
               <span>
-                AI looks things up for you using your account data. Ask anything about your auctions, wallet, or listings.
+                {active?.state === "ADMIN_ACTIVE"
+                  ? "A BidNaija support agent is handling this conversation."
+                  : active?.state === "WAITING_ADMIN"
+                    ? "Your request is in the human support queue."
+                    : "AI can help with your auctions, wallet, listings, and deliveries."}
               </span>
             </div>
           </div>
