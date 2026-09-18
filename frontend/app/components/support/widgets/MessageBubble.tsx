@@ -38,11 +38,14 @@ export function MessageBubble({ message, asAdmin }: Props) {
       : message.role === "ADMIN"
         ? "bg-info-soft border-info/30 text-fg"
         : "bg-surface border-line text-fg";
-  const label =
-    message.role === "AI"
-      ? "BidNaija AI"
-      : message.role === "ADMIN"
-        ? "Support agent"
+  const label = message.role === "AI"
+    ? "BidNaija AI"
+    : message.role === "ADMIN"
+      ? asAdmin
+        ? "You"
+        : "Support agent"
+      : asAdmin
+        ? "User"
         : "You";
 
   return (

@@ -68,6 +68,7 @@ export class SupportService {
         userLastReadAt: new Date(),
       }),
     );
+    this.gateway.emitListUpdated(conv.id);
     return presentSupportConversation(conv);
   }
 

@@ -6,6 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
+import { useSession } from "@/app/lib/auth/client";
 import {
   adminAssign,
   adminListMessages,
@@ -255,7 +256,7 @@ const WS_URL =
     ? process.env.NEXT_PUBLIC_WS_URL
     : "http://localhost:4000";
 
-function getSocket(): Socket {
+function getSocket(sessionToken?: string): Socket {
   if (!supportSocket) {
     supportSocket = io(`${WS_URL}/support`, {
       withCredentials: true,
@@ -266,15 +267,23 @@ function getSocket(): Socket {
       reconnectionAttempts: Infinity,
       reconnectionDelay: 500,
       reconnectionDelayMax: 5000,
+      auth: sessionToken ? { sessionToken } : {},
     });
     if (typeof window !== "undefined") {
       supportSocket.on("connect_error", (err) => {
         // Surfaces auth/CORS issues that previously failed silently.
-        console.error("[support socket] connect_error", err.message);
+        console.warn("[support socket] reconnecting", err.message);
       });
       supportSocket.on("support.error", (payload) => {
-        console.error("[support socket] server error", payload);
+        console.warn("[support socket] server error", payload);
       });
+    }
+  } else {
+    const currentToken = (supportSocket.auth as { sessionToken?: string })
+      ?.sessionToken;
+    if (sessionToken && currentToken !== sessionToken) {
+      supportSocket.auth = { sessionToken };
+      if (supportSocket.connected) supportSocket.disconnect();
     }
   }
   return supportSocket;
@@ -286,10 +295,12 @@ function getSocket(): Socket {
  */
 export function useSupportStream(conversationId: string | null, isAdmin = false) {
   const qc = useQueryClient();
+  const { data: authSession } = useSession();
+  const sessionToken = authSession?.session.token;
 
   useEffect(() => {
     if (!conversationId) return;
-    const socket = getSocket();
+    const socket = getSocket(sessionToken);
     if (!socket.connected) socket.connect();
 
     // Wait for server auth (`support.ready`) before joining the room.
@@ -362,14 +373,16 @@ export function useSupportStream(conversationId: string | null, isAdmin = false)
       socket.off("support.message", onMessage);
       socket.off("support.state", onState);
     };
-  }, [conversationId, qc, isAdmin]);
+  }, [conversationId, qc, isAdmin, sessionToken]);
 }
 
 /** Admin subscribes to the global list-updated stream. */
 export function useAdminSupportListStream() {
   const qc = useQueryClient();
+  const { data: authSession } = useSession();
+  const sessionToken = authSession?.session.token;
   useEffect(() => {
-    const socket = getSocket();
+    const socket = getSocket(sessionToken);
     if (!socket.connected) socket.connect();
     const onListUpdated = () =>
       qc.invalidateQueries({ queryKey: supportKeys.adminLists() });
@@ -377,7 +390,7 @@ export function useAdminSupportListStream() {
     return () => {
       socket.off("support.list-updated", onListUpdated);
     };
-  }, [qc]);
+  }, [qc, sessionToken]);
 }
 
 // Re-export converters for components that fetch outside the hooks.

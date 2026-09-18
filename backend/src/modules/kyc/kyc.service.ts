@@ -90,7 +90,14 @@ export class KycService {
   }
 
   async verifyNin(userId: string, dto: VerifyNinDto) {
-    const result = await this.strowalletProvider.verifyNin(dto);
+    const normalizedDto = {
+      ...dto,
+      surname: dto.surname.trim(),
+      firstname: dto.firstname.trim(),
+      birthdate: dto.birthdate.trim(),
+      telephoneno: dto.telephoneno.trim(),
+    };
+    const result = await this.strowalletProvider.verifyNin(normalizedDto);
     const user = await this.findUser(userId);
     user.nin = dto.numberNin;
     user.ninVerifiedAt = new Date();

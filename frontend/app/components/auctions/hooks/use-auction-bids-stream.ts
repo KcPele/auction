@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { auctionsSocket } from "@/app/lib/realtime/socket";
+import { useSession } from "@/app/lib/auth/client";
 import { koboToNaira } from "@/app/lib/format/money";
 import type {
   Auction,
@@ -37,10 +38,12 @@ type StatusChangedDto = {
  */
 export function useAuctionBidsStream(auctionId: string | undefined) {
   const qc = useQueryClient();
+  const { data: authSession } = useSession();
+  const sessionToken = authSession?.session.token;
 
   useEffect(() => {
     if (!auctionId) return;
-    const socket = auctionsSocket();
+    const socket = auctionsSocket(sessionToken);
 
     const joinAuction = () => socket.emit("auction.join", { auctionId });
     socket.on("connect", joinAuction);
@@ -118,5 +121,5 @@ export function useAuctionBidsStream(auctionId: string | undefined) {
       socket.off("auction.statusChanged", onStatusChanged);
       socket.off("auction.closed", onClosed);
     };
-  }, [auctionId, qc]);
+  }, [auctionId, qc, sessionToken]);
 }

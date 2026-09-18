@@ -124,8 +124,14 @@ export class StrowalletProvider {
       surname: input.surname.toUpperCase(),
       firstname: input.firstname.toUpperCase(),
       birthdate: input.birthdate,
-      telephoneno: input.telephoneno,
+      telephoneno: this.toNigerianLocalPhone(input.telephoneno),
+      mode: this.mode,
     });
+  }
+
+  private toNigerianLocalPhone(phone: string) {
+    const compact = phone.replace(/[\s()-]/g, '');
+    return compact.startsWith('+234') ? `0${compact.slice(4)}` : compact;
   }
 
   createSubaccount(input: CreateSubaccountInput) {

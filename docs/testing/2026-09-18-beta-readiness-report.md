@@ -8,7 +8,7 @@ BidNaija's local product paths are healthy and the tested browser journeys are r
 
 ## Outcome Summary
 
-- 54 backend suites passed with 252 tests after the listing-access and reminder work.
+- 55 backend suites passed with 256 tests after the listing-access, reminder, NIN, and realtime-support work.
 - 29 of 30 browser tests passed in the final serial matrix; the only skip was the deliberately credential-gated external KYC-provider sandbox test.
 - Support coverage includes both human handoff and failed-send draft restoration.
 - Frontend and backend type checks, lint checks, and production builds passed.
@@ -72,7 +72,9 @@ Primary forms, filters, toggles, pagination surfaces, modal dismissal, deep link
 - User support message persisted.
 - “Talk to a human” is now an explicit user action using theme tokens.
 - Admin claimed the waiting conversation and replied.
-- User received the reply and an in-app notification.
+- User received the reply and an in-app notification without refreshing.
+- Admin received the user's reply, handoff state, and newly created conversation without refreshing.
+- Cross-origin Socket.IO authentication now uses the active Better Auth session token, with cookie fallback for same-origin development.
 - A forced 503 send regression confirmed the composer restores the unsent draft.
 - When the external AI assistant was unavailable, the conversation auto-escalated to a human instead of losing the request.
 
@@ -89,6 +91,10 @@ Primary forms, filters, toggles, pagination surfaces, modal dismissal, deep link
 9. Removed a 2 px mobile dashboard overflow at the shell boundary.
 10. Replaced the overly small fixed global request budget with environment-configurable throttling (`RATE_LIMIT_TTL_MS`, `RATE_LIMIT_REQUESTS`, default 600/min). The previous 120/min budget blocked normal multi-screen activity from one client IP.
 11. Made account, access-code, funding, and auction browser regressions safely repeatable against existing QA state.
+12. Moved the optional referral code onto the first registration step so it is discoverable.
+13. Corrected StroWallet NIN requests to include sandbox/live mode, normalized Nigerian phone numbers, and improved mismatch guidance.
+14. Fixed support, notification, and auction socket authentication across frontend/backend origins.
+15. Added live admin-inbox updates for newly created conversations and corrected human-agent chat labels.
 
 ## Performance and Browser Health
 
@@ -112,7 +118,7 @@ Both high-resolution files were uploaded through the listing UI. Source metadata
 
 ```text
 backend: pnpm migration:run                    PASS (no pending migrations)
-backend: pnpm test --runInBand                 PASS (54 suites, 252 tests)
+backend: pnpm test --runInBand                 PASS (55 suites, 256 tests)
 backend: pnpm typecheck                        PASS
 backend: pnpm lint                             PASS
 backend: pnpm build                            PASS
@@ -122,12 +128,12 @@ frontend: pnpm build                           PASS (26 pages generated)
 frontend: pnpm exec playwright test --workers=1 PASS (29 passed, 1 provider-gated skip)
 ```
 
-The latest backend result is 54 suites and 252 tests. Frontend lint, type checking, and the 26-page production build passed after the final UI changes. The frontend development server remains on port 3000.
+The latest backend result is 55 suites and 256 tests. Frontend lint, type checking, four source tests, and the 26-page production build passed after the final UI changes. The frontend development server remains on port 3000.
 
 ## Remaining Conditions Before Production
 
 1. Run `kyc-sandbox.spec.ts` with `E2E_KYC_SANDBOX`, `E2E_KYC_EMAIL`, and `E2E_KYC_PASSWORD` against the actual provider sandbox.
-2. Confirm required production secrets and endpoints in staging. The backend already fails fast for missing production credentials.
+2. Confirm required production secrets and endpoints in staging. The backend now also refuses to start in production while `STROWALLET_MODE=sandbox`.
 3. Run deployment-level smoke and load tests; local timings do not prove multi-user capacity.
 
 ## Requirement Audit

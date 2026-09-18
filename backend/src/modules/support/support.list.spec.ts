@@ -9,6 +9,35 @@ import type { SupportGateway } from './support.gateway';
 import { SupportService } from './support.service';
 
 describe('SupportService admin conversation list', () => {
+  it('notifies the admin inbox when a conversation is created', async () => {
+    const conversation = {
+      id: 'new-conversation-id',
+      userId: 'user-id',
+      subject: null,
+      state: SupportConversationState.AiActive,
+      lastMessageAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as SupportConversation;
+    const conversations = {
+      create: jest.fn((value) => value),
+      save: jest.fn().mockResolvedValue(conversation),
+    };
+    const gateway = { emitListUpdated: jest.fn() };
+    const service = new SupportService(
+      conversations as unknown as Repository<SupportConversation>,
+      {} as Repository<SupportMessage>,
+      {} as Repository<User>,
+      {} as SupportAiRunner,
+      {} as NotificationsService,
+      gateway as unknown as SupportGateway,
+    );
+
+    await service.createConversation('user-id');
+
+    expect(gateway.emitListUpdated).toHaveBeenCalledWith(conversation.id);
+  });
+
   it('returns a paginated page and total count', async () => {
     const conversation = {
       id: 'conversation-id',

@@ -5,7 +5,7 @@ import { BidsGateway } from './bids.gateway';
 import type { Bid } from './entities/bid.entity';
 
 type MockSocket = {
-  handshake: { headers: Record<string, string> };
+  handshake: { auth: Record<string, unknown>; headers: Record<string, string> };
   data: Record<string, unknown>;
   join: jest.Mock;
   leave: jest.Mock;
@@ -15,10 +15,10 @@ type MockSocket = {
 
 describe('BidsGateway', () => {
   let gateway: BidsGateway;
-  let authService: { getAuthenticatedUser: jest.Mock };
+  let authService: { getAuthenticatedSocketUser: jest.Mock };
 
   beforeEach(() => {
-    authService = { getAuthenticatedUser: jest.fn() };
+    authService = { getAuthenticatedSocketUser: jest.fn() };
     gateway = new BidsGateway(authService as unknown as AuthService);
     Object.defineProperty(gateway, 'server', {
       value: {
@@ -28,7 +28,7 @@ describe('BidsGateway', () => {
   });
 
   it('authenticates sockets and joins the user room', async () => {
-    authService.getAuthenticatedUser.mockResolvedValue({
+    authService.getAuthenticatedSocketUser.mockResolvedValue({
       id: 'user-id',
       role: UserRole.IndividualBidder,
       authRole: 'user',
@@ -95,7 +95,10 @@ describe('BidsGateway', () => {
 
 function createSocket(): MockSocket {
   return {
-    handshake: { headers: { cookie: 'better-auth.session_token=value' } },
+    handshake: {
+      auth: {},
+      headers: { cookie: 'better-auth.session_token=value' },
+    },
     data: {},
     join: jest.fn(),
     leave: jest.fn(),

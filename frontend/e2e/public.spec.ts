@@ -146,6 +146,7 @@ test.describe("public experience", () => {
     await expect(
       page.getByRole("heading", { name: "Start with the basics." }),
     ).toBeVisible();
+    await expect(page.getByLabel("Referral code")).toBeVisible();
   });
 
   test("password recovery and verification screens remain usable", async ({

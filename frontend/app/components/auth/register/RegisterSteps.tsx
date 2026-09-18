@@ -45,6 +45,19 @@ export function AccountStep({ register, errors }: RegisterFieldProps) {
           {...register("email")}
         />
       </Field>
+      <Field
+        htmlFor="register-referral"
+        label="Referral code"
+        hint="Optional"
+        meta="If someone invited you, enter their code here."
+      >
+        <Input
+          id="register-referral"
+          placeholder="BN-XXXX-XXXX"
+          leftIcon={<Tag aria-hidden="true" size={18} />}
+          {...register("referralCode")}
+        />
+      </Field>
     </div>
   );
 }
@@ -79,14 +92,6 @@ export function ProfileStep({
           <option value="CAR_DEALER">Car dealer</option>
           <option value="MECHANIC">Mechanic</option>
         </select>
-      </Field>
-      <Field htmlFor="register-referral" label="Referral code" hint="Optional">
-        <Input
-          id="register-referral"
-          placeholder="BN-XXXX-XXXX"
-          leftIcon={<Tag aria-hidden="true" size={18} />}
-          {...register("referralCode")}
-        />
       </Field>
     </div>
   );

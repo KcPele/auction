@@ -25,6 +25,7 @@ type BetterAuthNodeModule = {
 };
 type BetterAuthPluginsModule = {
   admin: (options: Record<string, unknown>) => unknown;
+  bearer: (options?: Record<string, unknown>) => unknown;
   emailOTP: (options: Record<string, unknown>) => unknown;
 };
 
@@ -144,6 +145,20 @@ export class AuthService implements OnModuleDestroy {
     };
   }
 
+  async getAuthenticatedSocketUser(
+    headers: IncomingHttpHeaders,
+    sessionToken?: string,
+  ): Promise<AuthenticatedUser> {
+    if (!sessionToken?.trim()) {
+      return this.getAuthenticatedUser(headers);
+    }
+
+    return this.getAuthenticatedUser({
+      ...headers,
+      authorization: `Bearer ${sessionToken.trim()}`,
+    });
+  }
+
   async validateSignUp(email?: string, phone?: string) {
     const [emailExists, phoneExists] = await Promise.all([
       email
@@ -179,7 +194,7 @@ export class AuthService implements OnModuleDestroy {
   }
 
   private async createAuth(): Promise<BetterAuthInstance> {
-    const [{ betterAuth }, { admin, emailOTP }] = await Promise.all([
+    const [{ betterAuth }, { admin, bearer, emailOTP }] = await Promise.all([
       this.importEsm<BetterAuthModule>('better-auth'),
       this.importEsm<BetterAuthPluginsModule>('better-auth/plugins'),
     ]);
@@ -263,6 +278,7 @@ export class AuthService implements OnModuleDestroy {
       account: this.accountSchema,
       verification: this.verificationSchema,
       plugins: [
+        bearer(),
         admin({ defaultRole: 'user', adminRoles: ['admin'] }),
         emailOTP({
           overrideDefaultEmailVerification: true,

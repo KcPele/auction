@@ -5,7 +5,7 @@ import type { AuthService } from '../auth/auth.service';
 import { NotificationsGateway } from './notifications.gateway';
 
 type MockSocket = {
-  handshake: { headers: Record<string, string> };
+  handshake: { auth: Record<string, unknown>; headers: Record<string, string> };
   data: Record<string, unknown>;
   join: jest.Mock;
   emit: jest.Mock;
@@ -14,10 +14,10 @@ type MockSocket = {
 
 describe('NotificationsGateway', () => {
   let gateway: NotificationsGateway;
-  let authService: { getAuthenticatedUser: jest.Mock };
+  let authService: { getAuthenticatedSocketUser: jest.Mock };
 
   beforeEach(() => {
-    authService = { getAuthenticatedUser: jest.fn() };
+    authService = { getAuthenticatedSocketUser: jest.fn() };
     gateway = new NotificationsGateway(authService as unknown as AuthService);
     Object.defineProperty(gateway, 'server', {
       value: {
@@ -27,7 +27,7 @@ describe('NotificationsGateway', () => {
   });
 
   it('joins user and admin rooms when an admin connects', async () => {
-    authService.getAuthenticatedUser.mockResolvedValue({
+    authService.getAuthenticatedSocketUser.mockResolvedValue({
       id: 'admin-id',
       role: UserRole.Admin,
       authRole: 'admin',
@@ -46,7 +46,9 @@ describe('NotificationsGateway', () => {
   });
 
   it('disconnects unauthenticated sockets', async () => {
-    authService.getAuthenticatedUser.mockRejectedValue(new Error('No session'));
+    authService.getAuthenticatedSocketUser.mockRejectedValue(
+      new Error('No session'),
+    );
     const socket = createSocket();
 
     await gateway.handleConnection(socket as never);
@@ -83,7 +85,10 @@ describe('NotificationsGateway', () => {
 
 function createSocket(): MockSocket {
   return {
-    handshake: { headers: { cookie: 'better-auth.session_token=value' } },
+    handshake: {
+      auth: {},
+      headers: { cookie: 'better-auth.session_token=value' },
+    },
     data: {},
     join: jest.fn(),
     emit: jest.fn(),
