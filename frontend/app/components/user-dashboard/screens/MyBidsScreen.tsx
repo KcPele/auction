@@ -7,6 +7,7 @@ import { fmtNaira } from "../utils";
 import { Icon } from "../primitives/Icon";
 import { Countdown } from "../widgets/Countdown";
 import { PaginationControls } from "../../ui/PaginationControls";
+import { ListingImage } from "../primitives/ListingImage";
 
 type TabId = "active" | "past" | "won";
 
@@ -132,10 +133,9 @@ function Row({ b, tab }: { b: UserBid; tab: TabId }) {
       href={`/dashboard/auction/${b.auctionId}`}
       className="grid w-full cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-3 border-b border-line py-3 text-left text-fg last:border-b-0"
     >
-      <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-media-background text-media-foreground">
+      <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-line bg-media-background text-media-foreground">
         {b.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={b.photoUrl} alt={b.title} className="h-full w-full rounded-lg object-cover" />
+          <ListingImage src={b.photoUrl} alt={b.title} sizes="44px" />
         ) : (
           <Icon name={b.category === "cars" ? "car" : "phone"} size={22} />
         )}

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Icon } from "@/app/components/user-dashboard/primitives/Icon";
+import { ListingImage } from "@/app/components/user-dashboard/primitives/ListingImage";
 import type { AuctionDetail } from "../types/auction.types";
 
 type Slide = { kind: "photo" | "video"; url: string };
@@ -30,11 +31,12 @@ export function DetailHero({ auction }: Props) {
           className="h-full w-full bg-media-background object-contain"
         />
       ) : current ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <ListingImage
           src={current.url}
           alt={auction.title}
-          className="h-full w-full object-cover"
+          sizes="(max-width: 1024px) 100vw, 900px"
+          fetchPriority="high"
+          eager
         />
       ) : (
         <Icon name={fallbackIcon} size={70} />

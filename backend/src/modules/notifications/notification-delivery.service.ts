@@ -3,7 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmailService } from '../../common/email/email.service';
+import { renderTransactionalEmail } from '../../common/email/transactional-email.template';
 import { NotificationAudience } from '../../common/enums/notification-audience.enum';
+import { NotificationType } from '../../common/enums/notification-type.enum';
 import { NotificationDeliveryLog } from '../admin/entities/notification-delivery-log.entity';
 import { PlatformToggle } from '../admin/entities/platform-toggle.entity';
 import { NotificationPreference } from '../users/entities/notification-preference.entity';
@@ -61,11 +63,16 @@ export class NotificationDeliveryService {
 
   private async deliverEmail(user: User, notification: Notification) {
     try {
+      const action = this.emailAction(notification);
+      const email = renderTransactionalEmail({
+        title: notification.title,
+        message: notification.message,
+        recipientName: [user.firstName, user.lastName].filter(Boolean).join(' '),
+        ...action,
+      });
       await this.emailService.send({
         to: user.email,
-        subject: notification.title,
-        html: `<p>${this.escapeHtml(notification.message)}</p>`,
-        text: notification.message,
+        ...email,
       });
       await this.writeLog(user, notification, 'EMAIL', user.email, 'SENT');
     } catch (error) {
@@ -163,17 +170,43 @@ export class NotificationDeliveryService {
     return error instanceof Error ? error.message.slice(0, 1000) : 'Unknown error';
   }
 
-  private escapeHtml(value: string) {
-    return value.replace(
-      /[&<>'"]/g,
-      (character) =>
-        ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          "'": '&#39;',
-          '"': '&quot;',
-        })[character] ?? character,
-    );
+  private emailAction(notification: Notification) {
+    const baseUrl = this.config
+      .get<string>('WEB_APP_URL', 'http://localhost:3000')
+      .replace(/\/$/, '');
+    const data = (notification.data ?? {}) as Record<string, unknown>;
+
+    if (data.source === 'ADMIN_GRANT') {
+      return {
+        actionUrl: `${baseUrl}/dashboard/listings`,
+        actionLabel: 'Open My listings',
+      };
+    }
+    if (data.source === 'ADMIN_REVOKE') {
+      return {
+        actionUrl: `${baseUrl}/dashboard/listing-access`,
+        actionLabel: 'Review listing access',
+      };
+    }
+    if (data.source === 'WATCHLIST_REMINDER' || data.source === 'WATCHLIST_SAVED') {
+      return {
+        actionUrl: `${baseUrl}/dashboard/browse`,
+        actionLabel: 'View saved auctions',
+      };
+    }
+
+    const routeByType: Partial<Record<NotificationType, string>> = {
+      [NotificationType.ListingSubmitted]: '/dashboard/listings',
+      [NotificationType.ListingApproved]: '/dashboard/listings',
+      [NotificationType.ListingRejected]: '/dashboard/listings',
+      [NotificationType.AuctionStarted]: '/dashboard/browse',
+      [NotificationType.Outbid]: '/dashboard/bids',
+      [NotificationType.AuctionWon]: '/dashboard/won',
+      [NotificationType.PaymentDue]: '/dashboard/won',
+    };
+    return {
+      actionUrl: `${baseUrl}${routeByType[notification.type] ?? '/dashboard/notifications'}`,
+      actionLabel: 'View details',
+    };
   }
 }

@@ -1,9 +1,11 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { DataSource, EntityManager, Repository } from 'typeorm';
 import type { User } from '../users/entities/user.entity';
+import type { UserListingPermission } from '../users/entities/user-listing-permission.entity';
 import type { WalletLedgerEntry } from '../wallets/entities/wallet-ledger-entry.entity';
 import type { Wallet } from '../wallets/entities/wallet.entity';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { ListingCategory } from '../../common/enums/listing-category.enum';
 import { MechanicVerificationStatus } from '../../common/enums/mechanic-verification-status.enum';
 import { AdminUsersService } from './admin-users.service';
 import { MechanicProfile } from './entities/mechanic-profile.entity';
@@ -31,6 +33,7 @@ describe('AdminUsersService account moderation', () => {
   } as unknown as jest.Mocked<DataSource>;
   const service = new AdminUsersService(
     userRepository,
+    {} as Repository<UserListingPermission>,
     {} as Repository<Wallet>,
     {} as Repository<WalletLedgerEntry>,
     dataSource,
@@ -124,5 +127,58 @@ describe('AdminUsersService account moderation', () => {
     await expect(
       service.banUser('admin-2', appUser.id, { reason: 'QA' }),
     ).rejects.toThrow('The last active administrator cannot be banned');
+  });
+});
+
+describe('AdminUsersService user directory', () => {
+  it('includes effective listing permissions for each user', async () => {
+    const users = [
+      {
+        id: 'user-1',
+        firstName: 'Ada',
+        lastName: 'Okafor',
+        email: 'ada@example.com',
+        phone: '08000000000',
+        role: UserRole.IndividualBidder,
+        isActive: true,
+        isBanned: false,
+        createdAt: new Date('2026-09-18T10:00:00.000Z'),
+      },
+    ] as User[];
+    const queryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([users, 1]),
+    };
+    const usersRepository = {
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    } as unknown as Repository<User>;
+    const walletsRepository = {
+      find: jest.fn().mockResolvedValue([]),
+    } as unknown as Repository<Wallet>;
+    const listingPermissionsRepository = {
+      find: jest.fn().mockResolvedValue([
+        { userId: 'user-1', category: ListingCategory.Car },
+        { userId: 'user-1', category: ListingCategory.Gadget },
+      ]),
+    } as unknown as Repository<UserListingPermission>;
+    const service = new AdminUsersService(
+      usersRepository,
+      listingPermissionsRepository,
+      walletsRepository,
+      {} as Repository<WalletLedgerEntry>,
+      {} as DataSource,
+    );
+
+    const result = await service.listUsers({ limit: 25, offset: 0 });
+
+    expect(result.items[0]).toEqual(
+      expect.objectContaining({
+        id: 'user-1',
+        listingPermissions: [ListingCategory.Car, ListingCategory.Gadget],
+      }),
+    );
   });
 });

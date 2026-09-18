@@ -13,6 +13,7 @@ import { FilterPanel, type BrowseFilters } from "../widgets/FilterPanel";
 import { fmtNaira } from "../utils";
 import { nairaToKobo } from "@/app/lib/format/money";
 import { useDebounced } from "@/app/components/search/hooks/use-search";
+import { ListingImage } from "../primitives/ListingImage";
 
 type CatFilter = "all" | AuctionCategory;
 type StatusFilter = "all" | "live" | "soon";
@@ -178,7 +179,7 @@ export function BrowseScreen() {
             No auctions match those filters
           </div>
         ) : (
-          auctions.map((a) => <AuctionTile key={a.id} a={a} />)
+          auctions.map((a, index) => <AuctionTile key={a.id} a={a} eager={index === 0} />)
         )}
       </div>
 
@@ -212,7 +213,7 @@ export function BrowseScreen() {
   );
 }
 
-function AuctionTile({ a }: { a: Auction }) {
+function AuctionTile({ a, eager }: { a: Auction; eager: boolean }) {
   return (
     <Link
       href={`/dashboard/auction/${a.id}`}
@@ -220,11 +221,11 @@ function AuctionTile({ a }: { a: Auction }) {
     >
       <div className="relative flex aspect-square items-center justify-center bg-media-background text-media-foreground">
         {a.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <ListingImage
             src={a.photoUrl}
             alt={a.title}
-            className="h-full w-full object-cover"
+            sizes="(max-width: 1024px) 50vw, 280px"
+            eager={eager}
           />
         ) : (
           <Icon name={a.category === "cars" ? "car" : "phone"} size={36} />

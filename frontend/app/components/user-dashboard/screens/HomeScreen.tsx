@@ -9,6 +9,8 @@ import { WalletHero } from "../widgets/WalletHero";
 import { Countdown } from "../widgets/Countdown";
 import { SectionHeader } from "../widgets/SectionHeader";
 import { fmtNaira } from "../utils";
+import { useListingCapabilities } from "@/app/lib/permissions/use-listing-capabilities";
+import { ListingImage } from "../primitives/ListingImage";
 
 const CATEGORIES: Array<{
   id: "cars" | "gadgets";
@@ -23,6 +25,7 @@ export function HomeScreen() {
   const live = useAuctions({ status: "LIVE", limit: 12 });
   const upcoming = useAuctions({ status: "SCHEDULED", limit: 6 });
   const active = useMyBids({ status: "ACTIVE", limit: 5 });
+  const listingCapabilities = useListingCapabilities();
 
   const liveAuctions = live.data?.items ?? [];
   const openingSoon = upcoming.data?.items ?? [];
@@ -35,6 +38,28 @@ export function HomeScreen() {
       </h1>
 
       <WalletHero />
+
+      {listingCapabilities.hasAny && (
+        <section className="mt-4 rounded-[14px] border border-line bg-surface p-4" aria-label="Selling tools">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Ready to sell?</div>
+              <div className="mt-0.5 text-xs text-fg-dim">
+                Manage your listings or create a new one.
+              </div>
+            </div>
+            <Icon name="tag" size={22} className="text-accent" />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Link href="/dashboard/listings" className="rounded-lg border border-line px-3 py-2.5 text-center text-xs font-semibold text-fg">
+              My listings
+            </Link>
+            <Link href="/dashboard/listings/create" className="rounded-lg bg-primary px-3 py-2.5 text-center text-xs font-semibold text-primary-foreground">
+              Create listing
+            </Link>
+          </div>
+        </section>
+      )}
 
       <div className="my-3 mt-5 flex items-center justify-between">
         <div>
@@ -61,7 +86,7 @@ export function HomeScreen() {
         ) : liveAuctions.length === 0 ? (
           <div className="py-6 text-sm text-fg-dim">No live auctions yet.</div>
         ) : (
-          liveAuctions.map((a) => <LiveCard key={a.id} a={a} />)
+          liveAuctions.map((a, index) => <LiveCard key={a.id} a={a} eager={index === 0} />)
         )}
       </div>
 
@@ -114,16 +139,15 @@ export function HomeScreen() {
             Nothing scheduled.
           </div>
         ) : (
-          openingSoon.map((a) => (
+          openingSoon.map((a, index) => (
             <Link
               key={a.id}
               href={`/dashboard/auction/${a.id}`}
               className="grid w-full cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-3 border-b border-line py-3 text-left text-fg last:border-b-0"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-media-background text-media-foreground">
+              <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-line bg-media-background text-media-foreground">
                 {a.photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={a.photoUrl} alt={a.title} className="h-full w-full rounded-lg object-cover" />
+                  <ListingImage src={a.photoUrl} alt={a.title} sizes="44px" eager={index === 0 && liveAuctions.length === 0} />
                 ) : (
                   <Icon name={a.category === "cars" ? "car" : "phone"} size={22} />
                 )}
@@ -150,7 +174,7 @@ export function HomeScreen() {
   );
 }
 
-function LiveCard({ a }: { a: Auction }) {
+function LiveCard({ a, eager }: { a: Auction; eager: boolean }) {
   return (
     <Link
       href={`/dashboard/auction/${a.id}`}
@@ -158,8 +182,7 @@ function LiveCard({ a }: { a: Auction }) {
     >
       <div className="relative flex aspect-[4/3] items-center justify-center bg-media-background text-media-foreground">
         {a.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={a.photoUrl} alt={a.title} className="h-full w-full object-cover" />
+          <ListingImage src={a.photoUrl} alt={a.title} sizes="230px" eager={eager} />
         ) : (
           <Icon name={a.category === "cars" ? "car" : "phone"} size={46} />
         )}

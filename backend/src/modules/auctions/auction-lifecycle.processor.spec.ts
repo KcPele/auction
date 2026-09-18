@@ -6,6 +6,7 @@ describe('AuctionLifecycleProcessor', () => {
   let auctionsService: {
     startScheduledAuction: jest.Mock;
     closeAuction: jest.Mock;
+    sendStartingSoonReminders: jest.Mock;
   };
   let processor: AuctionLifecycleProcessor;
 
@@ -13,6 +14,7 @@ describe('AuctionLifecycleProcessor', () => {
     auctionsService = {
       startScheduledAuction: jest.fn(),
       closeAuction: jest.fn(),
+      sendStartingSoonReminders: jest.fn(),
     };
     processor = new AuctionLifecycleProcessor(
       auctionsService as unknown as AuctionsService,
@@ -37,5 +39,16 @@ describe('AuctionLifecycleProcessor', () => {
     } as never);
 
     expect(auctionsService.closeAuction).toHaveBeenCalledWith('auction-id');
+  });
+
+  it('sends watchlist reminders before scheduled auctions start', async () => {
+    await processor.process({
+      name: AuctionLifecycleJobNames.Remind,
+      data: { auctionId: 'auction-id' },
+    } as never);
+
+    expect(auctionsService.sendStartingSoonReminders).toHaveBeenCalledWith(
+      'auction-id',
+    );
   });
 });

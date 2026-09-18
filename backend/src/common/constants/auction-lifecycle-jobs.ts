@@ -1,6 +1,7 @@
 export const AuctionLifecycleJobNames = {
   Start: 'auction.start',
   Close: 'auction.close',
+  Remind: 'auction.remind',
 } as const;
 
 export const PaymentDeadlineJobNames = {

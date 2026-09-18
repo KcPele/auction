@@ -43,6 +43,35 @@ describe('NotificationDeliveryService', () => {
     );
   });
 
+  it('sends a branded listing-access email with a safe listings action', async () => {
+    const logs = savingRepository();
+    const email = { send: jest.fn().mockResolvedValue(undefined) };
+    const service = createService({ logs, email });
+    const accessGranted = {
+      ...notification,
+      type: NotificationType.System,
+      title: 'Car listing access granted',
+      message: 'You can now create car listings.',
+      data: { category: 'CAR', source: 'ADMIN_GRANT' },
+    } as Notification;
+
+    await service.deliver(accessGranted);
+
+    expect(email.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: user.email,
+        subject: 'Car listing access granted',
+        html: expect.stringContaining('BidNaija'),
+        text: expect.stringContaining(
+          'http://localhost:3000/dashboard/listings',
+        ),
+      }),
+    );
+    expect(email.send.mock.calls[0]?.[0].html).toContain(
+      'http://localhost:3000/dashboard/listings',
+    );
+  });
+
   it('does not send channels disabled by the platform', async () => {
     const logs = savingRepository();
     const email = { send: jest.fn() };
@@ -99,7 +128,11 @@ describe('NotificationDeliveryService', () => {
       } as unknown as Repository<PlatformToggle>,
       input.logs as unknown as Repository<NotificationDeliveryLog>,
       (input.email ?? { send: jest.fn() }) as unknown as EmailService,
-      { get: jest.fn() } as unknown as ConfigService,
+      {
+        get: jest.fn((key: string, fallback?: string) =>
+          key === 'WEB_APP_URL' ? 'http://localhost:3000' : fallback,
+        ),
+      } as unknown as ConfigService,
     );
   }
 });

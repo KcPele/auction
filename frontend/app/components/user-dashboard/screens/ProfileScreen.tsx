@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/app/components/theme/ThemeToggle";
 import { Icon, type IconName } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
 import { profileSchema } from "../utils/profile.schema";
+import { useListingCapabilities } from "@/app/lib/permissions/use-listing-capabilities";
 
 interface NotifPref {
   id: "whatsappEnabled" | "readyToBid";
@@ -58,6 +59,7 @@ export function ProfileScreen() {
   };
 
   const { data: me } = useMe();
+  const capabilities = useListingCapabilities();
   const { data: stats } = useStats();
   const { data: watchlist = [] } = useWatchlist();
   const signOut = useSignOut();
@@ -128,13 +130,28 @@ export function ProfileScreen() {
       icon: "truck",
       href: "/dashboard/deliveries",
     },
+    ...(capabilities.hasAny
+      ? [{
+          label: "My listings",
+          sub: "Create and manage your listings",
+          icon: "tag" as IconName,
+          href: "/dashboard/listings",
+        }]
+      : []),
     {
       label: "Listing access",
       sub: hasListingAccess ? listingCategories.join(", ") : "No active listing access",
       icon: "key",
       href: "/dashboard/listing-access",
     },
-    { label: "Redeem access code", sub: "Use a code issued to your account", icon: "tag", href: "/dashboard/redeem" },
+    ...(!capabilities.hasAll
+      ? [{
+          label: "Redeem access code",
+          sub: "Use a code issued to your account",
+          icon: "tag" as IconName,
+          href: "/dashboard/redeem",
+        }]
+      : []),
   ];
 
   return (
@@ -241,18 +258,38 @@ export function ProfileScreen() {
             : "Apply for listing access or redeem a code issued to your account."}
         </div>
         <div className="relative z-10 mt-3.5 flex gap-2">
-          <Link
-            href="/dashboard/listing-access"
-            className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-none bg-primary px-2.5 py-2.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary-hover"
-          >
-            <Icon name="key" size={14} /> Apply
-          </Link>
-          <Link
-            href="/dashboard/redeem"
-            className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface-subtle px-2.5 py-2.5 text-[13px] font-semibold text-fg"
-          >
-            <Icon name="tag" size={14} /> Redeem
-          </Link>
+          {capabilities.hasAny ? (
+            <>
+              <Link
+                href="/dashboard/listings"
+                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 py-2.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary-hover"
+              >
+                <Icon name="tag" size={14} /> My listings
+              </Link>
+              <Link
+                href={capabilities.hasAll ? "/dashboard/listings/create" : "/dashboard/listing-access"}
+                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface-subtle px-2.5 py-2.5 text-[13px] font-semibold text-fg"
+              >
+                <Icon name={capabilities.hasAll ? "plus" : "key"} size={14} />
+                {capabilities.hasAll ? "Create listing" : "Get more access"}
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/dashboard/listing-access"
+                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 py-2.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary-hover"
+              >
+                <Icon name="key" size={14} /> Apply
+              </Link>
+              <Link
+                href="/dashboard/redeem"
+                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface-subtle px-2.5 py-2.5 text-[13px] font-semibold text-fg"
+              >
+                <Icon name="tag" size={14} /> Redeem
+              </Link>
+            </>
+          )}
         </div>
       </div>
 

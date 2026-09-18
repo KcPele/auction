@@ -23,6 +23,9 @@ const toUser = (dto: AdminUserItemDto): AdminUserItem => ({
   walletBalance: koboToNaira(dto.walletBalanceKobo),
   walletHold: koboToNaira(dto.walletHoldKobo),
   createdAt: new Date(dto.createdAt),
+  listingPermissions: dto.listingPermissions.map((category) =>
+    category === "CAR" ? "cars" : "gadgets",
+  ),
 });
 
 export const listAdminUsers = async (

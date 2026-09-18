@@ -11,6 +11,7 @@ import {
   listPendingListings,
   rejectApplication,
   rejectListing,
+  revokeListingPermission,
 } from "../api/listings.api";
 import { adminKeys } from "./admin-keys";
 
@@ -68,6 +69,14 @@ export function useGrantListingPermission() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: grantListingPermission,
+    onSuccess: () => qc.invalidateQueries({ queryKey: adminKeys.all }),
+  });
+}
+
+export function useRevokeListingPermission() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: revokeListingPermission,
     onSuccess: () => qc.invalidateQueries({ queryKey: adminKeys.all }),
   });
 }

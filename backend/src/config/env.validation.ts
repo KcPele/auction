@@ -9,6 +9,7 @@ const envSchema = z.object({
   APP_PORT: z.coerce.number().int().positive().default(4000),
   APP_GLOBAL_PREFIX: z.string().default('api/v1'),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
+  WEB_APP_URL: z.string().url().default('http://localhost:3000'),
   RATE_LIMIT_TTL_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_REQUESTS: z.coerce.number().int().positive().default(600),
   DATABASE_HOST: z.string().default('localhost'),
