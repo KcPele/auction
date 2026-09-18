@@ -110,18 +110,18 @@ export function DetailScreen({ id }: { id: string }) {
       </div>
 
       <div className="mb-3.5 grid grid-cols-2 gap-2.5 rounded-[14px] border border-line bg-surface p-3.5">
-        <div>
+        <div className="min-w-0">
           <div className="mb-1 text-[10px] uppercase tracking-[0.1em] text-fg-dim">
             {auction.isLive ? "Top bid" : "Starts at"}
           </div>
-          <div className="font-mono text-[18px] font-semibold tabular-nums text-accent-light">
+          <div className="truncate font-mono text-[18px] font-semibold tabular-nums text-accent-light">
             {fmtNaira(auction.isLive ? topBid : auction.basePrice)}
           </div>
           <div className="mt-0.5 text-[11px] text-fg-dim">
             {bids.length} bids placed
           </div>
         </div>
-        <div>
+        <div className="min-w-0">
           <div className="mb-1 text-[10px] uppercase tracking-[0.1em] text-fg-dim">
             {auction.isLive ? "Ends in" : "Opens in"}
           </div>
@@ -184,7 +184,7 @@ export function DetailScreen({ id }: { id: string }) {
 
       {auction.isLive ? (
         isSeller ? (
-          <div className="sticky bottom-0 -mx-4 -mb-6 border-t border-line bg-background px-4 py-4 text-center text-sm text-fg-muted">
+          <div className="sticky bottom-0 -mx-4 -mb-6 border-t border-line bg-background/95 px-4 pt-4 pb-[calc(var(--nav-h)+18px+env(safe-area-inset-bottom))] lg:pb-4 text-center text-sm text-fg-muted backdrop-blur-sm">
             This is your auction. You can follow bids here, but sellers cannot bid.
           </div>
         ) : (
@@ -197,12 +197,12 @@ export function DetailScreen({ id }: { id: string }) {
           />
         )
       ) : auction.isUpcoming ? (
-        <div className="sticky bottom-0 -mx-[18px] -mb-6 px-[18px] pt-3.5">
+        <div className=" bg-linear-to from-background via-background/90 to-transparent pt-3.5 pb- ">
           <button
             type="button"
             disabled={watchlistPending}
             onClick={() => void toggleWatchlist()}
-            className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border-none bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border-none bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-60"
           >
             <Icon name={isSaved ? "check" : "bell"} size={16} />
             {isSaved ? "Saved to watchlist" : "Save and remind me"}

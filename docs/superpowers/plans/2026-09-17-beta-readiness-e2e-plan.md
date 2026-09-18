@@ -134,7 +134,7 @@ git commit -m "test(e2e): add beta readiness harness"
 - Produces: CLI `pnpm beta:prepare-account -- --email <email> --verify-email --verify-kyc`
 - Consumes: `BetaIdentity` and signup form accessible labels.
 
-- [ ] **Step 1: Write failing tests for preparation scope**
+- [x] **Step 1: Write failing tests for preparation scope**
 
 ```ts
 it("only verifies the selected account", async () => {
@@ -149,11 +149,11 @@ it("only verifies the selected account", async () => {
 });
 ```
 
-- [ ] **Step 2: Implement the narrowly scoped verification CLI**
+- [x] **Step 2: Implement the narrowly scoped verification CLI**
 
 The script must require an exact email, update only the linked `users` and `auth_users` rows in one transaction, print the resulting verification state, and refuse zero or multiple matches. Admin promotion remains delegated to `src/scripts/promote-admin.ts`.
 
-- [ ] **Step 3: Add serial UI registration coverage for all identities**
+- [x] **Step 3: Add serial UI registration coverage for all identities**
 
 ```ts
 test.describe.configure({ mode: "serial" });
@@ -168,19 +168,19 @@ for (const identity of Object.values(identities)) {
 }
 ```
 
-- [ ] **Step 4: Verify accounts through the approved backend exception**
+- [x] **Step 4: Verify accounts through the approved backend exception**
 
 Run the preparation CLI for all identities; include `--verify-kyc` only for bidders and sellers that need bid/listing access. Promote the dedicated QA Admin with `ADMIN_EMAIL=<email> pnpm admin:promote`.
 
-- [ ] **Step 5: Test login, phone login, role routing, duplicate email, and duplicate phone through UI**
+- [x] **Step 5: Test login, phone login, role routing, duplicate email, and duplicate phone through UI**
 
 Expected: every backend-provided error appears verbatim; the admin reaches `/admin`; non-admin users reach `/dashboard` and cannot open admin pages.
 
-- [ ] **Step 6: Verify referral persistence without side effects**
+- [x] **Step 6: Verify referral persistence without side effects**
 
 Use a read-only TypeORM query to assert the marker on QA Bidder B and assert no wallet, role, or permission side effect.
 
-- [ ] **Step 7: Run focused backend, public E2E, and beta auth tests**
+- [x] **Step 7: Run focused backend, public E2E, and beta auth tests**
 
 Run: `cd backend && pnpm test --runInBand src/scripts/prepare-beta-account.spec.ts src/modules/auth/auth.service.spec.ts src/modules/auth/auth.controller.spec.ts`
 
@@ -200,23 +200,23 @@ Run: `cd frontend && pnpm exec playwright test e2e/public.spec.ts e2e/beta-readi
 - Produces browser-visible verified mechanic, car permission, gadget permission, and separate redeemed code permission.
 - Consumes authenticated storage states for QA Admin, QA Mechanic, QA Car Dealer, QA Gadget Seller, and QA Code User.
 
-- [ ] **Step 1: Write the serial UI test for mechanic verification and access requests**
+- [x] **Step 1: Write the serial UI test for mechanic verification and access requests**
 
 Use visible admin and user controls only. Assert the verified mechanic appears in the car listing selector after approval.
 
-- [ ] **Step 2: Exercise both access application approvals**
+- [x] **Step 2: Exercise both access application approvals**
 
 QA Car Dealer requests `CAR`; QA Gadget Seller requests `GADGET`; QA Admin approves each from Listing approvals; both profiles must show the new permission.
 
-- [ ] **Step 3: Exercise access-code creation and redemption**
+- [x] **Step 3: Exercise access-code creation and redemption**
 
 QA Admin creates a unique `GADGET` code; QA Code User redeems it. Then test an invalid code and a second redemption, asserting exact backend errors.
 
-- [ ] **Step 4: Fix each failing UI or backend path test-first**
+- [x] **Step 4: Fix each failing UI or backend path test-first**
 
 For a frontend defect, add the failing Playwright assertion before editing the screen. For an endpoint defect, add the focused NestJS spec before editing the service/controller and update Swagger decorators when response behavior changes.
 
-- [ ] **Step 5: Run focused access and mechanic suites**
+- [x] **Step 5: Run focused access and mechanic suites**
 
 Run: `cd backend && pnpm test --runInBand src/modules/admin/admin-listings.service.spec.ts src/modules/admin/admin-mechanics.service.spec.ts src/modules/users/users.controller.spec.ts`
 
@@ -236,7 +236,7 @@ Run: `cd frontend && pnpm exec playwright test e2e/beta-readiness.spec.ts --grep
 - Consumes `auction.holdPercent`, wallet `balanceKobo`, and `heldKobo`.
 - Produces exact qualification error plus wallet hold and ledger assertions.
 
-- [ ] **Step 1: Add unit cases for the 10% cap examples**
+- [x] **Step 1: Add unit cases for the 10% cap examples**
 
 ```ts
 it.each([
@@ -251,23 +251,23 @@ it.each([
 });
 ```
 
-- [ ] **Step 2: Fund Bidder A and Bidder B through the Top up UI**
+- [x] **Step 2: Fund Bidder A and Bidder B through the Top up UI**
 
 Use sandbox simulation to credit ₦50,000 and ₦100,000. Verify wallet balance, ledger entry, notification, duplicate-click behavior, and loading states.
 
-- [ ] **Step 3: Set the admin minimum hold to 10% in Settings**
+- [x] **Step 3: Set the admin minimum hold to 10% in Settings**
 
 Verify the value persists after reload and an approved auction uses at least 10%.
 
-- [ ] **Step 4: Exercise rejected and accepted bids through UI**
+- [x] **Step 4: Exercise rejected and accepted bids through UI**
 
 Test above-cap, below-base, below-increment, self-bid, valid bid, and valid outbid. Assert the displayed backend message for every rejected bid.
 
-- [ ] **Step 5: Verify holds, releases, and withdrawal protection**
+- [x] **Step 5: Verify holds, releases, and withdrawal protection**
 
 Use UI wallet state and read-only database assertions after UI actions. The first leader’s hold must release when outbid, and withdrawal must not consume active held funds.
 
-- [ ] **Step 6: Run bid, wallet, and beta browser suites**
+- [x] **Step 6: Run bid, wallet, and beta browser suites**
 
 Run: `cd backend && pnpm test --runInBand src/modules/bids/bids.service.spec.ts src/modules/wallets/wallets.service.spec.ts src/modules/wallets/wallet-withdrawals.service.spec.ts`
 
@@ -283,31 +283,31 @@ Run: `cd backend && pnpm test --runInBand src/modules/bids/bids.service.spec.ts 
 - Produces a settled car auction and completed delivery.
 - Consumes QA Car Dealer, verified mechanic, Bidder A, Bidder B, and QA Admin sessions.
 
-- [ ] **Step 1: Download a reuse-permitted real car image and record source metadata**
+- [x] **Step 1: Download a reuse-permitted real car image and record source metadata**
 
 The JSON must contain `sourceUrl`, `downloadUrl`, `author`, `license`, and `retrievedAt`. Validate the image decodes and is large enough for listing display.
 
-- [ ] **Step 2: Create, preview, and submit the car listing through UI**
+- [x] **Step 2: Create, preview, and submit the car listing through UI**
 
 Use a `QA`-prefixed title, verified mechanic, real image, ₦400,000 base price, ₦25,000 increment, 10% hold, near-future start time, and 120-minute duration.
 
-- [ ] **Step 3: Approve through admin UI and wait for live state**
+- [x] **Step 3: Approve through admin UI and wait for live state**
 
 Assert draft, pending, scheduled, and live transitions. If scheduling fails, capture queue/Redis/backend evidence before fixing.
 
-- [ ] **Step 4: Complete competing bids and verify realtime state**
+- [x] **Step 4: Complete competing bids and verify realtime state**
 
 Bidder A bids ₦500,000; Bidder B bids ₦550,000. Assert bid history, top bid, hold release, outbid notification, and websocket update.
 
-- [ ] **Step 5: Force-close through admin UI**
+- [x] **Step 5: Force-close through admin UI**
 
 Assert `AWAITING_PAYMENT`, winning bidder, losing-bid status, released losing holds, payment deadline, and win notifications.
 
-- [ ] **Step 6: Complete payment, settlement, and delivery through UI**
+- [x] **Step 6: Complete payment, settlement, and delivery through UI**
 
 Winner confirms payment; admin settles the exact balance after hold; seller marks shipped/delivered as allowed; winner confirms receipt. Assert settled totals, applied hold, delivery state, and both users’ notifications.
 
-- [ ] **Step 7: Add focused regressions for every discovered lifecycle defect and rerun suites**
+- [x] **Step 7: Add focused regressions for every discovered lifecycle defect and rerun suites**
 
 Run the relevant auction, settlement, lifecycle processor, notification, and delivery specs plus the car segment of the Playwright scenario.
 
@@ -322,19 +322,19 @@ Run the relevant auction, settlement, lifecycle processor, notification, and del
 - Consumes settled car auction.
 - Produces one dispute, one claimed/responded support conversation, and read notification evidence.
 
-- [ ] **Step 1: Open a dispute through UI and assert duplicate rejection**
+- [x] **Step 1: Open a dispute through UI and assert duplicate rejection**
 
 The dispute must reference the settled car auction. Admin must view and update it from Disputes.
 
-- [ ] **Step 2: Send a support message and request a human**
+- [x] **Step 2: Send a support message and request a human**
 
 Assert message persistence, draft restoration on forced failure, waiting-admin state, admin claim/reply, and user receipt.
 
-- [ ] **Step 3: Exercise notification list actions and deep links**
+- [x] **Step 3: Exercise notification list actions and deep links**
 
 Assert unread count, single read, mark-all-read, and deep links for funding, access approval, outbid, win, settlement, delivery, dispute, and support where implemented.
 
-- [ ] **Step 4: Run focused support, dispute, notification, and browser suites**
+- [x] **Step 4: Run focused support, dispute, notification, and browser suites**
 
 Run all corresponding backend specs and the matching Playwright segment.
 
@@ -350,17 +350,17 @@ Run all corresponding backend specs and the matching Playwright segment.
 **Interfaces:**
 - Produces an approved, live gadget auction with at least two valid bids and an active winning hold.
 
-- [ ] **Step 1: Download a reuse-permitted real gadget image and record source metadata**
+- [x] **Step 1: Download a reuse-permitted real gadget image and record source metadata**
 
-- [ ] **Step 2: Create, submit, and approve the gadget listing through UI**
+- [x] **Step 2: Create, submit, and approve the gadget listing through UI**
 
 Include proof document, specifications, condition, image, base price, increment, schedule, and 10% hold.
 
-- [ ] **Step 3: Place valid competing bids and verify realtime state**
+- [x] **Step 3: Place valid competing bids and verify realtime state**
 
 Use balances remaining after the car lifecycle. Assert the current winner, active hold, released prior hold, notifications, browse card, and auction detail.
 
-- [ ] **Step 4: Leave the gadget auction live**
+- [x] **Step 4: Leave the gadget auction live**
 
 Do not force-close, cancel, settle, or manipulate its database status. Record its ID and final state in evidence.
 
@@ -377,19 +377,19 @@ Do not force-close, cancel, settle, or manipulate its database status. Record it
 - Consumes all QA identities, auction IDs, evidence JSON, traces, backend test results, and timing observations.
 - Produces route/action coverage matrix and final readiness classification.
 
-- [ ] **Step 1: Add route and interaction inventory tests**
+- [x] **Step 1: Add route and interaction inventory tests**
 
 Visit every public, user, and admin route named in the spec at desktop and mobile widths. Assert main content, no application error, no unexpected horizontal overflow, and operable visible primary controls.
 
-- [ ] **Step 2: Capture warm navigation and API timings**
+- [x] **Step 2: Capture warm navigation and API timings**
 
 Record routes over 3 seconds, ordinary local APIs over 1 second, duplicate requests, duplicate mounts, console errors, hydration warnings, failed requests, and websocket duplication.
 
-- [ ] **Step 3: Fix evidence-backed performance and DRY issues test-first**
+- [x] **Step 3: Fix evidence-backed performance and DRY issues test-first**
 
 Do not refactor unrelated code. Add a regression for every optimization that changes behavior.
 
-- [ ] **Step 4: Run the complete verification matrix**
+- [x] **Step 4: Run the complete verification matrix**
 
 Run:
 
@@ -400,11 +400,11 @@ cd frontend && pnpm exec playwright test --workers=1 && pnpm exec tsc --noEmit &
 
 Expected: all required suites pass. Any skipped external-provider test is explicitly documented with reason.
 
-- [ ] **Step 5: Write the evidence-backed status report**
+- [x] **Step 5: Write the evidence-backed status report**
 
 The report must include account roles without passwords, migration status, route/action matrix, auction IDs and final states, wallet math, notification/support/dispute results, real-image attribution, defects fixed, unresolved blockers, timing observations, exact commands/results, and the Mermaid end-to-end diagram.
 
-- [ ] **Step 6: Audit the original objective requirement by requirement**
+- [x] **Step 6: Audit the original objective requirement by requirement**
 
 Mark each requirement proven, contradicted, incomplete, or missing. Do not classify the app as ready while any beta-blocking requirement lacks authoritative evidence.
 

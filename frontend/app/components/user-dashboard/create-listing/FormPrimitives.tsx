@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { inputClass, labelClass } from "./constants";
 
 export function Field({
@@ -13,10 +14,15 @@ export function Field({
   type?: string;
   placeholder?: string;
 }) {
+  const inputId = useId();
+
   return (
     <div>
-      <label className={labelClass}>{label}</label>
+      <label className={labelClass} htmlFor={inputId}>
+        {label}
+      </label>
       <input
+        id={inputId}
         className={inputClass}
         type={type}
         value={value}

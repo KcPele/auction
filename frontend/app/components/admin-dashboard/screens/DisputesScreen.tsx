@@ -227,6 +227,7 @@ export function DisputesScreen() {
           Resolution
         </label>
         <textarea
+          aria-label="Resolution"
           value={resolution}
           onChange={(e) => setResolution(e.target.value)}
           rows={3}

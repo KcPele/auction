@@ -186,6 +186,7 @@ export function ProfileScreen() {
                 id="profile-first-name"
                 autoComplete="given-name"
                 type="text"
+                placeholder="John"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
@@ -197,6 +198,7 @@ export function ProfileScreen() {
                 id="profile-last-name"
                 autoComplete="family-name"
                 type="text"
+                placeholder="Doe"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"

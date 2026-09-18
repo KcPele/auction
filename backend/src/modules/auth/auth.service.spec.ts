@@ -10,7 +10,7 @@ import { AuthService } from './auth.service';
 
 type AuthTestSurface = {
   getAuth: () => Promise<{
-    api: { getSession: jest.Mock };
+    api: { getSession: jest.Mock; signInEmail?: jest.Mock };
   }>;
   getNodeHelpers: () => Promise<{
     fromNodeHeaders: (headers: object) => Headers;
@@ -84,6 +84,34 @@ describe('AuthService access enforcement', () => {
     });
   });
 
+  it('requests a raw Better Auth response for phone sign in', async () => {
+    const signInEmail = jest.fn().mockResolvedValue(
+      new Response(JSON.stringify({ token: 'session' }), { status: 200 }),
+    );
+    findOneBy.mockResolvedValue({
+      email: 'buyer@example.com',
+      phone: '+2348012345678',
+    });
+    const surface = service as unknown as AuthTestSurface;
+    surface.getAuth = async () => ({ api: { getSession, signInEmail } });
+
+    await service.signInWithPhone(
+      '+2348012345678',
+      'strongPassword123',
+      {},
+    );
+
+    expect(signInEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        asResponse: true,
+        body: {
+          email: 'buyer@example.com',
+          password: 'strongPassword123',
+        },
+      }),
+    );
+  });
+
   it('creates a pending mechanic profile for mechanic registration', async () => {
     const users = createSavingRepository();
     const preferences = createSavingRepository();
@@ -113,6 +141,40 @@ describe('AuthService access enforcement', () => {
     expect(mechanics.save).toHaveBeenCalledWith({
       userId: 'mechanic-user-id',
     });
+  });
+
+  it('rejects registration when email already exists', async () => {
+    const existsBy = jest.fn().mockImplementation(({ email }: { email?: string }) => {
+      return Promise.resolve(email === 'existing@example.com');
+    });
+    const validateService = new AuthService(
+      {} as ConfigService,
+      { existsBy } as unknown as Repository<User>,
+      {} as Repository<NotificationPreference>,
+      {} as Repository<MechanicProfile>,
+      {} as EmailService,
+    );
+
+    await expect(
+      validateService.validateSignUp('existing@example.com', '+2348011111111'),
+    ).rejects.toThrow('An account with this email already exists');
+  });
+
+  it('rejects registration when phone already exists', async () => {
+    const existsBy = jest.fn().mockImplementation(({ phone }: { phone?: string }) => {
+      return Promise.resolve(phone === '+2348019736590');
+    });
+    const validateService = new AuthService(
+      {} as ConfigService,
+      { existsBy } as unknown as Repository<User>,
+      {} as Repository<NotificationPreference>,
+      {} as Repository<MechanicProfile>,
+      {} as EmailService,
+    );
+
+    await expect(
+      validateService.validateSignUp('new@example.com', '+2348019736590'),
+    ).rejects.toThrow('An account with this phone number already exists');
   });
 });
 

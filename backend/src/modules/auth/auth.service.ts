@@ -106,11 +106,13 @@ export class AuthService implements OnModuleDestroy {
     const signIn = authApi.signInEmail as (context: {
       body: Record<string, unknown>;
       headers: Headers;
+      asResponse: boolean;
     }) => Promise<Response>;
 
     return signIn({
       body: { email: user.email, password },
       headers: fromNodeHeaders(headers),
+      asResponse: true,
     });
   }
 
@@ -139,6 +141,25 @@ export class AuthService implements OnModuleDestroy {
       authRole: this.getAuthRole(session.user.role),
       sessionId: session.session.id,
     };
+  }
+
+  async validateSignUp(email?: string, phone?: string) {
+    const [emailExists, phoneExists] = await Promise.all([
+      email
+        ? this.usersRepository.existsBy({ email: email.toLowerCase().trim() })
+        : Promise.resolve(false),
+      phone
+        ? this.usersRepository.existsBy({ phone })
+        : Promise.resolve(false),
+    ]);
+
+    if (emailExists) {
+      throw new BadRequestException('An account with this email already exists');
+    }
+
+    if (phoneExists) {
+      throw new BadRequestException('An account with this phone number already exists');
+    }
   }
 
   async onModuleDestroy() {
@@ -262,23 +283,9 @@ export class AuthService implements OnModuleDestroy {
         user: {
           create: {
             before: async (user: BetterAuthUser) => {
-              // Check for duplicates BEFORE Better Auth inserts, so we can
-              // return a readable error instead of letting Postgres 23505
-              // get swallowed into a generic "Failed to create user" 422.
-              const [emailExists, phoneExists] = await Promise.all([
-                this.usersRepository.existsBy({ email: user.email?.toLowerCase().trim() }),
-                user.phone
-                  ? this.usersRepository.existsBy({ phone: user.phone })
-                  : Promise.resolve(false),
-              ]);
-
-              if (emailExists) {
-                throw new BadRequestException('An account with this email already exists');
-              }
-
-              if (phoneExists) {
-                throw new BadRequestException('An account with this phone number already exists');
-              }
+              // Check for duplicates BEFORE Better Auth inserts, returning
+              // a readable error formatted for Better Auth and NestJS.
+              await this.validateSignUp(user.email, user.phone);
 
               return {
                 data: {

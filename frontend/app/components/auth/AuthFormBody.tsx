@@ -59,7 +59,7 @@ export function AuthFormTop({
 
 export function AuthDivider({ children }: { children: ReactNode }) {
   return (
-    <div className="my-5 flex items-center gap-3.5 text-[11px] uppercase tracking-[0.1em] text-fg-dim before:h-px before:flex-1 before:bg-line before:content-[''] after:h-px after:flex-1 after:bg-line after:content-['']">
+    <div className="my-5 flex items-center gap-3.5 text-[11px] uppercase tracking-widest text-fg-dim before:h-px before:flex-1 before:bg-line before:content-[''] after:h-px after:flex-1 after:bg-line after:content-['']">
       {children}
     </div>
   );

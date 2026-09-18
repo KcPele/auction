@@ -134,6 +134,41 @@ describe('BidsService', () => {
     );
   });
 
+  it.each([
+    { balanceKobo: 5_000_000, bidKobo: 50_000_000, allowed: true },
+    { balanceKobo: 5_000_000, bidKobo: 50_000_100, allowed: false },
+    { balanceKobo: 10_000_000, bidKobo: 100_000_000, allowed: true },
+  ])(
+    'enforces the 10% wallet cap for a ₦$bidKobo kobo bid',
+    async ({ balanceKobo, bidKobo, allowed }) => {
+      const auction = createAuction({ basePriceKobo: 1, holdPercent: 10 });
+      const manager = createManager({ auction, currentTopBid: null });
+      dataSource.transaction.mockImplementation((callback) => callback(manager));
+      walletsService.assertBidQualification.mockImplementation(
+        async (_manager, input: { requiredBalanceKobo: number }) => {
+          if (balanceKobo < input.requiredBalanceKobo) {
+            throw new BadRequestException(
+              'Wallet balance does not meet the auction bid requirement',
+            );
+          }
+          return { wallet: { id: 'wallet-id', balanceKobo } };
+        },
+      );
+
+      const action = service.placeBid('bidder-id', auction.id, {
+        amountKobo: bidKobo,
+      });
+
+      if (allowed) {
+        await expect(action).resolves.toBeDefined();
+      } else {
+        await expect(action).rejects.toThrow(
+          'Wallet balance does not meet the auction bid requirement',
+        );
+      }
+    },
+  );
+
   it('rejects bids when the auction is not live', async () => {
     const manager = createManager({
       auction: createAuction({ status: AuctionStatus.Scheduled }),

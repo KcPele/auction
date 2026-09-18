@@ -5,6 +5,7 @@ import { useSession } from "@/app/lib/auth/client";
 import {
   getMe,
   signInEmail,
+  signInPhone,
   signOutCall,
   signUpEmail,
 } from "../api/auth.api";
@@ -33,6 +34,16 @@ export function useSignIn() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: signInEmail,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: authKeys.me() });
+    },
+  });
+}
+
+export function usePhoneSignIn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: signInPhone,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: authKeys.me() });
     },

@@ -43,11 +43,12 @@ export class AuthController {
   @ApiOkResponse({
     description: 'Account created. Better Auth also sets the session cookie.',
   })
-  signUpEmail(
-    @Body() _dto: SignUpEmailDto,
+  async signUpEmail(
+    @Body() dto: SignUpEmailDto,
     @Req() request: AuthFastifyRequest,
     @Res() reply: AuthFastifyReply,
   ) {
+    await this.authService.validateSignUp(dto.email, dto.phone);
     return this.forwardToBetterAuth(request, reply);
   }
 

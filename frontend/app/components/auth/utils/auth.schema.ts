@@ -21,10 +21,29 @@ export const signUpSchema = z.object({
 
 export type SignUpForm = z.infer<typeof signUpSchema>;
 
-export const signInSchema = z.object({
-  email: z.email("Invalid email"),
-  password: z.string().min(1, "Required"),
-  remember: z.boolean().optional(),
-});
+export const signInSchema = z
+  .object({
+    method: z.enum(["email", "phone"]),
+    email: z.string(),
+    phone: z.string(),
+    password: z.string().min(1, "Required"),
+    remember: z.boolean().optional(),
+  })
+  .superRefine((data, context) => {
+    if (data.method === "email" && !z.email().safeParse(data.email).success) {
+      context.addIssue({
+        code: "custom",
+        path: ["email"],
+        message: "Invalid email",
+      });
+    }
+    if (data.method === "phone" && !/^[0-9 +()-]{7,}$/.test(data.phone)) {
+      context.addIssue({
+        code: "custom",
+        path: ["phone"],
+        message: "Enter your phone",
+      });
+    }
+  });
 
 export type SignInForm = z.infer<typeof signInSchema>;

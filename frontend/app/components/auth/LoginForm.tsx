@@ -9,16 +9,17 @@ import { toast } from "sonner";
 import { ApiError } from "@/app/lib/api/error";
 import { getMe } from "./api/auth.api";
 import { AuthFormBody, AuthFormTop } from "./AuthFormBody";
-import { useSignIn } from "./hooks/use-me";
+import { usePhoneSignIn, useSignIn } from "./hooks/use-me";
 import { AuthButton } from "./primitives/AuthButton";
 import { Checkbox } from "./primitives/Checkbox";
-import { Field, Input } from "./primitives/Field";
+import { Field, Input, PhoneInput } from "./primitives/Field";
 import { signInSchema, type SignInForm } from "./utils/auth.schema";
 
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const [showPw, setShowPw] = useState(false);
+  const [method, setMethod] = useState<"email" | "phone">("email");
   const requestedNext = params.get("next");
   const nextPath =
     requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
@@ -26,29 +27,50 @@ export function LoginForm() {
       : null;
 
   const {
+    clearErrors,
     control,
-    register,
     handleSubmit,
+    register,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SignInForm>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
+      method: "email",
       email: params.get("email") ?? "",
+      phone: "",
       password: "",
       remember: true,
     },
     mode: "onTouched",
   });
 
-  const { mutateAsync: signIn, isPending } = useSignIn();
+  const { mutateAsync: signIn, isPending: isEmailPending } = useSignIn();
+  const { mutateAsync: signInWithPhone, isPending: isPhonePending } =
+    usePhoneSignIn();
+  const isPending = isEmailPending || isPhonePending;
+
+  const selectMethod = (nextMethod: "email" | "phone") => {
+    setMethod(nextMethod);
+    setValue("method", nextMethod, { shouldValidate: false });
+    clearErrors(["email", "phone"]);
+  };
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await signIn({
-        email: data.email,
-        password: data.password,
-        rememberMe: Boolean(data.remember),
-      });
+      if (data.method === "phone") {
+        await signInWithPhone({
+          phone: data.phone,
+          password: data.password,
+          rememberMe: Boolean(data.remember),
+        });
+      } else {
+        await signIn({
+          email: data.email,
+          password: data.password,
+          rememberMe: Boolean(data.remember),
+        });
+      }
       const me = await getMe();
       toast.success("Welcome back");
       const roleSafeNext =
@@ -59,10 +81,18 @@ export function LoginForm() {
           : nextPath?.startsWith("/admin")
             ? "/dashboard"
             : (nextPath ?? "/dashboard");
-      router.replace(roleSafeNext);
+      if (data.method === "phone") {
+        window.location.assign(roleSafeNext);
+      } else {
+        router.replace(roleSafeNext);
+      }
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 403 && err.code === "EMAIL_NOT_VERIFIED") {
+        if (
+          data.method === "email" &&
+          err.status === 403 &&
+          err.code === "EMAIL_NOT_VERIFIED"
+        ) {
           const query = new URLSearchParams({
             ctx: "login",
             email: data.email,
@@ -107,16 +137,47 @@ export function LoginForm() {
             Email verified. Sign in to continue.
           </div>
         )}
-        <Field htmlFor="login-email" label="Email address" hint={errors.email?.message}>
-          <Input
-            autoComplete="email"
-            id="login-email"
-            type="email"
-            placeholder="you@example.com"
-            leftIcon={<Mail aria-hidden="true" size={18} />}
-            {...register("email")}
-          />
-        </Field>
+        <div className="mb-2 flex justify-end">
+          <button
+            type="button"
+            className="text-xs font-semibold text-accent hover:text-accent-hover"
+            onClick={() =>
+              selectMethod(method === "email" ? "phone" : "email")
+            }
+          >
+            {method === "email" ? "Use phone number" : "Use email address"}
+          </button>
+        </div>
+
+        {method === "email" ? (
+          <Field
+            htmlFor="login-email"
+            label="Email address"
+            hint={errors.email?.message}
+          >
+            <Input
+              autoComplete="email"
+              id="login-email"
+              type="email"
+              placeholder="you@example.com"
+              leftIcon={<Mail aria-hidden="true" size={18} />}
+              {...register("email")}
+            />
+          </Field>
+        ) : (
+          <Field
+            htmlFor="login-phone"
+            label="Phone number"
+            hint={errors.phone?.message}
+          >
+            <PhoneInput
+              autoComplete="tel-national"
+              id="login-phone"
+              placeholder="812 345 6789"
+              {...register("phone")}
+            />
+          </Field>
+        )}
 
         <Field
           htmlFor="login-password"

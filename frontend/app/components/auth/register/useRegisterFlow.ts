@@ -75,6 +75,21 @@ export function useRegisterFlow() {
           firstField ? fields.includes(firstField) : false,
         );
         if (targetStep >= 0) setStep(targetStep);
+      } else {
+        const lowerMsg = (error.message || "").toLowerCase();
+        if (lowerMsg.includes("phone")) {
+          form.setError("phone", { message: error.message });
+          const targetStep = REGISTER_STEPS.findIndex(({ fields }) =>
+            fields.includes("phone"),
+          );
+          if (targetStep >= 0) setStep(targetStep);
+        } else if (lowerMsg.includes("email")) {
+          form.setError("email", { message: error.message });
+          const targetStep = REGISTER_STEPS.findIndex(({ fields }) =>
+            fields.includes("email"),
+          );
+          if (targetStep >= 0) setStep(targetStep);
+        }
       }
       toast.error(error.message || "Could not create account");
     }
