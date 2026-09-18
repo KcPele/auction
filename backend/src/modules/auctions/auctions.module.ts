@@ -11,6 +11,7 @@ import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { JobsModule } from '../jobs/jobs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { User } from '../users/entities/user.entity';
+import { Watchlist } from '../users/entities/watchlist.entity';
 import { WalletsModule } from '../wallets/wallets.module';
 import { WalletHold } from '../wallets/entities/wallet-hold.entity';
 import { AuctionLifecycleProcessor } from './auction-lifecycle.processor';
@@ -37,6 +38,7 @@ import { AuctionCatalogQuery } from './auction-catalog.query';
       User,
       AuctionDelivery,
       WalletHold,
+      Watchlist,
     ]),
     JobsModule,
     NotificationsModule,

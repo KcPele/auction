@@ -32,10 +32,29 @@ describe('AuctionLifecycleScheduler', () => {
       expect.objectContaining({ jobId: `auction:${auction.id}:start` }),
     );
     expect(auctionLifecycleQueue.add).toHaveBeenCalledWith(
+      AuctionLifecycleJobNames.Remind,
+      { auctionId: auction.id },
+      expect.objectContaining({ jobId: `auction:${auction.id}:remind` }),
+    );
+    expect(auctionLifecycleQueue.add).toHaveBeenCalledWith(
       AuctionLifecycleJobNames.Close,
       { auctionId: auction.id },
       expect.objectContaining({ jobId: `auction:${auction.id}:close` }),
     );
+  });
+
+  it('schedules the reminder 15 minutes before the auction starts', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1_000);
+    const auction = createAuction({ startTime: new Date(901_000) });
+
+    await scheduler.scheduleAuctionReminder(auction);
+
+    expect(auctionLifecycleQueue.add).toHaveBeenCalledWith(
+      AuctionLifecycleJobNames.Remind,
+      { auctionId: auction.id },
+      expect.objectContaining({ delay: 0 }),
+    );
+    jest.restoreAllMocks();
   });
 
   it('schedules payment deadline jobs', async () => {

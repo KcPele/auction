@@ -40,6 +40,7 @@ describe('AuctionsService', () => {
   let escrowSettingsRepository: { findOneBy: jest.Mock };
   let usersRepository: { find: jest.Mock; findOneBy: jest.Mock };
   let notificationsService: { create: jest.Mock };
+  let watchlistRepository: { find: jest.Mock };
   let walletsService: { releaseBidHold: jest.Mock };
   let bidsGateway: { emitStatusChanged: jest.Mock; emitAuctionClosed: jest.Mock };
   let lifecycleScheduler: {
@@ -78,6 +79,7 @@ describe('AuctionsService', () => {
     escrowSettingsRepository = { findOneBy: jest.fn().mockResolvedValue(null) };
     usersRepository = { find: jest.fn(), findOneBy: jest.fn() };
     notificationsService = { create: jest.fn() };
+    watchlistRepository = { find: jest.fn() };
     walletsService = { releaseBidHold: jest.fn() };
     bidsGateway = { emitStatusChanged: jest.fn(), emitAuctionClosed: jest.fn() };
     lifecycleScheduler = {
@@ -89,6 +91,7 @@ describe('AuctionsService', () => {
     service = new AuctionsService(
       dataSource as never,
       auctionsRepository as never,
+      watchlistRepository as never,
       bidsRepository as never,
       carListingsRepository as never,
       gadgetListingsRepository as never,
@@ -324,6 +327,27 @@ describe('AuctionsService', () => {
     );
     expect(lifecycleScheduler.scheduleAuctionClose).toHaveBeenCalledWith(
       auction,
+    );
+  });
+
+  it('notifies every user watching an auction before it starts', async () => {
+    auctionsRepository.findOneBy.mockResolvedValue(
+      createAuction({ status: AuctionStatus.Scheduled }),
+    );
+    watchlistRepository.find.mockResolvedValue([
+      { userId: 'watcher-1' },
+      { userId: 'watcher-2' },
+    ]);
+
+    await service.sendStartingSoonReminders('auction-id');
+
+    expect(notificationsService.create).toHaveBeenCalledTimes(2);
+    expect(notificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: 'watcher-1',
+        title: 'Auction starts in 15 minutes',
+        data: { auctionId: 'auction-id', source: 'WATCHLIST_REMINDER' },
+      }),
     );
   });
 

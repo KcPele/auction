@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { UserListingPermission } from '../users/entities/user-listing-permission.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { WalletLedgerEntry } from '../wallets/entities/wallet-ledger-entry.entity';
 import { BanUserDto } from './dto/ban-user.dto';
@@ -15,6 +16,8 @@ import { MechanicProfile } from './entities/mechanic-profile.entity';
 export class AdminUsersService {
   constructor(
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
+    @InjectRepository(UserListingPermission)
+    private readonly listingPermissionsRepository: Repository<UserListingPermission>,
     @InjectRepository(Wallet) private readonly walletsRepository: Repository<Wallet>,
     @InjectRepository(WalletLedgerEntry) private readonly ledgerRepository: Repository<WalletLedgerEntry>,
     private readonly dataSource: DataSource,
@@ -37,7 +40,19 @@ export class AdminUsersService {
 
     const userIds = users.map((u) => u.id);
     const wallets = userIds.length > 0 ? await this.walletsRepository.find({ where: { userId: In(userIds) } }) : [];
+    const listingPermissions = userIds.length > 0
+      ? await this.listingPermissionsRepository.find({
+          where: { userId: In(userIds) },
+          select: { userId: true, category: true },
+        })
+      : [];
     const walletMap = new Map(wallets.map((w) => [w.userId, w]));
+    const permissionsMap = new Map<string, UserListingPermission['category'][]>();
+    for (const permission of listingPermissions) {
+      const current = permissionsMap.get(permission.userId) ?? [];
+      current.push(permission.category);
+      permissionsMap.set(permission.userId, current);
+    }
 
     const items = users.map((u) => {
       const wallet = walletMap.get(u.id);
@@ -45,6 +60,7 @@ export class AdminUsersService {
         id: u.id, handle: `@${u.firstName.toLowerCase()}***`, firstName: u.firstName, lastName: u.lastName,
         email: u.email, phone: u.phone, role: u.role, isActive: u.isActive, isBanned: u.isBanned,
         walletBalanceKobo: wallet?.balanceKobo ?? 0, walletHoldKobo: wallet?.heldKobo ?? 0, createdAt: u.createdAt,
+        listingPermissions: permissionsMap.get(u.id) ?? [],
       };
     });
 

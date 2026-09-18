@@ -10,6 +10,7 @@ import type { IncomingHttpHeaders } from 'http';
 import { Pool } from 'pg';
 import { Repository } from 'typeorm';
 import { EmailService } from '../../common/email/email.service';
+import { renderTransactionalEmail } from '../../common/email/transactional-email.template';
 import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { NotificationPreference } from '../users/entities/notification-preference.entity';
@@ -220,12 +221,15 @@ export class AuthService implements OnModuleDestroy {
           if (!data.user.email) return;
           await this.emailService.send({
             to: data.user.email,
-            subject: 'Reset your BidNaija password',
-            html: `<p>Hi${data.user.name ? ' ' + data.user.name : ''},</p>
-              <p>Click the link below to reset your BidNaija password. The link expires in 1 hour.</p>
-              <p><a href="${data.url}">${data.url}</a></p>
-              <p>If you didn't ask for this, you can safely ignore this email.</p>`,
-            text: `Reset your BidNaija password: ${data.url}`,
+            ...renderTransactionalEmail({
+              title: 'Reset your BidNaija password',
+              message:
+                "Use the secure link below to choose a new password. It expires in one hour. If you didn't request this, you can safely ignore this email.",
+              recipientName: data.user.name,
+              preheader: 'Your secure BidNaija password reset link',
+              actionUrl: data.url,
+              actionLabel: 'Reset password',
+            }),
           });
         },
       },
@@ -242,11 +246,14 @@ export class AuthService implements OnModuleDestroy {
           if (!data.user.email) return;
           await this.emailService.send({
             to: data.user.email,
-            subject: 'Verify your BidNaija email',
-            html: `<p>Hi${data.user.name ? ' ' + data.user.name : ''},</p>
-              <p>Confirm your email so we can keep your account secure.</p>
-              <p><a href="${data.url}">${data.url}</a></p>`,
-            text: `Verify your BidNaija email: ${data.url}`,
+            ...renderTransactionalEmail({
+              title: 'Verify your BidNaija email',
+              message:
+                'Confirm your email address so we can keep your account secure and send important auction updates.',
+              recipientName: data.user.name,
+              actionUrl: data.url,
+              actionLabel: 'Verify email address',
+            }),
           });
         },
       },
@@ -272,9 +279,11 @@ export class AuthService implements OnModuleDestroy {
                   : 'reset your password';
             await this.emailService.send({
               to: data.email,
-              subject: 'Your BidNaija verification code',
-              html: `<p>Use <strong>${data.otp}</strong> to ${purpose}. This code expires shortly.</p>`,
-              text: `Use ${data.otp} to ${purpose}. This code expires shortly.`,
+              ...renderTransactionalEmail({
+                title: 'Your BidNaija verification code',
+                message: `Use code ${data.otp} to ${purpose}. This code expires shortly and should never be shared.`,
+                preheader: `Your BidNaija code is ${data.otp}`,
+              }),
             });
           },
         }),

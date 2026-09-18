@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -14,6 +15,8 @@ import { AuctionDelivery } from '../auctions/entities/auction-delivery.entity';
 import { AuctionStatus } from '../../common/enums/auction-status.enum';
 import { BidStatus } from '../../common/enums/bid-status.enum';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { NotificationAudience } from '../../common/enums/notification-audience.enum';
+import { NotificationType } from '../../common/enums/notification-type.enum';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { Bid } from '../bids/entities/bid.entity';
@@ -36,9 +39,12 @@ import {
 import { queryUserBidCounts, queryUserBidPage } from './user-bids.query';
 import { loadAuctionListings } from './users-listings.query';
 import { presentWatchlistItems } from './users-watchlist.presenter';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
@@ -62,6 +68,7 @@ export class UsersService {
     private readonly watchlistRepository: Repository<Watchlist>,
     @InjectRepository(AuctionDelivery)
     private readonly deliveryRepository: Repository<AuctionDelivery>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getMe(userId: string, effectiveRole?: UserRole) {
@@ -416,8 +423,29 @@ export class UsersService {
 
     const entry = this.watchlistRepository.create({ userId, auctionId });
     await this.watchlistRepository.save(entry);
+    await this.notifyWatchlistSaved(userId, auction);
 
     return { watchlist: { id: entry.id, auctionId, createdAt: entry.createdAt } };
+  }
+
+  private async notifyWatchlistSaved(userId: string, auction: Auction) {
+    try {
+      await this.notificationsService.create({
+        audience: NotificationAudience.User,
+        recipientId: userId,
+        type: NotificationType.System,
+        title: 'Reminder set',
+        message: auction.status === AuctionStatus.Scheduled
+          ? "We'll notify you 15 minutes before this auction starts."
+          : 'This auction is saved to your watchlist.',
+        data: { auctionId: auction.id, source: 'WATCHLIST_SAVED' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create watchlist notification for ${userId}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
   }
 
   async removeWatchlist(userId: string, auctionId: string) {

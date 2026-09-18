@@ -13,6 +13,7 @@ export type AdminUserItemDto = {
   walletBalanceKobo: number;
   walletHoldKobo: number;
   createdAt: string;
+  listingPermissions: ("CAR" | "GADGET")[];
 };
 
 export type ListAdminUsersResponseDto = {
@@ -34,6 +35,7 @@ export type AdminUserItem = {
   walletBalance: number; // naira
   walletHold: number; // naira
   createdAt: Date;
+  listingPermissions: ("cars" | "gadgets")[];
 };
 
 export type AdminUserWalletLedgerDto = {

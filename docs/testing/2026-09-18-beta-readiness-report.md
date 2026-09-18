@@ -8,7 +8,7 @@ BidNaija's local product paths are healthy and the tested browser journeys are r
 
 ## Outcome Summary
 
-- 52 backend suites passed with 239 tests.
+- 54 backend suites passed with 252 tests after the listing-access and reminder work.
 - 29 of 30 browser tests passed in the final serial matrix; the only skip was the deliberately credential-gated external KYC-provider sandbox test.
 - Support coverage includes both human handoff and failed-send draft restoration.
 - Frontend and backend type checks, lint checks, and production builds passed.
@@ -18,21 +18,11 @@ BidNaija's local product paths are healthy and the tested browser journeys are r
 - The completed car auction is settled and delivered, with its dispute resolved.
 - The replacement gadget auction remains live with two bids and the correct winning hold.
 
-## QA Accounts
+## QA Data Cleanup
 
-Passwords are intentionally omitted.
+The QA identities below were historical fixtures used to produce this report. On 18 September 2026, all mechanic accounts and every QA, E2E, and Beta account were deleted at the user's request, together with their dependent dummy auctions and listings.
 
-| Identity | Email | Effective responsibility |
-|---|---|---|
-| QA Admin | `beta.admin.20260917a@bidnaija.local` | Administrator |
-| QA Mechanic | `beta.mechanic.20260917a@bidnaija.local` | Verified mechanic |
-| QA Car Dealer | `beta.car.20260917a@bidnaija.local` | Car listing permission |
-| QA Gadget Seller | `beta.gadget.20260917a@bidnaija.local` | Gadget listing permission |
-| QA Bidder A | `beta.biddera.20260917a@bidnaija.local` | Competing bidder |
-| QA Bidder B | `beta.bidderb.20260917a@bidnaija.local` | Winning bidder |
-| QA Code User | `beta.code.20260917a@bidnaija.local` | Access-code redemption |
-
-Email and KYC state were prepared through the approved exact-email test-account utility. Admin promotion used the repository's admin workflow. Referral attribution was persisted for the designated code user without adding role, wallet, or permission side effects.
+The cleanup removed 21 application users, 21 authentication users, 7 auctions, 5 car listings, and 2 gadget listings. Post-cleanup verification found zero mechanic accounts, zero QA/E2E/Beta accounts, and retained exactly four real users: `dsilakass@gmail.com`, `mishael.em@gmail.com`, `fidekg122@gmail.com`, and `fidekg123@gmail.com`.
 
 ## Auction Evidence
 
@@ -122,7 +112,7 @@ Both high-resolution files were uploaded through the listing UI. Source metadata
 
 ```text
 backend: pnpm migration:run                    PASS (no pending migrations)
-backend: pnpm test --runInBand                 PASS (52 suites, 239 tests)
+backend: pnpm test --runInBand                 PASS (54 suites, 252 tests)
 backend: pnpm typecheck                        PASS
 backend: pnpm lint                             PASS
 backend: pnpm build                            PASS
@@ -132,14 +122,13 @@ frontend: pnpm build                           PASS (26 pages generated)
 frontend: pnpm exec playwright test --workers=1 PASS (29 passed, 1 provider-gated skip)
 ```
 
-The frontend development server was restarted after the production build and is running on port 3000.
+The latest backend result is 54 suites and 252 tests. Frontend lint, type checking, and the 26-page production build passed after the final UI changes. The frontend development server remains on port 3000.
 
 ## Remaining Conditions Before Production
 
 1. Run `kyc-sandbox.spec.ts` with `E2E_KYC_SANDBOX`, `E2E_KYC_EMAIL`, and `E2E_KYC_PASSWORD` against the actual provider sandbox.
 2. Confirm required production secrets and endpoints in staging. The backend already fails fast for missing production credentials.
 3. Run deployment-level smoke and load tests; local timings do not prove multi-user capacity.
-4. Allow the expired QA gadget auction's payment deadline to pass, then use the admin UI to default or settle it. The early-default guard was verified and should not be bypassed.
 
 ## Requirement Audit
 

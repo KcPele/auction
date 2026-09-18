@@ -260,6 +260,160 @@ describe('AdminListingsService car approval', () => {
 });
 
 describe('AdminListingsService access review notifications', () => {
+  it('notifies the user when an admin grants listing access directly', async () => {
+    const permission = {
+      id: 'permission-id',
+      userId: 'user-id',
+      category: ListingCategory.Car,
+      grantedById: 'admin-id',
+    };
+    const permissions = {
+      findOneBy: jest.fn().mockResolvedValue(null),
+      create: jest.fn((value) => value),
+      save: jest.fn().mockResolvedValue(permission),
+    };
+    const users = {
+      findOneBy: jest.fn().mockResolvedValue({
+        id: 'user-id',
+        isActive: true,
+      }),
+    };
+    const notifications = { create: jest.fn().mockResolvedValue({}) };
+    const service = new AdminListingsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      permissions as never,
+      users as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      notifications as never,
+    );
+
+    await service.grantListingPermission('admin-id', {
+      userId: 'user-id',
+      category: ListingCategory.Car,
+    });
+
+    expect(notifications.create).toHaveBeenCalledWith({
+      audience: 'USER',
+      recipientId: 'user-id',
+      type: 'SYSTEM',
+      title: 'Car listing access granted',
+      message: 'You can now create car listings.',
+      data: {
+        category: ListingCategory.Car,
+        source: 'ADMIN_GRANT',
+      },
+    });
+  });
+
+  it('does not notify again when the listing permission already exists', async () => {
+    const existingPermission = {
+      id: 'permission-id',
+      userId: 'user-id',
+      category: ListingCategory.Car,
+      grantedById: 'admin-id',
+    };
+    const permissions = {
+      findOneBy: jest.fn().mockResolvedValue(existingPermission),
+      create: jest.fn(),
+      save: jest.fn(),
+    };
+    const users = {
+      findOneBy: jest.fn().mockResolvedValue({
+        id: 'user-id',
+        isActive: true,
+      }),
+    };
+    const notifications = { create: jest.fn().mockResolvedValue({}) };
+    const service = new AdminListingsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      permissions as never,
+      users as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      notifications as never,
+    );
+
+    await service.grantListingPermission('admin-id', {
+      userId: 'user-id',
+      category: ListingCategory.Car,
+    });
+
+    expect(notifications.create).not.toHaveBeenCalled();
+  });
+
+  it('revokes an existing listing permission and notifies the user', async () => {
+    const permission = {
+      id: 'permission-id',
+      userId: 'user-id',
+      category: ListingCategory.Gadget,
+    };
+    const permissions = {
+      findOneBy: jest.fn().mockResolvedValue(permission),
+      remove: jest.fn().mockResolvedValue(permission),
+    };
+    const notifications = { create: jest.fn().mockResolvedValue({}) };
+    const service = new AdminListingsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      permissions as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      notifications as never,
+    );
+
+    await expect(
+      service.revokeListingPermission('user-id', ListingCategory.Gadget),
+    ).resolves.toEqual({ revoked: true, category: ListingCategory.Gadget });
+    expect(permissions.remove).toHaveBeenCalledWith(permission);
+    expect(notifications.create).toHaveBeenCalledWith({
+      audience: 'USER',
+      recipientId: 'user-id',
+      type: 'SYSTEM',
+      title: 'Gadget listing access revoked',
+      message:
+        'Your gadget listing access was revoked. Contact support if you believe this is a mistake.',
+      data: {
+        category: ListingCategory.Gadget,
+        source: 'ADMIN_REVOKE',
+      },
+    });
+  });
+
+  it('does not notify when the listing permission does not exist', async () => {
+    const permissions = {
+      findOneBy: jest.fn().mockResolvedValue(null),
+      remove: jest.fn(),
+    };
+    const notifications = { create: jest.fn() };
+    const service = new AdminListingsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      permissions as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      notifications as never,
+    );
+
+    await expect(
+      service.revokeListingPermission('user-id', ListingCategory.Car),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(permissions.remove).not.toHaveBeenCalled();
+    expect(notifications.create).not.toHaveBeenCalled();
+  });
+
   it('notifies the applicant when listing access is rejected', async () => {
     const application = {
       id: 'application-id',

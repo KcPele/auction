@@ -17,6 +17,10 @@ export class AuctionLifecycleProcessor extends WorkerHost {
   }
 
   async process(job: Job<AuctionLifecycleJobData>) {
+    if (job.name === AuctionLifecycleJobNames.Remind) {
+      return this.auctionsService.sendStartingSoonReminders(job.data.auctionId);
+    }
+
     if (job.name === AuctionLifecycleJobNames.Start) {
       return this.auctionsService.startScheduledAuction(job.data.auctionId);
     }

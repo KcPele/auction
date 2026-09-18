@@ -11,6 +11,7 @@ import type {
 } from "@/app/components/listings/types/listing.types";
 import { Icon } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
+import { ListingImage } from "../primitives/ListingImage";
 
 type Category = "car" | "gadget";
 
@@ -94,13 +95,13 @@ export function ListingDetailScreen({ id }: { id: string }) {
           {listing.photoUrls.length > 0 && (
             <div className="mt-4 grid grid-cols-3 gap-2">
               {listing.photoUrls.slice(0, 6).map((u, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={i}
-                  src={u}
-                  alt=""
-                  className="aspect-square w-full rounded-lg border border-line object-cover"
-                />
+                <div key={u} className="relative aspect-square overflow-hidden rounded-lg border border-line">
+                  <ListingImage
+                    src={u}
+                    alt={`${listing.title} photo ${i + 1}`}
+                    sizes="(max-width: 1024px) 33vw, 220px"
+                  />
+                </div>
               ))}
             </div>
           )}

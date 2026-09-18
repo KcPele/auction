@@ -140,6 +140,15 @@ export const grantListingPermission = (input: {
     },
   });
 
+export const revokeListingPermission = (input: {
+  userId: string;
+  category: "cars" | "gadgets";
+}) =>
+  apiClient<unknown>(
+    `/admin/listing-permissions/${input.userId}/${input.category === "cars" ? "CAR" : "GADGET"}`,
+    { method: "DELETE" },
+  );
+
 const toAccessCode = (dto: AccessCodeDto): AccessCode => ({
   id: dto.id,
   code: dto.code,

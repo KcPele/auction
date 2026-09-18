@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { useGrantListingPermission } from "@/app/components/admin/hooks/use-admin-listings";
+import {
+  useGrantListingPermission,
+  useRevokeListingPermission,
+} from "@/app/components/admin/hooks/use-admin-listings";
 import {
   useAdminUserWallet,
   useBanUser,
@@ -80,24 +83,90 @@ function WalletStat({ label, value, warning = false }: { label: string; value: n
   );
 }
 
-export function GrantAccessDialog({ user, onClose }: { user: AdminUserItem | null; onClose: () => void }) {
-  const [category, setCategory] = useState<"cars" | "gadgets">("cars");
+export function ListingAccessDialog({ user, onClose }: { user: AdminUserItem | null; onClose: () => void }) {
+  const [confirming, setConfirming] = useState<"cars" | "gadgets" | null>(null);
   const grant = useGrantListingPermission();
-  const submit = async () => {
+  const revoke = useRevokeListingPermission();
+  const close = () => {
+    setConfirming(null);
+    onClose();
+  };
+  const updateAccess = async (
+    category: "cars" | "gadgets",
+    action: "grant" | "revoke",
+  ) => {
     if (!user) return;
     try {
-      await grant.mutateAsync({ userId: user.id, category });
-      toast.success("Listing access granted");
-      onClose();
+      const mutation = action === "grant" ? grant : revoke;
+      await mutation.mutateAsync({ userId: user.id, category });
+      toast.success(`Listing access ${action === "grant" ? "granted" : "revoked"}`);
+      close();
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Could not grant access");
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : `Could not ${action} access`,
+      );
     }
   };
+  const pending = grant.isPending || revoke.isPending;
   return (
-    <Modal open={Boolean(user)} onClose={onClose} title={user ? `Grant listing access · ${user.fullName}` : ""} widthClass="max-w-md" footer={<DialogActions onClose={onClose} onConfirm={submit} pending={grant.isPending} confirmLabel="Grant access" pendingLabel="Granting…" tone="success" />}>
-      <p className="mb-4 text-sm text-muted-foreground">Bypass the application flow only after verifying the user out-of-band.</p>
-      <span className="block text-xs font-medium text-muted-foreground">Category</span>
-      <div className="mt-2 grid grid-cols-2 gap-2">{(["cars", "gadgets"] as const).map((value) => <button key={value} type="button" aria-pressed={category === value} onClick={() => setCategory(value)} className={`rounded-md border px-3 py-2 text-sm font-semibold capitalize ${category === value ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface text-muted-foreground hover:bg-surface-subtle"}`}>{value}</button>)}</div>
+    <Modal open={Boolean(user)} onClose={close} title={user ? `Listing access · ${user.fullName}` : ""} widthClass="max-w-lg">
+      <p className="mb-4 text-sm text-muted-foreground">
+        Grant or revoke the categories this user can create. Existing listings are not affected.
+      </p>
+      <div className="space-y-2">
+        {(["cars", "gadgets"] as const).map((category) => {
+          const granted = user?.listingPermissions.includes(category) ?? false;
+          const isConfirming = confirming === category;
+          return (
+            <div key={category} className="rounded-lg border border-border bg-surface-subtle p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold capitalize text-foreground">{category}</p>
+                  <p className={`mt-0.5 text-xs ${granted ? "text-success" : "text-muted-foreground"}`}>
+                    {granted ? "Access granted" : "No active access"}
+                  </p>
+                </div>
+                {granted ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setConfirming(category)}
+                    className="rounded-md border border-danger/30 px-3 py-1.5 text-xs font-semibold text-danger hover:bg-danger-soft disabled:opacity-60"
+                  >
+                    Revoke
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => updateAccess(category, "grant")}
+                    className="rounded-md border border-success/30 bg-success-soft px-3 py-1.5 text-xs font-semibold text-success hover:border-success disabled:opacity-60"
+                  >
+                    {grant.isPending ? "Granting…" : "Grant"}
+                  </button>
+                )}
+              </div>
+              {isConfirming && (
+                <div className="mt-3 border-t border-border pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    Revoke {category} listing access for this user?
+                  </p>
+                  <div className="mt-2 flex justify-end gap-2">
+                    <button type="button" onClick={() => setConfirming(null)} className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-surface">
+                      Keep access
+                    </button>
+                    <button type="button" disabled={pending} onClick={() => updateAccess(category, "revoke")} className="rounded-md border border-danger/30 bg-danger-soft px-3 py-1.5 text-xs font-semibold text-danger hover:border-danger disabled:opacity-60">
+                      {revoke.isPending ? "Revoking…" : "Confirm revoke"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </Modal>
   );
 }

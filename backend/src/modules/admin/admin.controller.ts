@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseEnumPipe,
@@ -238,6 +239,16 @@ export class AdminController {
   @ApiCreatedResponse({ description: 'Listing permission granted.' })
   grantListingPermission(@CurrentUser() user: AuthenticatedUser, @Body() dto: GrantListingPermissionDto) {
     return this.listingsService.grantListingPermission(user.id, dto);
+  }
+
+  @Delete('listing-permissions/:userId/:category')
+  @ApiOperation({ summary: 'Revoke listing access from a user' })
+  @ApiOkResponse({ description: 'Listing permission revoked.' })
+  revokeListingPermission(
+    @Param('userId') userId: string,
+    @Param('category', new ParseEnumPipe(ListingCategory)) category: ListingCategory,
+  ) {
+    return this.listingsService.revokeListingPermission(userId, category);
   }
 
   @Get('listing-access-applications/pending')

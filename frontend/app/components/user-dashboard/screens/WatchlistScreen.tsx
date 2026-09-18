@@ -9,6 +9,7 @@ import type { WatchlistItem } from "@/app/components/users/types/users.types";
 import { ApiError } from "@/app/lib/api/error";
 import { timeAgo } from "@/app/components/notifications/utils/relative-time";
 import { Icon } from "../primitives/Icon";
+import { ListingImage } from "../primitives/ListingImage";
 
 const STATUS_STYLE: Record<string, string> = {
   LIVE: "border-red/30 bg-red/[0.08] text-red",
@@ -82,14 +83,9 @@ function Card({
   return (
     <div className="rounded-[14px] border border-line bg-surface p-3.5">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-surface-subtle text-fg-muted">
+        <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-subtle text-fg-muted">
           {w.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={w.photoUrl}
-              alt={w.title}
-              className="h-full w-full rounded-lg object-cover"
-            />
+            <ListingImage src={w.photoUrl} alt={w.title} sizes="44px" />
           ) : (
             <Icon
               name={w.category === "cars" ? "car" : "phone"}

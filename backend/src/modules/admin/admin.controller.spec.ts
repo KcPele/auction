@@ -29,7 +29,7 @@ describe('AdminController', () => {
   let users: { listUsers: jest.Mock; banUser: jest.Mock; unbanUser: jest.Mock; getUserWallet: jest.Mock };
   let disputes: { listDisputes: jest.Mock; investigateDispute: jest.Mock; resolveDispute: jest.Mock };
   let mechanics: { listMechanics: jest.Mock; verifyMechanic: jest.Mock; revokeMechanic: jest.Mock };
-  let listings: { listAccessCodes: jest.Mock; createAccessCode: jest.Mock; deactivateAccessCode: jest.Mock; grantListingPermission: jest.Mock; listPendingApplications: jest.Mock; approveApplication: jest.Mock; rejectApplication: jest.Mock; listPendingListings: jest.Mock; approveListing: jest.Mock; rejectListing: jest.Mock };
+  let listings: { listAccessCodes: jest.Mock; createAccessCode: jest.Mock; deactivateAccessCode: jest.Mock; grantListingPermission: jest.Mock; revokeListingPermission: jest.Mock; listPendingApplications: jest.Mock; approveApplication: jest.Mock; rejectApplication: jest.Mock; listPendingListings: jest.Mock; approveListing: jest.Mock; rejectListing: jest.Mock };
   let settings: { listPlatformFees: jest.Mock; updatePlatformFee: jest.Mock; getBiddingSetting: jest.Mock; updateBiddingSetting: jest.Mock; getPaymentAccount: jest.Mock; updatePaymentAccount: jest.Mock; getEscrowSetting: jest.Mock; updateEscrowSetting: jest.Mock; getPlatformToggles: jest.Mock; updatePlatformToggles: jest.Mock };
   let withdrawals: { listPendingWithdrawals: jest.Mock; listAllWithdrawals: jest.Mock };
   let settlement: { settleAuctionPayment: jest.Mock; defaultAuctionPayment: jest.Mock };
@@ -39,7 +39,7 @@ describe('AdminController', () => {
     users = { listUsers: jest.fn(), banUser: jest.fn(), unbanUser: jest.fn(), getUserWallet: jest.fn() };
     disputes = { listDisputes: jest.fn(), investigateDispute: jest.fn(), resolveDispute: jest.fn() };
     mechanics = { listMechanics: jest.fn(), verifyMechanic: jest.fn(), revokeMechanic: jest.fn() };
-    listings = { listAccessCodes: jest.fn(), createAccessCode: jest.fn(), deactivateAccessCode: jest.fn(), grantListingPermission: jest.fn(), listPendingApplications: jest.fn(), approveApplication: jest.fn(), rejectApplication: jest.fn(), listPendingListings: jest.fn(), approveListing: jest.fn(), rejectListing: jest.fn() };
+    listings = { listAccessCodes: jest.fn(), createAccessCode: jest.fn(), deactivateAccessCode: jest.fn(), grantListingPermission: jest.fn(), revokeListingPermission: jest.fn(), listPendingApplications: jest.fn(), approveApplication: jest.fn(), rejectApplication: jest.fn(), listPendingListings: jest.fn(), approveListing: jest.fn(), rejectListing: jest.fn() };
     settings = { listPlatformFees: jest.fn(), updatePlatformFee: jest.fn(), getBiddingSetting: jest.fn(), updateBiddingSetting: jest.fn(), getPaymentAccount: jest.fn(), updatePaymentAccount: jest.fn(), getEscrowSetting: jest.fn(), updateEscrowSetting: jest.fn(), getPlatformToggles: jest.fn(), updatePlatformToggles: jest.fn() };
     withdrawals = { listPendingWithdrawals: jest.fn(), listAllWithdrawals: jest.fn() };
     settlement = { settleAuctionPayment: jest.fn(), defaultAuctionPayment: jest.fn() };
@@ -96,6 +96,20 @@ describe('AdminController', () => {
     listings.grantListingPermission.mockResolvedValue({ listingPermission: dto });
     await expect(controller.grantListingPermission(adminUser, dto)).resolves.toEqual({ listingPermission: dto });
     expect(listings.grantListingPermission).toHaveBeenCalledWith(adminUser.id, dto);
+  });
+
+  it('revokes listing permission manually', async () => {
+    listings.revokeListingPermission.mockResolvedValue({
+      revoked: true,
+      category: ListingCategory.Car,
+    });
+    await expect(
+      controller.revokeListingPermission('user-id', ListingCategory.Car),
+    ).resolves.toEqual({ revoked: true, category: ListingCategory.Car });
+    expect(listings.revokeListingPermission).toHaveBeenCalledWith(
+      'user-id',
+      ListingCategory.Car,
+    );
   });
 
   it('lists pending listing access applications', async () => {

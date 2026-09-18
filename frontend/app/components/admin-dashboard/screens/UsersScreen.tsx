@@ -15,7 +15,7 @@ import { Card, CardBody, CardHead } from "../widgets/Card";
 import { fmtNGN } from "../utils";
 import { SectionHeader } from "./SectionHeader";
 import { PaginationControls } from "../../ui/PaginationControls";
-import { BanUserDialog, GrantAccessDialog, UserWalletDialog } from "../widgets/UserDialogs";
+import { BanUserDialog, ListingAccessDialog, UserWalletDialog } from "../widgets/UserDialogs";
 
 const STATUS_OPTS: { id: "all" | AdminUserStatus; label: string }[] = [
   { id: "all", label: "All" },
@@ -30,7 +30,7 @@ export function UsersScreen() {
   const { data: me } = useMe();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | AdminUserStatus>("all");
-  const [granting, setGranting] = useState<AdminUserItem | null>(null);
+  const [managingAccess, setManagingAccess] = useState<AdminUserItem | null>(null);
   const [inspecting, setInspecting] = useState<AdminUserItem | null>(null);
   const [banning, setBanning] = useState<AdminUserItem | null>(null);
   const [page, setPage] = useState(0);
@@ -60,7 +60,7 @@ export function UsersScreen() {
     <>
       <SectionHeader
         title="Users & wallets"
-        sub="Search profiles, inspect wallets, ban accounts, and manually grant listing access."
+        sub="Search profiles, inspect wallets, moderate accounts, and manage listing access."
       />
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -183,10 +183,10 @@ export function UsersScreen() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setGranting(u)}
+                            onClick={() => setManagingAccess(u)}
                             className="rounded-md border border-line px-2.5 py-1 text-xs text-fg-muted hover:border-accent/40 hover:text-accent"
                           >
-                            Grant
+                            Access
                           </button>
                           {u.id === me?.id ? (
                             <span className="px-2.5 py-1 text-xs font-medium text-fg-dim">
@@ -229,7 +229,7 @@ export function UsersScreen() {
       />
 
       <UserWalletDialog user={inspecting} onClose={() => setInspecting(null)} />
-      <GrantAccessDialog user={granting} onClose={() => setGranting(null)} />
+      <ListingAccessDialog user={managingAccess} onClose={() => setManagingAccess(null)} />
       <BanUserDialog user={banning} onClose={() => setBanning(null)} />
     </>
   );

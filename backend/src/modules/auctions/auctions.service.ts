@@ -20,6 +20,7 @@ import { Bid } from '../bids/entities/bid.entity';
 import { CarListing } from '../cars/entities/car-listing.entity';
 import { GadgetListing } from '../gadgets/entities/gadget-listing.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Watchlist } from '../users/entities/watchlist.entity';
 import { BidsGateway } from '../bids/bids.gateway';
 import { WalletsService } from '../wallets/wallets.service';
 import { AuctionLifecycleScheduler } from './auction-lifecycle.scheduler';
@@ -45,6 +46,8 @@ export class AuctionsService implements OnApplicationBootstrap {
     private readonly dataSource: DataSource,
     @InjectRepository(Auction)
     private readonly auctionsRepository: Repository<Auction>,
+    @InjectRepository(Watchlist)
+    private readonly watchlistRepository: Repository<Watchlist>,
     @InjectRepository(Bid)
     private readonly bidsRepository: Repository<Bid>,
     @InjectRepository(CarListing)
@@ -270,6 +273,27 @@ export class AuctionsService implements OnApplicationBootstrap {
       auction: presentAuction(result.auction),
       changed: result.changed,
     };
+  }
+
+  async sendStartingSoonReminders(auctionId: string) {
+    const auction = await this.auctionsRepository.findOneBy({ id: auctionId });
+    if (!auction || auction.status !== AuctionStatus.Scheduled) {
+      return { notified: 0 };
+    }
+
+    const entries = await this.watchlistRepository.find({ where: { auctionId } });
+    await createLifecycleNotifications(
+      this.notificationsService,
+      this.logger,
+      entries.map((entry) => ({
+        recipientId: entry.userId,
+        type: NotificationType.System,
+        title: 'Auction starts in 15 minutes',
+        message: 'An auction you saved is about to open for bidding.',
+        data: { auctionId, source: 'WATCHLIST_REMINDER' },
+      })),
+    );
+    return { notified: entries.length };
   }
 
   async forceCloseAuction(auctionId: string) {

@@ -7,6 +7,18 @@ const API_PREFIX = "/api/v1";
 const nextConfig: NextConfig = {
   output: "standalone",
   images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "api-minio-s3-storage.kcpele.com",
+        pathname: "/bidnaija/**",
+      },
+      {
+        protocol: "https",
+        hostname: "openinary.kcpele.com",
+        pathname: "/t/auction/**",
+      },
+    ],
     localPatterns: [
       {
         pathname: "/images/**",

@@ -89,7 +89,7 @@ export class AdminListingsService {
       );
       Object.assign(application, { status: ListingAccessStatus.Approved, reviewedById: adminId, reviewNote: dto.reviewNote ?? null, reviewedAt: new Date() });
       await manager.save(application);
-      return { application, listingPermission: permission };
+      return { application, listingPermission: permission.permission };
     });
     await this.notifyAccessReview(result.application, true, dto.reviewNote);
     return result;
@@ -106,7 +106,27 @@ export class AdminListingsService {
   async grantListingPermission(adminId: string, dto: GrantListingPermissionDto) {
     const user = await this.usersRepository.findOneBy({ id: dto.userId, isActive: true });
     if (!user) throw new NotFoundException('User not found');
-    return { listingPermission: await this.grantPermission({ userId: dto.userId, category: dto.category, grantedById: adminId }) };
+    const result = await this.grantPermission({
+      userId: dto.userId,
+      category: dto.category,
+      grantedById: adminId,
+    });
+    if (result.created) {
+      await this.notifyPermissionGranted(dto.userId, dto.category);
+    }
+    return { listingPermission: result.permission };
+  }
+
+  async revokeListingPermission(userId: string, category: ListingCategory) {
+    const permission = await this.permissionsRepository.findOneBy({
+      userId,
+      category,
+    });
+    if (!permission) throw new NotFoundException('Listing permission not found');
+
+    await this.permissionsRepository.remove(permission);
+    await this.notifyPermissionRevoked(userId, category);
+    return { revoked: true, category };
   }
 
   async listPendingListings() {
@@ -247,11 +267,64 @@ export class AdminListingsService {
     }
   }
 
+  private async notifyPermissionGranted(
+    recipientId: string,
+    category: ListingCategory,
+  ) {
+    const categoryLabel = category === ListingCategory.Car ? 'Car' : 'Gadget';
+    try {
+      await this.notificationsService.create({
+        audience: NotificationAudience.User,
+        recipientId,
+        type: NotificationType.System,
+        title: `${categoryLabel} listing access granted`,
+        message: `You can now create ${category.toLowerCase()} listings.`,
+        data: {
+          category,
+          source: 'ADMIN_GRANT',
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create direct listing access notification for ${recipientId}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
+  private async notifyPermissionRevoked(
+    recipientId: string,
+    category: ListingCategory,
+  ) {
+    const categoryLabel = category === ListingCategory.Car ? 'Car' : 'Gadget';
+    try {
+      await this.notificationsService.create({
+        audience: NotificationAudience.User,
+        recipientId,
+        type: NotificationType.System,
+        title: `${categoryLabel} listing access revoked`,
+        message: `Your ${category.toLowerCase()} listing access was revoked. Contact support if you believe this is a mistake.`,
+        data: {
+          category,
+          source: 'ADMIN_REVOKE',
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create listing access revocation notification for ${recipientId}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
   private async grantPermission(input: { userId: string; category: ListingCategory; grantedById: string }, manager?: EntityManager) {
     const repository = manager?.getRepository(UserListingPermission) ?? this.permissionsRepository;
     const existing = await repository.findOneBy({ userId: input.userId, category: input.category });
-    if (existing) return existing;
-    return repository.save(repository.create(input));
+    if (existing) return { permission: existing, created: false };
+    return {
+      permission: await repository.save(repository.create(input)),
+      created: true,
+    };
   }
 
   private async findPendingApplication(applicationId: string, manager?: EntityManager) {

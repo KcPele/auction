@@ -22,12 +22,27 @@ export class AuctionLifecycleScheduler {
 
   async scheduleAuctionLifecycle(auction: Auction) {
     if (auction.status === AuctionStatus.Scheduled) {
+      await this.scheduleAuctionReminder(auction);
       await this.scheduleAuctionStart(auction);
     }
 
     if ([AuctionStatus.Scheduled, AuctionStatus.Live].includes(auction.status)) {
       await this.scheduleAuctionClose(auction);
     }
+  }
+
+  async scheduleAuctionReminder(auction: Auction) {
+    const fifteenMinutes = 15 * 60_000;
+    await this.auctionLifecycleQueue.add(
+      AuctionLifecycleJobNames.Remind,
+      { auctionId: auction.id },
+      {
+        jobId: `auction:${auction.id}:remind`,
+        delay: Math.max(auction.startTime.getTime() - Date.now() - fifteenMinutes, 0),
+        removeOnComplete: { age: 86_400, count: 1_000 },
+        removeOnFail: 100,
+      },
+    );
   }
 
   async scheduleAuctionStart(auction: Auction) {

@@ -8,6 +8,8 @@ import {
 import type { ListingAccessApplication } from "@/app/components/users/types/users.types";
 import { ApiError } from "@/app/lib/api/error";
 import { useMe } from "@/app/components/auth/hooks/use-me";
+import { useListingCapabilities } from "@/app/lib/permissions/use-listing-capabilities";
+import Link from "next/link";
 import { Icon } from "../primitives/Icon";
 
 type Category = "cars" | "gadgets";
@@ -23,6 +25,7 @@ function statusStyle(status: ListingAccessApplication["status"]) {
 
 export function ListingAccessScreen() {
   const { data: me } = useMe();
+  const capabilities = useListingCapabilities();
   const { data, isLoading, isError, refetch } = useApplications();
   const apply = useApplyForListingAccess();
 
@@ -68,19 +71,64 @@ export function ListingAccessScreen() {
         <h1 className="m-0 font-display text-[22px] font-semibold tracking-tight">
           Listing access
         </h1>
-        <button
-          type="button"
-          disabled={availableCategories.length === 0}
-          onClick={() => {
-            const nextCategory = availableCategories[0];
-            if (nextCategory) setCategory(nextCategory);
-            setShowApply((value) => !value);
-          }}
-          className="rounded-lg border-none bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
-        >
-          {availableCategories.length === 0 ? "No categories available" : "+ Apply"}
-        </button>
+        {availableCategories.length === 0 ? (
+          <Link
+            href="/dashboard/listings"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
+          >
+            <Icon name="tag" size={14} /> My listings
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              const nextCategory = availableCategories[0];
+              if (nextCategory) setCategory(nextCategory);
+              setShowApply((value) => !value);
+            }}
+            className="rounded-lg border-none bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
+          >
+            + Apply
+          </button>
+        )}
       </div>
+
+      <section className="mb-4 rounded-[14px] border border-line bg-surface p-4" aria-labelledby="effective-listing-access">
+        <div id="effective-listing-access" className="text-[15px] font-semibold">
+          Your active access
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {([
+            ["CAR", "Cars", capabilities.hasCar, "car"],
+            ["GADGET", "Gadgets", capabilities.hasGadget, "phone"],
+          ] as const).map(([wire, label, granted, icon]) => (
+            <div
+              key={wire}
+              className={`rounded-xl border p-3 ${
+                granted
+                  ? "border-green/30 bg-green/[0.08]"
+                  : "border-line bg-surface-subtle"
+              }`}
+            >
+              <Icon name={icon} size={18} className={granted ? "text-green" : "text-fg-dim"} />
+              <div className="mt-2 text-sm font-semibold">{label}</div>
+              <div className={`mt-0.5 text-[11px] ${granted ? "text-green" : "text-fg-dim"}`}>
+                {granted ? "Granted" : "Not granted"}
+              </div>
+            </div>
+          ))}
+        </div>
+        {capabilities.hasAny && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Link href="/dashboard/listings" className="rounded-lg border border-line px-3 py-2.5 text-center text-xs font-semibold text-fg">
+              My listings
+            </Link>
+            <Link href="/dashboard/listings/create" className="rounded-lg bg-primary px-3 py-2.5 text-center text-xs font-semibold text-primary-foreground">
+              Create listing
+            </Link>
+          </div>
+        )}
+      </section>
 
       {showApply && (
         <div className="mb-4 rounded-[14px] border border-line bg-surface p-4">
