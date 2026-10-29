@@ -44,6 +44,26 @@ Strowallet is used for virtual funding accounts, bank transfers, bank list,
 account-name lookup, BVN verification, NIN verification, OTP SMS, and
 subaccount creation.
 
+### Webhook authentication
+
+Strowallet's virtual-account webhook is unsigned — their own reference handler
+reads the body and verifies nothing — so the webhook URL itself carries the
+shared secret:
+
+```bash
+openssl rand -hex 24
+```
+
+Put that value in `STROWALLET_WEBHOOK_TOKEN` and append it to
+`STROWALLET_WEBHOOK_URL` as the last path segment. The two must agree or the
+app refuses to start in production, because a token missing from the URL
+rejects every delivery while appearing to be configured.
+
+`webhook_url` is sent to Strowallet when a virtual account is created, so
+existing accounts keep whatever URL they were registered with. After changing
+the token, re-provision funding accounts (and check Settings → webhooks in the
+Strowallet dashboard) or deliveries will keep arriving on the old URL.
+
 ### Going live
 
 `STROWALLET_MODE` accepts `sandbox` or `live`. Set it to `live` in production —

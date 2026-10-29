@@ -174,18 +174,41 @@ export class PaymentsService {
   }
 
   private isSuccessfulCollection(dto: StrowalletWebhookDto) {
+    const type = String(dto.event ?? dto.type ?? 'credit').toUpperCase();
+    if (type.includes('DEBIT')) {
+      return false;
+    }
+
     const status =
       this.readOptionalString(dto, 'status') ??
       this.readOptionalString(dto, 'paymentStatus') ??
       this.readOptionalString(dto, 'transactionStatus') ??
       '';
-    const type = String(dto.event ?? dto.type ?? 'credit').toUpperCase();
 
-    return (
-      ['SUCCESS', 'SUCCESSFUL', 'PAID', 'COMPLETED'].includes(
+    if (status) {
+      return ['SUCCESS', 'SUCCESSFUL', 'PAID', 'COMPLETED'].includes(
         status.toUpperCase(),
-      ) && !type.includes('DEBIT')
+      );
+    }
+
+    // Strowallet's virtual-account webhook carries no status field at all —
+    // the delivery itself is the settlement notice. Recognise it by the fields
+    // it does send rather than dropping the credit.
+    return this.isVirtualAccountSettlement(dto);
+  }
+
+  private isVirtualAccountSettlement(dto: StrowalletWebhookDto) {
+    const hasAccount = Boolean(
+      dto.accountNumber ??
+        this.readOptionalString(dto, 'accountReference') ??
+        this.readOptionalString(dto, 'destinationAccountNumber'),
     );
+    const hasAmount =
+      dto.amount !== undefined ||
+      dto.transactionAmount !== undefined ||
+      dto.settledAmount !== undefined;
+
+    return Boolean(dto.sessionId) && hasAccount && hasAmount;
   }
 
   private getStrowalletEventId(dto: StrowalletWebhookDto) {

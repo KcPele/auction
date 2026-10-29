@@ -21,7 +21,9 @@ type RawBodyRequest = {
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  @Post('strowallet/webhook')
+  // The optional token segment is the shared secret: the URL we register with
+  // Strowallet carries it, and the guard checks it.
+  @Post(['strowallet/webhook', 'strowallet/webhook/:token'])
   @UseGuards(StrowalletWebhookGuard)
   @ApiOperation({ summary: 'Receive a Strowallet webhook event' })
   @ApiCreatedResponse({ description: 'Webhook event accepted.' })
