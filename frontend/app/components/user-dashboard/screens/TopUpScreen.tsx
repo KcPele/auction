@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -110,6 +111,7 @@ function FundingDetails({
   account: FundingAccount;
   amount: number;
 }) {
+  const router = useRouter();
   const simulate = useSimulateTopup();
   const confirmTransfer = useConfirmTransfer();
   const copy = (val: string) =>
@@ -122,6 +124,7 @@ function FundingDetails({
     try {
       await simulate.mutateAsync({ amountNaira: amount });
       toast.success(`Wallet credited ${fmtNaira(amount)} (sandbox)`);
+      router.push("/dashboard/wallet");
     } catch (err) {
       toast.error(
         err instanceof ApiError ? err.message : "Could not simulate payment",
@@ -132,8 +135,10 @@ function FundingDetails({
   const onConfirmTransfer = async () => {
     try {
       const { credited, received } = await confirmTransfer.check();
-      if (credited) toast.success(`Wallet credited ${fmtNaira(received)}`);
-      else
+      if (credited) {
+        toast.success(`Wallet credited ${fmtNaira(received)}`);
+        router.push("/dashboard/wallet");
+      } else
         toast.info(
           "No payment seen yet. Bank transfers can take a few minutes — check again shortly.",
         );
