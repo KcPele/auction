@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useMe, useSignOut } from "@/app/components/auth/hooks/use-me";
 import {
@@ -11,8 +11,11 @@ import {
 } from "@/app/components/users/hooks/use-users";
 import { ApiError } from "@/app/lib/api/error";
 import { ThemeToggle } from "@/app/components/theme/ThemeToggle";
-import { Modal } from "@/app/components/ui/Modal";
 import { Icon, type IconName } from "../primitives/Icon";
+import {
+  PersonalDetailsEditor,
+  type PersonalDetailsValues,
+} from "../widgets/PersonalDetailsEditor";
 import { fmtNaira } from "../utils";
 import { profileSchema } from "../utils/profile.schema";
 import { useListingCapabilities } from "@/app/lib/permissions/use-listing-capabilities";
@@ -34,6 +37,8 @@ interface SettingItem {
   icon: IconName;
   href?: string;
   action?: () => void;
+  /** Panel revealed under the row when it is expanded. */
+  editor?: ReactNode;
 }
 function listingCategoryLabel(category: "CAR" | "GADGET") {
   return category === "CAR" ? "Cars" : "Gadgets";
@@ -89,6 +94,12 @@ export function ProfileScreen() {
     return () => window.cancelAnimationFrame(frame);
   }, [me]);
 
+  const onEditField = (field: keyof PersonalDetailsValues, value: string) => {
+    if (field === "firstName") setFirstName(value);
+    else if (field === "lastName") setLastName(value);
+    else setPhone(value);
+  };
+
   const onSaveProfile = async () => {
     const parsed = profileSchema.safeParse({ firstName, lastName, phone });
     if (!parsed.success) {
@@ -112,7 +123,21 @@ export function ProfileScreen() {
   const watchlistCount = watchlist.length;
 
   const SETTINGS: SettingItem[] = [
-    { label: "Personal details", sub: "Name and phone", icon: "user", action: () => setShowEditDetails(true) },
+    {
+      label: "Personal details",
+      sub: "Name and phone",
+      icon: "user",
+      action: () => setShowEditDetails((open) => !open),
+      editor: showEditDetails ? (
+        <PersonalDetailsEditor
+          values={{ firstName, lastName, phone }}
+          onChange={onEditField}
+          onSave={onSaveProfile}
+          onCancel={() => setShowEditDetails(false)}
+          isSaving={updateProfile.isPending}
+        />
+      ) : null,
+    },
     {
       label: "KYC & verification",
       sub: verificationStatus,
@@ -183,60 +208,6 @@ export function ProfileScreen() {
         </div>
       </div>
 
-      <Modal
-        open={showEditDetails}
-        onClose={() => setShowEditDetails(false)}
-        title="Edit personal details"
-        footer={
-          <button
-            type="button"
-            disabled={updateProfile.isPending}
-            onClick={onSaveProfile}
-            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-          >
-            {updateProfile.isPending ? "Saving…" : "Save changes"}
-          </button>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <div>
-            <label htmlFor="profile-first-name" className="mb-1 block text-xs font-medium text-fg-muted">First name</label>
-            <input
-              id="profile-first-name"
-              autoComplete="given-name"
-              type="text"
-              placeholder="John"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
-            />
-          </div>
-          <div>
-            <label htmlFor="profile-last-name" className="mb-1 block text-xs font-medium text-fg-muted">Last name</label>
-            <input
-              id="profile-last-name"
-              autoComplete="family-name"
-              type="text"
-              placeholder="Doe"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
-            />
-          </div>
-          <div>
-            <label htmlFor="profile-phone" className="mb-1 block text-xs font-medium text-fg-muted">Phone</label>
-            <input
-              id="profile-phone"
-              autoComplete="tel"
-              inputMode="tel"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
-            />
-          </div>
-        </div>
-      </Modal>
 
       <div className="relative mt-0 overflow-hidden rounded-[22px] border border-line-strong bg-[var(--feature-surface)] p-5">
         <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-fg-dim">
@@ -381,14 +352,20 @@ export function ProfileScreen() {
           );
           const cls =
             "flex w-full cursor-pointer items-center gap-3 border-b border-line px-4 py-3.5 text-left text-sm last:border-b-0";
-          return r.href ? (
-            <Link key={r.label} href={r.href} className={cls}>
-              {inner}
-            </Link>
-          ) : (
-            <button key={r.label} type="button" className={cls} onClick={r.action}>
-              {inner}
-            </button>
+          if (r.href) {
+            return (
+              <Link key={r.label} href={r.href} className={cls}>
+                {inner}
+              </Link>
+            );
+          }
+          return (
+            <Fragment key={r.label}>
+              <button type="button" className={cls} onClick={r.action}>
+                {inner}
+              </button>
+              {r.editor}
+            </Fragment>
           );
         })}
       </div>

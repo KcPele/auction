@@ -22,11 +22,19 @@ export function Modal({
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
+  // Callers pass an inline arrow for onClose, so its identity changes on every
+  // render. Keeping it in a ref stops the focus effect below from re-running
+  // (and stealing focus back to the first control) on every keystroke.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
       if (e.key !== "Tab" || !panelRef.current) return;
       const focusable = panelRef.current.querySelectorAll<HTMLElement>(
         'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -57,7 +65,7 @@ export function Modal({
       document.body.style.overflow = prev;
       previouslyFocused?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || typeof window === "undefined") return null;
 
