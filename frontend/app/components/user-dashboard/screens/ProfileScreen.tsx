@@ -11,6 +11,7 @@ import {
 } from "@/app/components/users/hooks/use-users";
 import { ApiError } from "@/app/lib/api/error";
 import { ThemeToggle } from "@/app/components/theme/ThemeToggle";
+import { Modal } from "@/app/components/ui/Modal";
 import { Icon, type IconName } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
 import { profileSchema } from "../utils/profile.schema";
@@ -182,68 +183,60 @@ export function ProfileScreen() {
         </div>
       </div>
 
-      {/* Edit Personal Details Modal */}
-      {showEditDetails && (
-        <div className="mb-4 rounded-[14px] border border-line bg-surface p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="text-[15px] font-semibold tracking-tight">Edit personal details</div>
-            <button
-              type="button"
-              aria-label="Close personal details editor"
-              onClick={() => setShowEditDetails(false)}
-              className="rounded-lg p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg"
-            >
-              <Icon name="x" size={16} />
-            </button>
+      <Modal
+        open={showEditDetails}
+        onClose={() => setShowEditDetails(false)}
+        title="Edit personal details"
+        footer={
+          <button
+            type="button"
+            disabled={updateProfile.isPending}
+            onClick={onSaveProfile}
+            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+          >
+            {updateProfile.isPending ? "Saving…" : "Save changes"}
+          </button>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <div>
+            <label htmlFor="profile-first-name" className="mb-1 block text-xs font-medium text-fg-muted">First name</label>
+            <input
+              id="profile-first-name"
+              autoComplete="given-name"
+              type="text"
+              placeholder="John"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+            />
           </div>
-          <div className="flex flex-col gap-3">
-            <div>
-              <label htmlFor="profile-first-name" className="mb-1 block text-xs font-medium text-fg-muted">First name</label>
-              <input
-                id="profile-first-name"
-                autoComplete="given-name"
-                type="text"
-                placeholder="John"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
-              />
-            </div>
-            <div>
-              <label htmlFor="profile-last-name" className="mb-1 block text-xs font-medium text-fg-muted">Last name</label>
-              <input
-                id="profile-last-name"
-                autoComplete="family-name"
-                type="text"
-                placeholder="Doe"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
-              />
-            </div>
-            <div>
-              <label htmlFor="profile-phone" className="mb-1 block text-xs font-medium text-fg-muted">Phone</label>
-              <input
-                id="profile-phone"
-                autoComplete="tel"
-                inputMode="tel"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
-              />
-            </div>
-            <button
-              type="button"
-              disabled={updateProfile.isPending}
-              onClick={onSaveProfile}
-              className="mt-1 rounded-lg bg-primary p-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-            >
-              {updateProfile.isPending ? "Saving…" : "Save changes"}
-            </button>
+          <div>
+            <label htmlFor="profile-last-name" className="mb-1 block text-xs font-medium text-fg-muted">Last name</label>
+            <input
+              id="profile-last-name"
+              autoComplete="family-name"
+              type="text"
+              placeholder="Doe"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+            />
+          </div>
+          <div>
+            <label htmlFor="profile-phone" className="mb-1 block text-xs font-medium text-fg-muted">Phone</label>
+            <input
+              id="profile-phone"
+              autoComplete="tel"
+              inputMode="tel"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-[10px] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-sm text-fg outline-none focus:border-accent"
+            />
           </div>
         </div>
-      )}
+      </Modal>
 
       <div className="relative mt-0 overflow-hidden rounded-[22px] border border-line-strong bg-[var(--feature-surface)] p-5">
         <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-fg-dim">

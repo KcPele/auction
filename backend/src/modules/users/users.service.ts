@@ -40,6 +40,7 @@ import { queryUserBidCounts, queryUserBidPage } from './user-bids.query';
 import { loadAuctionListings } from './users-listings.query';
 import { presentWatchlistItems } from './users-watchlist.presenter';
 import { NotificationsService } from '../notifications/notifications.service';
+import { UserProfileService } from './user-profile.service';
 
 @Injectable()
 export class UsersService {
@@ -69,6 +70,7 @@ export class UsersService {
     @InjectRepository(AuctionDelivery)
     private readonly deliveryRepository: Repository<AuctionDelivery>,
     private readonly notificationsService: NotificationsService,
+    private readonly userProfileService: UserProfileService,
   ) {}
 
   async getMe(userId: string, effectiveRole?: UserRole) {
@@ -95,35 +97,8 @@ export class UsersService {
     };
   }
 
-  async updateProfile(userId: string, dto: UpdateProfileDto) {
-    const user = await this.findActiveUser(userId);
-    const firstName = dto.firstName?.trim();
-    const lastName = dto.lastName?.trim();
-
-    if (dto.firstName !== undefined && !firstName) {
-      throw new BadRequestException('First name is required');
-    }
-    if (dto.lastName !== undefined && !lastName) {
-      throw new BadRequestException('Last name is required');
-    }
-
-    if (dto.phone && dto.phone !== user.phone) {
-      const existing = await this.usersRepository.findOneBy({
-        phone: dto.phone,
-      });
-
-      if (existing) {
-        throw new BadRequestException('Phone already exists');
-      }
-    }
-
-    Object.assign(user, {
-      firstName: firstName ?? user.firstName,
-      lastName: lastName ?? user.lastName,
-      phone: dto.phone ?? user.phone,
-    });
-
-    return { user: presentUser(await this.usersRepository.save(user)) };
+  updateProfile(userId: string, dto: UpdateProfileDto) {
+    return this.userProfileService.updateProfile(userId, dto);
   }
 
   async updateNotificationPreferences(

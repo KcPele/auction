@@ -30,6 +30,7 @@ describe('UsersService watchlist notifications', () => {
       watchlist as never,
       {} as never,
       notifications as never,
+      {} as never,
     );
 
     await service.addWatchlist('user-id', auction.id);
