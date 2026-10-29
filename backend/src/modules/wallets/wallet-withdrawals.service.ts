@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
@@ -33,11 +34,16 @@ export class WalletWithdrawalsService {
     private readonly strowalletProvider: StrowalletProvider,
     private readonly notificationsService: NotificationsService,
     private readonly kycRequirement: KycRequirementService,
+    private readonly config: ConfigService,
   ) {}
 
   async createWithdrawal(userId: string, dto: CreateWithdrawalDto) {
     await this.kycRequirement.assertCanWithdraw(userId);
     const withdrawal = await this.createPendingWithdrawal(userId, dto);
+
+    if (this.isSandbox) {
+      return this.completeSandboxWithdrawal(withdrawal);
+    }
 
     try {
       const nameEnquiry = await this.strowalletProvider.getAccountName({
@@ -368,6 +374,33 @@ export class WalletWithdrawalsService {
     }
 
     return withdrawal;
+  }
+
+  private get isSandbox() {
+    return (
+      (this.config.get<string>('STROWALLET_MODE') ?? 'sandbox') === 'sandbox'
+    );
+  }
+
+  /**
+   * Sandbox payouts never reach Strowallet. The provider API has no test mode
+   * for bank transfers, so calling it would move real money against balances
+   * that were simulated in the first place.
+   */
+  private async completeSandboxWithdrawal(withdrawal: WalletWithdrawal) {
+    const payout = {
+      status: 'SUCCESS',
+      simulated: true,
+      reference: withdrawal.providerReference,
+      message: 'Simulated payout (STROWALLET_MODE=sandbox)',
+    };
+    const updated = await this.updateWithdrawalFromProvider(
+      withdrawal.providerReference,
+      payout.status,
+      payout,
+    );
+
+    return { withdrawal: presentWithdrawal(updated), payout };
   }
 
   private toWithdrawalStatus(status: string) {

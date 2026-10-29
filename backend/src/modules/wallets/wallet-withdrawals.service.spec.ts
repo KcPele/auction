@@ -19,6 +19,7 @@ describe('WalletWithdrawalsService', () => {
   };
   let notificationsService: { create: jest.Mock };
   let kycRequirement: { assertCanWithdraw: jest.Mock };
+  let config: { get: jest.Mock };
 
   beforeEach(() => {
     dataSource = { transaction: jest.fn((callback) => callback(createManager())) };
@@ -31,12 +32,14 @@ describe('WalletWithdrawalsService', () => {
     kycRequirement = {
       assertCanWithdraw: jest.fn().mockResolvedValue(undefined),
     };
+    config = { get: jest.fn().mockReturnValue('live') };
     service = new WalletWithdrawalsService(
       dataSource as never,
       withdrawalsRepository as never,
       strowalletProvider as unknown as StrowalletProvider,
       notificationsService as unknown as NotificationsService,
       kycRequirement as unknown as KycRequirementService,
+      config as never,
     );
   });
 
@@ -88,6 +91,24 @@ describe('WalletWithdrawalsService', () => {
         title: 'Withdrawal completed',
       }),
     );
+  });
+
+  it('simulates the payout instead of calling Strowallet in sandbox mode', async () => {
+    config.get.mockReturnValue('sandbox');
+    const wallet = createWallet({ balanceKobo: 100000 });
+    const manager = createManager({ wallet });
+    dataSource.transaction.mockImplementation((callback) => callback(manager));
+
+    await expect(
+      service.createWithdrawal('user-id', createWithdrawalDto()),
+    ).resolves.toEqual({
+      withdrawal: expect.objectContaining({
+        status: WalletWithdrawalStatus.Completed,
+      }),
+      payout: expect.objectContaining({ simulated: true }),
+    });
+    expect(strowalletProvider.getAccountName).not.toHaveBeenCalled();
+    expect(strowalletProvider.initiateBankTransfer).not.toHaveBeenCalled();
   });
 
   it('refunds failed withdrawals', async () => {
