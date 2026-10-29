@@ -103,7 +103,9 @@ export class StrowalletProvider {
       firstName: input.firstName.toUpperCase(),
       lastName: input.lastName.toUpperCase(),
       dateOfBirth: input.dateOfBirth,
-      phoneNumber: input.phoneNumber,
+      // Strowallet expects the local format (08100000000). Sending the stored
+      // +234… form is accepted and returns a trx, but no OTP ever arrives.
+      phoneNumber: this.toNigerianLocalPhone(input.phoneNumber),
       mode: this.mode,
     });
   }

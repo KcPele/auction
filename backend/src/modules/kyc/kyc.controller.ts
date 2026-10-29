@@ -24,7 +24,10 @@ export class KycController {
   @ApiCookieAuth('better-auth.session_token')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get the current user KYC completion state' })
-  @ApiOkResponse({ description: 'KYC completion state returned.' })
+  @ApiOkResponse({
+    description:
+      'KYC completion state returned, including any BVN check still awaiting its OTP.',
+  })
   getStatus(@CurrentUser() user: AuthenticatedUser) {
     return this.kycService.getStatus(user.id);
   }

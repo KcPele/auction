@@ -122,15 +122,16 @@ export const listMyWithdrawals = async (
 };
 
 export const getFundingAccount = async (): Promise<FundingAccount> => {
-  const { fundingAccount } = await apiClient<GetFundingAccountResponseDto>(
-    "/wallets/funding-account",
-    { method: "POST" },
-  );
+  const { fundingAccount, simulationEnabled } =
+    await apiClient<GetFundingAccountResponseDto>("/wallets/funding-account", {
+      method: "POST",
+    });
   return {
     accountNumber: fundingAccount.accountNumber,
     accountName: fundingAccount.accountName,
     bankName: fundingAccount.bankName,
     reference: fundingAccount.accountReference,
+    simulationEnabled,
   };
 };
 

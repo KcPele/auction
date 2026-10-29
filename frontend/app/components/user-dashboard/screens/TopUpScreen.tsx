@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  useConfirmTransfer,
   useInitiateTopup,
   useSimulateTopup,
 } from "@/app/components/wallet/hooks/use-wallet";
@@ -9,13 +10,10 @@ import { ApiError } from "@/app/lib/api/error";
 import type { FundingAccount } from "@/app/components/wallet/types/wallet.types";
 import { Icon } from "../primitives/Icon";
 import { fmtNaira } from "../utils";
-
-// True in dev/staging — backend ALSO gates the endpoint behind
-// STROWALLET_MODE=sandbox so prod can't free-money itself even if this leaks.
-const IS_SANDBOX =
-  (process.env.NEXT_PUBLIC_PAYMENTS_MODE ?? "sandbox") !== "live";
+import { AmountInput } from "../widgets/AmountInput";
 
 const QUICK = [100_000, 250_000, 500_000, 1_000_000];
+const MIN_TOPUP_NAIRA = 100;
 
 export function TopUpScreen() {
   const [amt, setAmt] = useState(500_000);
@@ -43,13 +41,7 @@ export function TopUpScreen() {
 
   return (
     <>
-      <div className="mt-2 text-xs uppercase tracking-[0.1em] text-fg-dim">
-        Amount
-      </div>
-      <div className="mt-1 font-display text-[46px] font-semibold tracking-tight tabular-nums">
-        <span className="text-[26px] text-fg-dim">₦</span>
-        {amt.toLocaleString("en-NG")}
-      </div>
+      <AmountInput value={amt} onChange={setAmt} />
 
       <div className="my-3 grid grid-cols-4 gap-2">
         {QUICK.map((q) => (
@@ -101,7 +93,7 @@ export function TopUpScreen() {
 
       <button
         type="button"
-        disabled={initiate.isPending}
+        disabled={initiate.isPending || amt < MIN_TOPUP_NAIRA}
         onClick={onContinue}
         className="mt-4 w-full cursor-pointer rounded-xl border-none bg-primary p-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
       >
@@ -119,6 +111,7 @@ function FundingDetails({
   amount: number;
 }) {
   const simulate = useSimulateTopup();
+  const confirmTransfer = useConfirmTransfer();
   const copy = (val: string) =>
     navigator.clipboard
       .writeText(val)
@@ -133,6 +126,19 @@ function FundingDetails({
       toast.error(
         err instanceof ApiError ? err.message : "Could not simulate payment",
       );
+    }
+  };
+
+  const onConfirmTransfer = async () => {
+    try {
+      const { credited, received } = await confirmTransfer.check();
+      if (credited) toast.success(`Wallet credited ${fmtNaira(received)}`);
+      else
+        toast.info(
+          "No payment seen yet. Bank transfers can take a few minutes — check again shortly.",
+        );
+    } catch {
+      toast.error("Could not check your wallet");
     }
   };
 
@@ -179,7 +185,16 @@ function FundingDetails({
         </div>
       </div>
 
-      {IS_SANDBOX && (
+      <button
+        type="button"
+        disabled={confirmTransfer.checking}
+        onClick={onConfirmTransfer}
+        className="mt-4 w-full cursor-pointer rounded-xl border-none bg-primary p-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
+      >
+        {confirmTransfer.checking ? "Checking…" : "I've made the transfer"}
+      </button>
+
+      {account.simulationEnabled && (
         <div className="mt-3 rounded-xl border border-dashed border-accent/30 bg-accent/[0.03] p-3.5">
           <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-accent">
             Sandbox testing

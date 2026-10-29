@@ -94,6 +94,7 @@ export type FundingAccountDto = {
 export type GetFundingAccountResponseDto = {
   fundingAccount: FundingAccountDto;
   created: boolean;
+  simulationEnabled: boolean;
 };
 
 // View models
@@ -134,6 +135,8 @@ export type FundingAccount = {
   accountName: string;
   bankName: string;
   reference: string;
+  /** Server-side answer to whether simulated funding is available. */
+  simulationEnabled: boolean;
 };
 
 export type CreateWithdrawalInput = {

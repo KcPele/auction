@@ -41,6 +41,9 @@ export class KycService {
       bvnVerifiedAt: profile?.bvnVerifiedAt ?? null,
       phoneVerifiedAt: profile?.phoneVerifiedAt ?? null,
       subaccountCreated: Boolean(profile?.strowalletSubaccountId),
+      // Returned so a half-finished BVN check survives leaving the page: the
+      // OTP step needs this id, and it is otherwise only in browser state.
+      pendingBvnTransactionId: profile?.pendingBvnTransactionId ?? null,
     };
   }
 
