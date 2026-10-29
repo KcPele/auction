@@ -44,6 +44,23 @@ Strowallet is used for virtual funding accounts, bank transfers, bank list,
 account-name lookup, BVN verification, NIN verification, OTP SMS, and
 subaccount creation.
 
+### Going live
+
+`STROWALLET_MODE` accepts `sandbox` or `live`. Set it to `live` in production —
+the app refuses to boot with `NODE_ENV=production` while it is `sandbox`.
+
+In sandbox mode funding accounts are generated locally, `POST
+/wallets/topup/simulate` credits balances without a bank transfer, and payouts
+are simulated instead of sent. Flipping to `live` changes all three, so clear
+the simulated state first by running migrations: `RetireSandboxWalletState`
+releases open bid holds, writes the simulated balances off through the ledger,
+fails in-flight sandbox withdrawals, and deletes the locally generated funding
+accounts so live virtual accounts can be provisioned. It is deliberately
+irreversible.
+
+Set `NEXT_PUBLIC_PAYMENTS_MODE=live` on the frontend too, to hide the simulate
+button. That is cosmetic — the endpoint itself is gated server-side.
+
 ## Wallet Funding Flow
 
 Frontend flow after login:
