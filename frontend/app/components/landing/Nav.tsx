@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BrandMark } from "./BrandMark";
-import { Button } from "./primitives/Button";
+import { NavAuth } from "./NavAuth";
 
 const LINKS = [
   { href: "#auctions", label: "Browse auctions" },
@@ -27,12 +27,7 @@ export function Nav() {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <div className="hidden sm:block">
-            <Button href="/login" variant="ghost">
-              Log in
-            </Button>
-          </div>
-          <Button href="/register">Create account</Button>
+          <NavAuth />
         </div>
       </nav>
     </header>

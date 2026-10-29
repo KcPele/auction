@@ -154,11 +154,57 @@ describe('PaymentsService', () => {
     expect(walletFundingService.creditFundingAccount).not.toHaveBeenCalled();
   });
 
-  it('does not credit a collection without an explicit success status', async () => {
+  // Strowallet's virtual-account webhook sends no status field — the delivery
+  // itself is the settlement notice — so requiring one dropped every real
+  // credit. An explicit non-success status is still refused, below.
+  it('credits a virtual-account settlement that carries no status field', async () => {
+    const dto: StrowalletWebhookDto = {
+      sessionId: 'session-id',
+      accountNumber: '7555156062',
+      transactionAmount: '200',
+      settledAmount: '200',
+      sourceAccountName: 'Kelechi Ndukwe',
+      sourceBankName: 'GTB',
+    };
+    webhookEventsRepository.findOneBy.mockResolvedValue(null);
+    walletFundingService.creditFundingAccount.mockResolvedValue({
+      alreadyProcessed: false,
+    });
+
+    await service.handleStrowalletWebhook(dto, JSON.stringify(dto));
+
+    expect(walletFundingService.creditFundingAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountNumber: '7555156062',
+        amountKobo: 20000,
+        reference: 'session-id',
+      }),
+    );
+  });
+
+  it('does not credit a collection whose status says it failed', async () => {
     const dto: StrowalletWebhookDto = {
       accountReference: 'wallet_user-id',
       sessionId: 'session-id',
       amount: 5000,
+      status: 'FAILED',
+    };
+    webhookEventsRepository.findOneBy.mockResolvedValue(null);
+
+    await expect(
+      service.handleStrowalletWebhook(dto, JSON.stringify(dto)),
+    ).resolves.toEqual(
+      expect.objectContaining({ result: expect.objectContaining({ ignored: true }) }),
+    );
+    expect(walletFundingService.creditFundingAccount).not.toHaveBeenCalled();
+  });
+
+  it('does not credit a debit notification', async () => {
+    const dto: StrowalletWebhookDto = {
+      sessionId: 'session-id',
+      accountNumber: '7555156062',
+      transactionAmount: '200',
+      type: 'account_debit',
     };
     webhookEventsRepository.findOneBy.mockResolvedValue(null);
 

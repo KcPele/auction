@@ -36,6 +36,7 @@ const envSchema = z.object({
   STROWALLET_MODE: z.enum(['sandbox', 'live']).default('sandbox'),
   STROWALLET_WEBHOOK_URL: z.string().url().optional(),
   STROWALLET_WEBHOOK_SECRET: z.string().optional(),
+  STROWALLET_WEBHOOK_TOKEN: z.string().min(16).optional(),
   STROWALLET_WEBSITE_URL: z.string().url().optional(),
   STROWALLET_DEVELOPER_CODE: z.string().optional(),
   MINIO_ENDPOINT: z.string().url().optional(),
@@ -80,7 +81,6 @@ const PRODUCTION_REQUIRED: Array<keyof AppEnv> = [
   'STROWALLET_SECRET_KEY',
   'STROWALLET_MERCHANT_ID',
   'STROWALLET_WEBHOOK_URL',
-  'STROWALLET_WEBHOOK_SECRET',
   'STROWALLET_WEBSITE_URL',
   'MINIO_ENDPOINT',
   'MINIO_ACCESS_KEY',
@@ -113,6 +113,21 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
     }
     if (env.STROWALLET_MODE !== 'live') {
       missing.push('STROWALLET_MODE (must be live in production)');
+    }
+    if (!env.STROWALLET_WEBHOOK_TOKEN && !env.STROWALLET_WEBHOOK_SECRET) {
+      missing.push(
+        'STROWALLET_WEBHOOK_TOKEN or STROWALLET_WEBHOOK_SECRET (one must authenticate the webhook)',
+      );
+    }
+    // The token only protects anything if the URL we hand Strowallet carries
+    // it; a mismatch here means every delivery is rejected.
+    if (
+      env.STROWALLET_WEBHOOK_TOKEN &&
+      !env.STROWALLET_WEBHOOK_URL?.endsWith(`/${env.STROWALLET_WEBHOOK_TOKEN}`)
+    ) {
+      missing.push(
+        'STROWALLET_WEBHOOK_URL (must end with /$STROWALLET_WEBHOOK_TOKEN)',
+      );
     }
     if (missing.length > 0) {
       throw new Error(
