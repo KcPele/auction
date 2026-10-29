@@ -267,6 +267,14 @@ export function useKycFlow() {
   };
 
   return {
+    // What the server already has on file. A step that is done is not
+    // re-submitted when the user walks back to it.
+    completed: {
+      nin: Boolean(kycStatus?.ninVerifiedAt),
+      bvn: Boolean(kycStatus?.bvnVerifiedAt),
+      subaccount: Boolean(kycStatus?.subaccountCreated),
+    },
+    goNext,
     canSubmit: {
       nin: !firstValidationIssue(ninSchema, ninInput),
       bvn: !firstValidationIssue(bvnSchema, bvnInput),

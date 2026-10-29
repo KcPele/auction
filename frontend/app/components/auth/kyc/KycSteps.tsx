@@ -3,6 +3,37 @@ import { Field, Input } from "../primitives/Field";
 import { Icon } from "../primitives/Icon";
 import type { KycFlowController } from "./useKycFlow";
 
+/**
+ * A step the server already has on file should move the user forward, not ask
+ * them to verify the same identity again.
+ */
+function StepAction({
+  done,
+  pending,
+  pendingLabel,
+  label,
+  onSubmit,
+  onContinue,
+}: {
+  done: boolean;
+  pending: boolean;
+  pendingLabel: string;
+  label: string;
+  onSubmit: () => void;
+  onContinue: () => void;
+}) {
+  return (
+    <AuthButton
+      type="button"
+      disabled={pending}
+      onClick={done ? onContinue : onSubmit}
+    >
+      {pending ? pendingLabel : done ? "Continue" : label}{" "}
+      <Icon name="arrow-r" size={16} strokeWidth={2} />
+    </AuthButton>
+  );
+}
+
 function StepIntro({ title, children }: { title: string; children: string }) {
   return (
     <>
@@ -15,7 +46,7 @@ function StepIntro({ title, children }: { title: string; children: string }) {
 }
 
 export function NinStep({ flow }: { flow: KycFlowController }) {
-  const { fields, pending, updateField } = flow;
+  const { fields, pending, updateField, completed } = flow;
   return (
     <>
       <StepIntro title="Verify your NIN.">
@@ -66,20 +97,20 @@ export function NinStep({ flow }: { flow: KycFlowController }) {
           />
         </Field>
       </div>
-      <AuthButton
-        type="button"
-        disabled={pending.nin}
-        onClick={flow.submitNin}
-      >
-        {pending.nin ? "Verifying…" : "Verify NIN"}{" "}
-        <Icon name="arrow-r" size={16} strokeWidth={2} />
-      </AuthButton>
+      <StepAction
+        done={completed.nin}
+        pending={pending.nin}
+        pendingLabel="Verifying…"
+        label="Verify NIN"
+        onSubmit={flow.submitNin}
+        onContinue={flow.goNext}
+      />
     </>
   );
 }
 
 export function BvnStep({ flow }: { flow: KycFlowController }) {
-  const { fields, pending, updateField } = flow;
+  const { fields, pending, updateField, completed } = flow;
   return (
     <>
       <StepIntro title="Verify your BVN.">
@@ -130,20 +161,20 @@ export function BvnStep({ flow }: { flow: KycFlowController }) {
           />
         </Field>
       </div>
-      <AuthButton
-        type="button"
-        disabled={pending.bvn}
-        onClick={flow.submitBvn}
-      >
-        {pending.bvn ? "Verifying…" : "Verify BVN"}{" "}
-        <Icon name="arrow-r" size={16} strokeWidth={2} />
-      </AuthButton>
+      <StepAction
+        done={completed.bvn}
+        pending={pending.bvn}
+        pendingLabel="Verifying…"
+        label="Verify BVN"
+        onSubmit={flow.submitBvn}
+        onContinue={flow.goNext}
+      />
     </>
   );
 }
 
 export function BvnOtpStep({ flow }: { flow: KycFlowController }) {
-  const { fields, pending, updateField, resendCooldown } = flow;
+  const { fields, pending, updateField, resendCooldown, completed } = flow;
   const resendLabel = pending.bvnResend
     ? "Sending…"
     : resendCooldown.active
@@ -174,25 +205,27 @@ export function BvnOtpStep({ flow }: { flow: KycFlowController }) {
           leftIcon={<Icon name="key" size={18} />}
         />
       </Field>
-      <AuthButton
-        type="button"
-        disabled={pending.bvnOtp}
-        onClick={flow.submitBvnOtp}
-      >
-        {pending.bvnOtp ? "Confirming…" : "Confirm BVN"}{" "}
-        <Icon name="arrow-r" size={16} strokeWidth={2} />
-      </AuthButton>
-      <div className="mt-3 text-center text-sm text-fg-muted">
-        Didn&apos;t get the code?{" "}
-        <button
-          type="button"
-          disabled={pending.bvnResend || resendCooldown.active}
-          onClick={flow.resendBvnOtp}
-          className="font-medium text-accent underline-offset-2 hover:underline disabled:text-fg-dim disabled:no-underline"
-        >
-          {resendLabel}
-        </button>
-      </div>
+      <StepAction
+        done={completed.bvn}
+        pending={pending.bvnOtp}
+        pendingLabel="Confirming…"
+        label="Confirm BVN"
+        onSubmit={flow.submitBvnOtp}
+        onContinue={flow.goNext}
+      />
+      {!completed.bvn && (
+        <div className="mt-3 text-center text-sm text-fg-muted">
+          Didn&apos;t get the code?{" "}
+          <button
+            type="button"
+            disabled={pending.bvnResend || resendCooldown.active}
+            onClick={flow.resendBvnOtp}
+            className="font-medium text-accent underline-offset-2 hover:underline disabled:text-fg-dim disabled:no-underline"
+          >
+            {resendLabel}
+          </button>
+        </div>
+      )}
     </>
   );
 }
