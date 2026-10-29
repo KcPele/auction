@@ -117,9 +117,7 @@ export class WalletsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: SimulateFundingDto,
   ) {
-    const mode = this.config.get<string>('STROWALLET_MODE') ?? 'sandbox';
-    const nodeEnv = this.config.get<string>('NODE_ENV') ?? 'development';
-    if (mode !== 'sandbox' || nodeEnv === 'production') {
+    if (!this.walletFundingService.simulationEnabled) {
       throw new ForbiddenException(
         'Simulated funding is disabled outside sandbox mode',
       );

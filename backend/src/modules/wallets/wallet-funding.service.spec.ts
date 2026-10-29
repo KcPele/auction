@@ -83,6 +83,7 @@ describe('WalletFundingService', () => {
         provider: PaymentProvider.Strowallet,
       }),
       created: true,
+      simulationEnabled: false,
     });
     expect(strowalletProvider.createVirtualAccount).toHaveBeenCalledWith({
       email: 'ada@example.com',
@@ -138,8 +139,17 @@ describe('WalletFundingService', () => {
         bankName: 'BidNaija Sandbox Bank',
       }),
       created: true,
+      simulationEnabled: true,
     });
     expect(strowalletProvider.createVirtualAccount).not.toHaveBeenCalled();
+  });
+
+  it('reports simulation as unavailable once the mode is live', () => {
+    config.get.mockImplementation((key: string) =>
+      key === 'STROWALLET_MODE' ? 'live' : 'development',
+    );
+
+    expect(service.simulationEnabled).toBe(false);
   });
 });
 

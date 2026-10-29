@@ -47,7 +47,11 @@ export class WalletFundingService {
     });
 
     if (existing) {
-      return { fundingAccount: presentFundingAccount(existing), created: false };
+      return {
+        fundingAccount: presentFundingAccount(existing),
+        created: false,
+        simulationEnabled: this.simulationEnabled,
+      };
     }
 
     const user = await this.usersRepository.findOneBy({ id: userId });
@@ -88,7 +92,11 @@ export class WalletFundingService {
       }),
     );
 
-    return { fundingAccount: presentFundingAccount(fundingAccount), created: true };
+    return {
+      fundingAccount: presentFundingAccount(fundingAccount),
+      created: true,
+      simulationEnabled: this.simulationEnabled,
+    };
   }
 
   async initiateTopup(userId: string, _dto: InitiateTopupDto) {
@@ -99,6 +107,7 @@ export class WalletFundingService {
       bankName: fundingAccount.bankName,
       accountName: fundingAccount.accountName,
       reference: fundingAccount.accountReference,
+      simulationEnabled: this.simulationEnabled,
     };
   }
 
@@ -209,6 +218,16 @@ export class WalletFundingService {
 
   private get isSandbox() {
     return (this.config.get<string>('STROWALLET_MODE') ?? 'sandbox') === 'sandbox';
+  }
+
+  /**
+   * Single source of truth for whether simulated funding is available. The
+   * simulate endpoint and the client both read this, so the button can never
+   * be offered for a request the server will refuse.
+   */
+  get simulationEnabled() {
+    const nodeEnv = this.config.get<string>('NODE_ENV') ?? 'development';
+    return this.isSandbox && nodeEnv !== 'production';
   }
 
   private parseVirtualAccount(response: Record<string, unknown>) {

@@ -247,7 +247,24 @@ describe('KycService', () => {
       bvnVerifiedAt: verifiedAt,
       phoneVerifiedAt: verifiedAt,
       subaccountCreated: true,
+      pendingBvnTransactionId: null,
     });
+  });
+
+  it('reports a BVN check still awaiting its OTP', async () => {
+    users.findOneBy.mockResolvedValue({ ...user, ninVerifiedAt: new Date() });
+    profiles.findOneBy.mockResolvedValue({
+      bvnVerifiedAt: null,
+      phoneVerifiedAt: null,
+      pendingBvnTransactionId: 'provider-transaction',
+    });
+
+    await expect(service.getStatus(user.id)).resolves.toEqual(
+      expect.objectContaining({
+        bvnVerifiedAt: null,
+        pendingBvnTransactionId: 'provider-transaction',
+      }),
+    );
   });
 });
 

@@ -1,5 +1,6 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   createWithdrawal,
   getFundingAccount,
@@ -11,7 +12,7 @@ import {
   resolveBankAccount,
   simulateTopup,
 } from "../api/wallet.api";
-import type { WithdrawalStatus } from "../types/wallet.types";
+import type { Wallet, WithdrawalStatus } from "../types/wallet.types";
 import type { ActivityBucket } from "../utils/ledger-display";
 import { walletKeys } from "./wallet-keys";
 
@@ -76,6 +77,36 @@ export function useInitiateTopup() {
  * Sandbox-only: instantly credit the wallet without a real bank transfer.
  * Backend gates this behind STROWALLET_MODE=sandbox.
  */
+/**
+ * Re-checks the wallet after the user says they have transferred.
+ *
+ * Strowallet has no API for reading transfers into a virtual account, so the
+ * credit only arrives via their webhook. All we can honestly do is refetch and
+ * report whether it has landed yet.
+ */
+export function useConfirmTransfer() {
+  const qc = useQueryClient();
+  const [checking, setChecking] = useState(false);
+
+  const check = async () => {
+    setChecking(true);
+    try {
+      const before = qc.getQueryData<Wallet>(walletKeys.me())?.balance ?? 0;
+      const wallet = await qc.fetchQuery({
+        queryKey: walletKeys.me(),
+        queryFn: getWallet,
+        staleTime: 0,
+      });
+      await qc.invalidateQueries({ queryKey: walletKeys.ledger() });
+      return { credited: wallet.balance > before, received: wallet.balance - before };
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return { check, checking };
+}
+
 export function useSimulateTopup() {
   const qc = useQueryClient();
   return useMutation({

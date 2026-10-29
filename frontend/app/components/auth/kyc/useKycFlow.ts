@@ -19,6 +19,7 @@ import {
   ninSchema,
   subaccountSchema,
 } from "./kyc.schema";
+import { useCooldown } from "./useCooldown";
 
 export type KycStep = "nin" | "bvn" | "bvn-otp" | "subaccount";
 
@@ -42,6 +43,8 @@ interface KycFields {
 }
 
 const STEPS: KycStep[] = ["nin", "bvn", "bvn-otp", "subaccount"];
+/** Each resend bills a real SMS, so space them out. */
+const RESEND_COOLDOWN_SECONDS = 60;
 const INITIAL_FIELDS: KycFields = {
   nin: "",
   ninFirst: "",
@@ -82,23 +85,37 @@ export function useKycFlow() {
   const verifyBvn = useVerifyKycBvn();
   const confirmBvn = useConfirmKycBvn();
   const createSubaccount = useCreateKycSubaccount();
+  const resendCooldown = useCooldown(RESEND_COOLDOWN_SECONDS);
 
   useEffect(() => {
     if (!kycStatus || statusApplied.current) return;
-    statusApplied.current = true;
+    // The guard is claimed inside the frame, not before it. Strict Mode runs
+    // this effect twice (run, clean up, run), and cancelling the frame while
+    // the guard was already set meant the step was never applied at all.
     const frame = window.requestAnimationFrame(() => {
+      statusApplied.current = true;
+      const pendingOtp = Boolean(kycStatus.pendingBvnTransactionId);
       if (!kycStatus.ninVerifiedAt) setStepIdx(0);
-      else if (!kycStatus.bvnVerifiedAt) setStepIdx(1);
-      else if (!kycStatus.subaccountCreated) setStepIdx(3);
-      else router.replace(isAccount ? "/dashboard/profile" : "/verified");
+      else if (kycStatus.bvnVerifiedAt) {
+        if (!kycStatus.subaccountCreated) setStepIdx(3);
+        else router.replace(isAccount ? "/dashboard/profile" : "/verified");
+      } else if (pendingOtp) {
+        // A BVN check is already waiting on its OTP, so resume there rather
+        // than making the user redo a verification the server still holds.
+        setFields((current) => ({
+          ...current,
+          bvnTransactionId: kycStatus.pendingBvnTransactionId ?? "",
+        }));
+        setStepIdx(2);
+      } else setStepIdx(1);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [isAccount, kycStatus, router]);
 
   useEffect(() => {
     if (!me || defaultsApplied.current) return;
-    defaultsApplied.current = true;
     const frame = window.requestAnimationFrame(() => {
+      defaultsApplied.current = true;
       setFields((current) => ({
         ...current,
         nin: me.nin ?? current.nin,
@@ -198,6 +215,33 @@ export function useKycFlow() {
     }
   };
 
+  /**
+   * Strowallet has no resend endpoint — verifying the BVN again is what issues
+   * a fresh OTP, and it returns a new transaction id that replaces the old one.
+   * That needs the BVN details, which only live in this form, so a reloaded
+   * page has to go back a step rather than silently failing.
+   */
+  const resendBvnOtp = async () => {
+    if (resendCooldown.active || verifyBvn.isPending) return;
+    if (firstValidationIssue(bvnSchema, bvnInput)) {
+      toast.error("Enter your BVN details again to get a new OTP");
+      setStepIdx(1);
+      return;
+    }
+    try {
+      const result = await verifyBvn.mutateAsync({
+        ...bvnInput,
+        dateOfBirth: toBackendDob(bvnInput.dateOfBirth),
+      });
+      updateField("bvnTransactionId", result.transactionId);
+      updateField("otp", "");
+      resendCooldown.start();
+      toast.success("New OTP sent to your registered phone");
+    } catch (error) {
+      reportError(error, "Could not send a new OTP");
+    }
+  };
+
   const submitBvnOtp = async () => {
     const issue = firstValidationIssue(bvnOtpSchema, otpInput);
     if (issue) return toast.error(issue);
@@ -237,10 +281,16 @@ export function useKycFlow() {
       nin: verifyNin.isPending,
       bvn: verifyBvn.isPending,
       bvnOtp: confirmBvn.isPending,
+      bvnResend: verifyBvn.isPending,
       subaccount: createSubaccount.isPending,
     },
     step: STEPS[stepIdx],
     stepIdx,
+    resendBvnOtp,
+    resendCooldown: {
+      active: resendCooldown.active,
+      remaining: resendCooldown.remaining,
+    },
     submitBvn,
     submitBvnOtp,
     submitNin,

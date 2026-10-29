@@ -5,6 +5,8 @@ export type KycStatus = {
   bvnVerifiedAt: string | null;
   phoneVerifiedAt: string | null;
   subaccountCreated: boolean;
+  /** Set when a BVN check is still waiting on its OTP. */
+  pendingBvnTransactionId: string | null;
 };
 
 export const getKycStatus = () => apiClient<KycStatus>("/kyc/status");

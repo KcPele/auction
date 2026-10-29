@@ -143,7 +143,12 @@ export function BvnStep({ flow }: { flow: KycFlowController }) {
 }
 
 export function BvnOtpStep({ flow }: { flow: KycFlowController }) {
-  const { fields, pending, updateField } = flow;
+  const { fields, pending, updateField, resendCooldown } = flow;
+  const resendLabel = pending.bvnResend
+    ? "Sending…"
+    : resendCooldown.active
+      ? `Resend in ${resendCooldown.remaining}s`
+      : "Resend OTP";
   return (
     <>
       <StepIntro title="Confirm your BVN.">
@@ -177,6 +182,17 @@ export function BvnOtpStep({ flow }: { flow: KycFlowController }) {
         {pending.bvnOtp ? "Confirming…" : "Confirm BVN"}{" "}
         <Icon name="arrow-r" size={16} strokeWidth={2} />
       </AuthButton>
+      <div className="mt-3 text-center text-sm text-fg-muted">
+        Didn&apos;t get the code?{" "}
+        <button
+          type="button"
+          disabled={pending.bvnResend || resendCooldown.active}
+          onClick={flow.resendBvnOtp}
+          className="font-medium text-accent underline-offset-2 hover:underline disabled:text-fg-dim disabled:no-underline"
+        >
+          {resendLabel}
+        </button>
+      </div>
     </>
   );
 }
