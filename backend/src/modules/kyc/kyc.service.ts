@@ -5,9 +5,9 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { createHmac } from 'crypto';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { StrowalletProvider } from '../payments/providers/strowallet.provider';
 import { User } from '../users/entities/user.entity';
 import { ConfirmBvnDto } from './dto/confirm-bvn.dto';
@@ -15,6 +15,7 @@ import { CreateSubaccountDto } from './dto/create-subaccount.dto';
 import { VerifyBvnDto } from './dto/verify-bvn.dto';
 import { VerifyNinDto } from './dto/verify-nin.dto';
 import { KycProfile } from './entities/kyc-profile.entity';
+import { AuthUserSyncService } from '../../common/services/auth-user-sync.service';
 
 @Injectable()
 export class KycService {
@@ -25,6 +26,9 @@ export class KycService {
     @InjectRepository(KycProfile)
     private readonly profilesRepository: Repository<KycProfile>,
     private readonly config: ConfigService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
+    private readonly authUserSync: AuthUserSyncService,
   ) {}
 
   async getStatus(userId: string) {
@@ -98,11 +102,40 @@ export class KycService {
       telephoneno: dto.telephoneno.trim(),
     };
     const result = await this.strowalletProvider.verifyNin(normalizedDto);
-    const user = await this.findUser(userId);
-    user.nin = dto.numberNin;
-    user.ninVerifiedAt = new Date();
-    await this.usersRepository.save(user);
-    return { verified: true, data: result };
+    const verifiedAt = new Date();
+
+    // The provider echoes the name back in upper case, so persist the names
+    // that were submitted and verified against it rather than the echo.
+    const user = await this.dataSource.transaction(async (manager) => {
+      const users = manager.getRepository(User);
+      const current = await users.findOneBy({ id: userId });
+
+      if (!current) {
+        throw new NotFoundException('User not found');
+      }
+
+      current.nin = dto.numberNin;
+      current.ninVerifiedAt = verifiedAt;
+      current.firstName = normalizedDto.firstname;
+      current.lastName = normalizedDto.surname;
+      const saved = await users.save(current);
+
+      await this.authUserSync.syncProfile(manager, userId, {
+        firstName: saved.firstName,
+        lastName: saved.lastName,
+        phone: saved.phone,
+      });
+
+      return saved;
+    });
+
+    return {
+      verified: true,
+      verifiedAt,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      data: result,
+    };
   }
 
   async createSubaccount(userId: string, dto: CreateSubaccountDto) {

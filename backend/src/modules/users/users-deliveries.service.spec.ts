@@ -42,6 +42,7 @@ describe('UsersService deliveries', () => {
       {} as never,
       deliveryRepository as never,
       {} as never,
+      {} as never,
     );
 
     await expect(service.listDeliveries('seller-id')).resolves.toEqual({

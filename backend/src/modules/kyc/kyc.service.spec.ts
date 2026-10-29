@@ -12,6 +12,8 @@ describe('KycService', () => {
   };
   let users: { findOneBy: jest.Mock; save: jest.Mock };
   let profiles: { findOneBy: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let dataSource: { transaction: jest.Mock };
+  let authUserSync: { syncProfile: jest.Mock };
   let service: KycService;
   const user = {
     id: 'user-id',
@@ -39,11 +41,19 @@ describe('KycService', () => {
       create: jest.fn((value) => value),
       save: jest.fn(async (value) => value),
     };
+    dataSource = {
+      transaction: jest.fn(async (callback) =>
+        callback({ getRepository: () => users } as never),
+      ),
+    };
+    authUserSync = { syncProfile: jest.fn().mockResolvedValue(undefined) };
     service = new KycService(
       provider as never,
       users as never,
       profiles as never,
       { getOrThrow: jest.fn().mockReturnValue(testSecret) } as never,
+      dataSource as never,
+      authUserSync as never,
     );
   });
 
@@ -51,13 +61,38 @@ describe('KycService', () => {
     provider.verifyNin.mockResolvedValue({ status: true });
     const dto = ninDto();
 
-    await expect(service.verifyNin(user.id, dto)).resolves.toEqual({
-      verified: true,
-      data: { status: true },
-    });
+    await expect(service.verifyNin(user.id, dto)).resolves.toEqual(
+      expect.objectContaining({ verified: true, data: { status: true } }),
+    );
     const saved = users.save.mock.calls[0][0];
     expect(saved.nin).toBe(dto.numberNin);
     expect(saved.ninVerifiedAt).toBeInstanceOf(Date);
+  });
+
+  it('saves the verified name on the profile', async () => {
+    provider.verifyNin.mockResolvedValue({ status: true });
+
+    await service.verifyNin(user.id, {
+      ...ninDto(),
+      firstname: ' Ada ',
+      surname: ' Okafor ',
+    });
+
+    const saved = users.save.mock.calls[0][0];
+    expect(saved.firstName).toBe('Ada');
+    expect(saved.lastName).toBe('Okafor');
+  });
+
+  it('mirrors the verified name onto the better-auth user row', async () => {
+    provider.verifyNin.mockResolvedValue({ status: true });
+
+    await service.verifyNin(user.id, ninDto());
+
+    expect(authUserSync.syncProfile).toHaveBeenCalledWith(
+      expect.anything(),
+      user.id,
+      expect.objectContaining({ firstName: 'Ada', lastName: 'Okafor' }),
+    );
   });
 
   it('trims NIN identity details before sending them to the provider', async () => {

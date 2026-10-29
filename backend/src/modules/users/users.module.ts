@@ -16,6 +16,8 @@ import { Watchlist } from './entities/watchlist.entity';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { UserDisputesService } from './user-disputes.service';
+import { UserProfileService } from './user-profile.service';
+import { AuthUserSyncService } from '../../common/services/auth-user-sync.service';
 
 @Module({
   imports: [
@@ -36,7 +38,12 @@ import { UserDisputesService } from './user-disputes.service';
     NotificationsModule,
   ],
   controllers: [UsersController],
-  providers: [UsersService, UserDisputesService],
+  providers: [
+    UsersService,
+    UserDisputesService,
+    UserProfileService,
+    AuthUserSyncService,
+  ],
   exports: [UsersService],
 })
 export class UsersModule {}
